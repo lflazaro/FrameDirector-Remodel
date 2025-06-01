@@ -1283,3 +1283,140 @@ void MainWindow::keyPressEvent(QKeyEvent* event)
         QMainWindow::keyPressEvent(event);
     }
 }
+
+void MainWindow::importAudio()
+{
+    QString fileName = QFileDialog::getOpenFileName(this,
+        "Import Audio", "",
+        "Audio Files (*.wav *.mp3 *.aac *.ogg *.flac);;All Files (*.*)");
+
+    if (!fileName.isEmpty()) {
+        m_statusLabel->setText(QString("Audio imported: %1").arg(QFileInfo(fileName).fileName()));
+
+        QMessageBox::information(this, "Audio Import",
+            QString("Audio file '%1' imported successfully.\n"
+                "Audio track functionality will be implemented in a future version.")
+            .arg(QFileInfo(fileName).fileName()));
+    }
+}
+
+void MainWindow::nextKeyframe()
+{
+    if (!m_timeline) return;
+
+    int nextFrame = -1;
+
+    for (const auto& frameKeyframes : m_keyframes) {
+        int frameNum = frameKeyframes.first;
+        if (frameNum > m_currentFrame) {
+            if (nextFrame == -1 || frameNum < nextFrame) {
+                nextFrame = frameNum;
+            }
+        }
+    }
+
+    if (nextFrame != -1) {
+        onFrameChanged(nextFrame);
+    }
+    else {
+        lastFrame();
+    }
+
+    m_statusLabel->setText("Jumped to next keyframe");
+}
+
+void MainWindow::previousKeyframe()
+{
+    if (!m_timeline) return;
+
+    int prevFrame = -1;
+
+    for (const auto& frameKeyframes : m_keyframes) {
+        int frameNum = frameKeyframes.first;
+        if (frameNum < m_currentFrame) {
+            if (prevFrame == -1 || frameNum > prevFrame) {
+                prevFrame = frameNum;
+            }
+        }
+    }
+
+    if (prevFrame != -1) {
+        onFrameChanged(prevFrame);
+    }
+    else {
+        firstFrame();
+    }
+
+    m_statusLabel->setText("Jumped to previous keyframe");
+}
+
+void MainWindow::togglePanel(const QString& panelName)
+{
+    QDockWidget* dock = nullptr;
+
+    if (panelName.toLower() == "tools") {
+        dock = m_toolsDock;
+    }
+    else if (panelName.toLower() == "properties") {
+        dock = m_propertiesDock;
+    }
+    else if (panelName.toLower() == "timeline") {
+        dock = m_timelineDock;
+    }
+
+    if (dock) {
+        if (dock->isVisible()) {
+            dock->hide();
+        }
+        else {
+            dock->show();
+            dock->raise();
+        }
+
+        m_statusLabel->setText(QString("%1 panel %2")
+            .arg(panelName)
+            .arg(dock->isVisible() ? "shown" : "hidden"));
+    }
+    else {
+        m_statusLabel->setText(QString("Panel '%1' not found").arg(panelName));
+    }
+}
+
+void MainWindow::updatePlayback()
+{
+    if (m_playAction) {
+        m_playAction->setText(m_isPlaying ? "Pause" : "Play");
+        m_playAction->setToolTip(m_isPlaying ? "Pause animation" : "Play animation");
+    }
+
+    if (m_timeline) {
+        m_timeline->setPlaying(m_isPlaying);
+    }
+
+    if (m_fpsLabel) {
+        m_fpsLabel->setText(QString("FPS: %1").arg(m_frameRate));
+    }
+
+    if (m_frameLabel) {
+        m_frameLabel->setText(QString("Frame: %1 / %2").arg(m_currentFrame).arg(m_totalFrames));
+    }
+
+    if (m_statusLabel) {
+        if (m_isPlaying) {
+            m_statusLabel->setText("Playing animation");
+        }
+        else {
+            m_statusLabel->setText("Animation stopped");
+        }
+    }
+
+    if (m_playbackTimer) {
+        m_playbackTimer->setInterval(1000 / m_frameRate);
+    }
+
+    // Enable/disable frame navigation during playback
+    if (m_nextFrameAction) m_nextFrameAction->setEnabled(!m_isPlaying);
+    if (m_prevFrameAction) m_prevFrameAction->setEnabled(!m_isPlaying);
+    if (m_firstFrameAction) m_firstFrameAction->setEnabled(!m_isPlaying);
+    if (m_lastFrameAction) m_lastFrameAction->setEnabled(!m_isPlaying);
+}

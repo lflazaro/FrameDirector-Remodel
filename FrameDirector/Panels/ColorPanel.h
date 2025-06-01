@@ -18,6 +18,13 @@ class MainWindow;
 class ColorWheel;
 class ColorPreview;
 
+class ColorPreview : public QWidget {
+public:
+    void setColor(const QColor& color) { m_color = color; update(); }
+private:
+    QColor m_color;
+};
+
 class ColorPanel : public QWidget
 {
     Q_OBJECT
@@ -42,11 +49,10 @@ private slots:
     void onResetColors();
 
 private:
+    void updateColorDisplay();
     void setupUI();
     void setupColorSwatches();
     void setupColorControls();
-    void updateColorDisplay();
-
     MainWindow* m_mainWindow;
     QVBoxLayout* m_mainLayout;
 

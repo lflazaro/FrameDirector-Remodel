@@ -750,3 +750,23 @@ void Timeline::onLayerSelectionChanged()
     emit layerSelected(m_selectedLayer);
     update();
 }
+
+void Timeline::resizeEvent(QResizeEvent* event)
+{
+    QWidget::resizeEvent(event);
+    updateLayout();
+
+    if (m_timelineWidget) {
+        int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
+        int totalWidth = m_totalFrames * frameWidth + m_layerPanelWidth + 100;
+        int totalHeight = m_rulerHeight + m_layers.size() * m_layerHeight + 50;
+
+        m_timelineWidget->setMinimumSize(totalWidth, totalHeight);
+    }
+
+    if (m_scrollArea) {
+        m_scrollArea->updateGeometry();
+    }
+
+    update();
+}

@@ -145,3 +145,56 @@ void ColorPanel::onFillColorClicked()
         emit fillColorChanged(color);
     }
 }
+
+void ColorPanel::onColorChanged(const QColor& color)
+{
+    if (m_updating) return;
+
+    m_updating = true;
+    m_currentColor = color;
+
+    // Update RGB controls if they exist
+    if (m_redSlider && m_greenSlider && m_blueSlider && m_alphaSlider) {
+        m_redSlider->setValue(color.red());
+        m_greenSlider->setValue(color.green());
+        m_blueSlider->setValue(color.blue());
+        m_alphaSlider->setValue(color.alpha());
+    }
+
+    if (m_redSpinBox && m_greenSpinBox && m_blueSpinBox && m_alphaSpinBox) {
+        m_redSpinBox->setValue(color.red());
+        m_greenSpinBox->setValue(color.green());
+        m_blueSpinBox->setValue(color.blue());
+        m_alphaSpinBox->setValue(color.alpha());
+    }
+
+    updateColorDisplay();
+    m_updating = false;
+}
+
+void ColorPanel::onSwapColors()
+{
+    QColor tempColor = m_strokeColor;
+    setStrokeColor(m_fillColor);
+    setFillColor(tempColor);
+
+    emit strokeColorChanged(m_strokeColor);
+    emit fillColorChanged(m_fillColor);
+}
+
+void ColorPanel::onResetColors()
+{
+    setStrokeColor(Qt::black);
+    setFillColor(Qt::white);
+
+    emit strokeColorChanged(m_strokeColor);
+    emit fillColorChanged(m_fillColor);
+}
+
+void ColorPanel::updateColorDisplay()
+{
+	// Update the color preview display if it exists
+	if (m_colorPreview) {
+		m_colorPreview->setColor(m_currentColor);
+	}
+}
