@@ -1,0 +1,139 @@
+// Commands/UndoCommands.h
+#ifndef UNDOCOMMANDS_H
+#define UNDOCOMMANDS_H
+
+#include <QUndoCommand>
+#include <QGraphicsItem>
+#include <QPointF>
+#include <QList>
+#include <memory>
+
+class Canvas;
+
+// Base command for graphics items
+class GraphicsItemCommand : public QUndoCommand
+{
+public:
+    explicit GraphicsItemCommand(Canvas* canvas, QUndoCommand* parent = nullptr);
+
+protected:
+    Canvas* m_canvas;
+};
+
+// Move command
+class MoveCommand : public GraphicsItemCommand
+{
+public:
+    MoveCommand(Canvas* canvas, const QList<QGraphicsItem*>& items,
+        const QPointF& delta, QUndoCommand* parent = nullptr);
+
+    void undo() override;
+    void redo() override;
+    bool mergeWith(const QUndoCommand* other) override;
+    int id() const override { return 1; }
+
+private:
+    QList<QGraphicsItem*> m_items;
+    QPointF m_delta;
+    bool m_firstTime;
+};
+
+// Add item command
+class AddItemCommand : public GraphicsItemCommand
+{
+public:
+    AddItemCommand(Canvas* canvas, QGraphicsItem* item, QUndoCommand* parent = nullptr);
+    ~AddItemCommand();
+
+    void undo() override;
+    void redo() override;
+
+private:
+    QGraphicsItem* m_item;
+    bool m_itemAdded;
+};
+
+// Remove item command
+class RemoveItemCommand : public GraphicsItemCommand
+{
+public:
+    RemoveItemCommand(Canvas* canvas, const QList<QGraphicsItem*>& items,
+        QUndoCommand* parent = nullptr);
+    ~RemoveItemCommand();
+
+    void undo() override;
+    void redo() override;
+
+private:
+    QList<QGraphicsItem*> m_items;
+    bool m_itemsRemoved;
+};
+
+// Transform command (rotate, scale)
+class TransformCommand : public GraphicsItemCommand
+{
+public:
+    TransformCommand(Canvas* canvas, QGraphicsItem* item,
+        const QTransform& oldTransform, const QTransform& newTransform,
+        QUndoCommand* parent = nullptr);
+
+    void undo() override;
+    void redo() override;
+
+private:
+    QGraphicsItem* m_item;
+    QTransform m_oldTransform;
+    QTransform m_newTransform;
+};
+
+// Style change command
+class StyleChangeCommand : public GraphicsItemCommand
+{
+public:
+    StyleChangeCommand(Canvas* canvas, QGraphicsItem* item,
+        const QString& property, const QVariant& oldValue,
+        const QVariant& newValue, QUndoCommand* parent = nullptr);
+
+    void undo() override;
+    void redo() override;
+
+private:
+    QGraphicsItem* m_item;
+    QString m_property;
+    QVariant m_oldValue;
+    QVariant m_newValue;
+};
+
+// Group/Ungroup commands
+class GroupCommand : public GraphicsItemCommand
+{
+public:
+    GroupCommand(Canvas* canvas, const QList<QGraphicsItem*>& items,
+        QUndoCommand* parent = nullptr);
+    ~GroupCommand();
+
+    void undo() override;
+    void redo() override;
+
+private:
+    QList<QGraphicsItem*> m_items;
+    QGraphicsItemGroup* m_group;
+    bool m_grouped;
+};
+
+class UngroupCommand : public GraphicsItemCommand
+{
+public:
+    UngroupCommand(Canvas* canvas, QGraphicsItemGroup* group,
+        QUndoCommand* parent = nullptr);
+
+    void undo() override;
+    void redo() override;
+
+private:
+    QGraphicsItemGroup* m_group;
+    QList<QGraphicsItem*> m_items;
+    bool m_ungrouped;
+};
+
+#endif // UNDOCOMMANDS_H

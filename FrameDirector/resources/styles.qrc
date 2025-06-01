@@ -1,0 +1,7 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="/styles">
+        <!-- Main Dark Theme Stylesheet -->
+        <file>styles/dark-theme.qss</file>
+    </qresource>
+</RCC>

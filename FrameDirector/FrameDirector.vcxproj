@@ -1,0 +1,220 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{FDF8B91B-F2F2-4014-B3AF-7298F6611DC3}</ProjectGuid>
+    <Keyword>QtVS_v304</Keyword>
+    <WindowsTargetPlatformVersion Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">10.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">10.0</WindowsTargetPlatformVersion>
+    <QtMsBuild Condition="'$(QtMsBuild)'=='' OR !Exists('$(QtMsBuild)\qt.targets')">$(MSBuildProjectDirectory)\QtMsBuild</QtMsBuild>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Condition="Exists('$(QtMsBuild)\qt_defaults.props')">
+    <Import Project="$(QtMsBuild)\qt_defaults.props" />
+  </ImportGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="QtSettings">
+    <QtInstall>6.9.0_msvc2022_64</QtInstall>
+    <QtModules>core;gui;widgets;svg;svgwidgets</QtModules>
+    <QtBuildConfig>debug</QtBuildConfig>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'" Label="QtSettings">
+    <QtInstall>6.9.0_msvc2022_64</QtInstall>
+    <QtModules>core</QtModules>
+    <QtBuildConfig>release</QtBuildConfig>
+  </PropertyGroup>
+  <Target Name="QtMsBuildNotFound" BeforeTargets="CustomBuild;ClCompile" Condition="!Exists('$(QtMsBuild)\qt.targets') or !Exists('$(QtMsBuild)\qt.props')">
+    <Message Importance="High" Text="QtMsBuild: could not locate qt.targets, qt.props; project may not build correctly." />
+  </Target>
+  <ImportGroup Label="ExtensionSettings" />
+  <ImportGroup Label="Shared" />
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(QtMsBuild)\Qt.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(QtMsBuild)\Qt.props" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="Configuration">
+    <ClCompile>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'" Label="Configuration">
+    <ClCompile>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="Animation\AnimationController.cpp" />
+    <ClCompile Include="Animation\AnimationKeyframe.cpp" />
+    <ClCompile Include="Animation\AnimationLayer.cpp" />
+    <ClCompile Include="Canvas.cpp" />
+    <ClCompile Include="Commands\UndoCommands.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="MainWindow.cpp" />
+    <ClCompile Include="Panels\AlignmentPanel.cpp" />
+    <ClCompile Include="Panels\ColorPanel.cpp" />
+    <ClCompile Include="Panels\LayerManager.cpp" />
+    <ClCompile Include="Panels\PropertiesPanel.cpp" />
+    <ClCompile Include="Panels\ToolsPanel.cpp" />
+    <ClCompile Include="Timeline.cpp" />
+    <ClCompile Include="Tools\DrawingTool.cpp" />
+    <ClCompile Include="Tools\EllipseTool.cpp" />
+    <ClCompile Include="Tools\LineTool.cpp" />
+    <ClCompile Include="Tools\RectangleTool.cpp" />
+    <ClCompile Include="Tools\SelectionTool.cpp" />
+    <ClCompile Include="Tools\TextTool.cpp" />
+    <ClCompile Include="Tools\Tool.cpp" />
+    <ClCompile Include="VectorGraphics\VectorGraphicsItem.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <QtMoc Include="Canvas.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <QtMoc Include="MainWindow.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <QtMoc Include="Timeline.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <QtMoc Include="Panels\AlignmentPanel.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <QtMoc Include="Panels\ColorPanel.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <QtMoc Include="Panels\LayerManager.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <QtMoc Include="Panels\PropertiesPanel.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <QtMoc Include="Panels\ToolsPanel.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <QtMoc Include="Animation\AnimationController.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Animation\AnimationKeyframe.h" />
+    <ClInclude Include="Animation\AnimationLayer.h" />
+    <ClInclude Include="Commands\UndoCommands.h" />
+    <ClInclude Include="VectorGraphics\VectorGraphicsItem.h" />
+    <QtMoc Include="Tools\Tool.h" />
+    <QtMoc Include="Tools\TextTool.h" />
+    <QtMoc Include="Tools\SelectionTool.h" />
+    <QtMoc Include="Tools\RectangleTool.h" />
+    <QtMoc Include="Tools\LineTool.h" />
+    <QtMoc Include="Tools\EllipseTool.h" />
+    <QtMoc Include="Tools\DrawingTool.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="resources\icons\arrow-right.png" />
+    <Image Include="resources\icons\branch-closed.png" />
+    <Image Include="resources\icons\branch-open.png" />
+    <Image Include="resources\icons\check.png" />
+    <Image Include="resources\icons\close.png" />
+    <Image Include="resources\icons\Copy.png" />
+    <Image Include="resources\icons\Cut.png" />
+    <Image Include="resources\icons\delete.png" />
+    <Image Include="resources\icons\down-arrow.png" />
+    <Image Include="resources\icons\dropdown.png" />
+    <Image Include="resources\icons\exit.png" />
+    <Image Include="resources\icons\export.png" />
+    <Image Include="resources\icons\float.png" />
+    <Image Include="resources\icons\FrameDirector.ico" />
+    <Image Include="resources\icons\FrameDirector.png" />
+    <Image Include="resources\icons\fullscreen.png" />
+    <Image Include="resources\icons\Grid.png" />
+    <Image Include="resources\icons\group.png" />
+    <Image Include="resources\icons\guides.png" />
+    <Image Include="resources\icons\import.png" />
+    <Image Include="resources\icons\new.png" />
+    <Image Include="resources\icons\open.png" />
+    <Image Include="resources\icons\Paste.png" />
+    <Image Include="resources\icons\pause.png" />
+    <Image Include="resources\icons\Play.png" />
+    <Image Include="resources\icons\recent.png" />
+    <Image Include="resources\icons\redo.png" />
+    <Image Include="resources\icons\rulers.png" />
+    <Image Include="resources\icons\save-as.png" />
+    <Image Include="resources\icons\save.png" />
+    <Image Include="resources\icons\select-all.png" />
+    <Image Include="resources\icons\snap.png" />
+    <Image Include="resources\icons\splash.png" />
+    <Image Include="resources\icons\stop.png" />
+    <Image Include="resources\icons\tool-bucket.png" />
+    <Image Include="resources\icons\tool-draw.png" />
+    <Image Include="resources\icons\tool-ellipse.png" />
+    <Image Include="resources\icons\tool-eraser.png" />
+    <Image Include="resources\icons\tool-eyedropper.png" />
+    <Image Include="resources\icons\tool-hand.png" />
+    <Image Include="resources\icons\tool-line.png" />
+    <Image Include="resources\icons\tool-rectangle.png" />
+    <Image Include="resources\icons\tool-select.png" />
+    <Image Include="resources\icons\tool-text.png" />
+    <Image Include="resources\icons\tool-zoom.png" />
+    <Image Include="resources\icons\undo.png" />
+    <Image Include="resources\icons\ungroup.png" />
+    <Image Include="resources\icons\up-arrow.png" />
+    <Image Include="resources\icons\zoom-100.png" />
+    <Image Include="resources\icons\zoom-fit.png" />
+    <Image Include="resources\icons\zoom-in.png" />
+    <Image Include="resources\icons\zoom-out.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="resources\styles\dark-theme.qss" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Condition="Exists('$(QtMsBuild)\qt.targets')">
+    <Import Project="$(QtMsBuild)\qt.targets" />
+  </ImportGroup>
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

@@ -1,0 +1,70 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="/icons">
+        <!-- Application Icons -->
+        <file>icons/framedirector.png</file>
+        <file>icons/framedirector.ico</file>
+        <file>icons/splash.png</file>
+
+        <!-- UI Control Icons (16x16) -->
+        <file>icons/check.png</file>
+        <file>icons/arrow-right.png</file>
+        <file>icons/close.png</file>
+        <file>icons/float.png</file>
+        <file>icons/dropdown.png</file>
+        <file>icons/up-arrow.png</file>
+        <file>icons/down-arrow.png</file>
+        <file>icons/branch-closed.png</file>
+        <file>icons/branch-open.png</file>
+
+        <!-- File Operation Icons (24x24) -->
+        <file>icons/new.png</file>
+        <file>icons/open.png</file>
+        <file>icons/save.png</file>
+        <file>icons/save-as.png</file>
+        <file>icons/import.png</file>
+        <file>icons/export.png</file>
+        <file>icons/recent.png</file>
+        <file>icons/exit.png</file>
+
+        <!-- Edit Operation Icons (24x24) -->
+        <file>icons/undo.png</file>
+        <file>icons/redo.png</file>
+        <file>icons/cut.png</file>
+        <file>icons/copy.png</file>
+        <file>icons/paste.png</file>
+        <file>icons/select-all.png</file>
+        <file>icons/group.png</file>
+        <file>icons/ungroup.png</file>
+        <file>icons/delete.png</file>
+
+        <!-- Tool Icons (32x32) -->
+        <file>icons/tool-select.png</file>
+        <file>icons/tool-draw.png</file>
+        <file>icons/tool-line.png</file>
+        <file>icons/tool-rectangle.png</file>
+        <file>icons/tool-ellipse.png</file>
+        <file>icons/tool-text.png</file>
+        <file>icons/tool-bucket.png</file>
+        <file>icons/tool-eraser.png</file>
+        <file>icons/tool-eyedropper.png</file>
+        <file>icons/tool-zoom.png</file>
+        <file>icons/tool-hand.png</file>
+
+        <!-- View Operation Icons (24x24) -->
+        <file>icons/zoom-in.png</file>
+        <file>icons/zoom-out.png</file>
+        <file>icons/zoom-fit.png</file>
+        <file>icons/zoom-100.png</file>
+        <file>icons/grid.png</file>
+        <file>icons/snap.png</file>
+        <file>icons/rulers.png</file>
+        <file>icons/guides.png</file>
+        <file>icons/fullscreen.png</file>
+
+        <!-- Animation Control Icons (24x24) -->
+        <file>icons/play.png</file>
+        <file>icons/pause.png</file>
+        <file>icons/stop.png</file>
+    </qresource>
+</RCC>

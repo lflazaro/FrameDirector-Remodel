@@ -1,0 +1,332 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>qml;cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>qrc;rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Form Files">
+      <UniqueIdentifier>{99349809-55BA-4b9d-BF79-8FDBB0286EB3}</UniqueIdentifier>
+      <Extensions>ui</Extensions>
+    </Filter>
+    <Filter Include="Translation Files">
+      <UniqueIdentifier>{639EADAA-A684-42e4-A9AD-28FC9BCB8F7C}</UniqueIdentifier>
+      <Extensions>ts</Extensions>
+    </Filter>
+    <Filter Include="Panels">
+      <UniqueIdentifier>{f719a4b5-3991-4870-a522-6ca3a942f194}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Animation">
+      <UniqueIdentifier>{0276a480-9257-4c21-9c6f-d506220ffab4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Commands">
+      <UniqueIdentifier>{0b57f69c-732c-4e2b-9d96-b9112d40ccc8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Tools">
+      <UniqueIdentifier>{aa1a5f76-3a34-4287-acc8-3f2d85b7403e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="VectorGraphics">
+      <UniqueIdentifier>{9e7fde60-8ffd-4eae-b372-825c04b8e1a9}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Canvas.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="MainWindow.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Timeline.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Panels\AlignmentPanel.cpp">
+      <Filter>Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="Panels\ColorPanel.cpp">
+      <Filter>Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="Panels\LayerManager.cpp">
+      <Filter>Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="Panels\PropertiesPanel.cpp">
+      <Filter>Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="Panels\ToolsPanel.cpp">
+      <Filter>Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="Animation\AnimationController.cpp">
+      <Filter>Animation</Filter>
+    </ClCompile>
+    <ClCompile Include="Animation\AnimationKeyframe.cpp">
+      <Filter>Animation</Filter>
+    </ClCompile>
+    <ClCompile Include="Animation\AnimationLayer.cpp">
+      <Filter>Animation</Filter>
+    </ClCompile>
+    <ClCompile Include="Commands\UndoCommands.cpp">
+      <Filter>Commands</Filter>
+    </ClCompile>
+    <ClCompile Include="Tools\DrawingTool.cpp">
+      <Filter>Tools</Filter>
+    </ClCompile>
+    <ClCompile Include="Tools\EllipseTool.cpp">
+      <Filter>Tools</Filter>
+    </ClCompile>
+    <ClCompile Include="Tools\LineTool.cpp">
+      <Filter>Tools</Filter>
+    </ClCompile>
+    <ClCompile Include="Tools\RectangleTool.cpp">
+      <Filter>Tools</Filter>
+    </ClCompile>
+    <ClCompile Include="Tools\SelectionTool.cpp">
+      <Filter>Tools</Filter>
+    </ClCompile>
+    <ClCompile Include="Tools\TextTool.cpp">
+      <Filter>Tools</Filter>
+    </ClCompile>
+    <ClCompile Include="Tools\Tool.cpp">
+      <Filter>Tools</Filter>
+    </ClCompile>
+    <ClCompile Include="VectorGraphics\VectorGraphicsItem.cpp">
+      <Filter>VectorGraphics</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <QtMoc Include="Canvas.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="MainWindow.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="Timeline.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="Panels\AlignmentPanel.h">
+      <Filter>Panels</Filter>
+    </QtMoc>
+    <QtMoc Include="Panels\ColorPanel.h">
+      <Filter>Panels</Filter>
+    </QtMoc>
+    <QtMoc Include="Panels\LayerManager.h">
+      <Filter>Panels</Filter>
+    </QtMoc>
+    <QtMoc Include="Panels\PropertiesPanel.h">
+      <Filter>Panels</Filter>
+    </QtMoc>
+    <QtMoc Include="Panels\ToolsPanel.h">
+      <Filter>Panels</Filter>
+    </QtMoc>
+    <QtMoc Include="Animation\AnimationController.h">
+      <Filter>Animation</Filter>
+    </QtMoc>
+    <QtMoc Include="Tools\DrawingTool.h">
+      <Filter>Tools</Filter>
+    </QtMoc>
+    <QtMoc Include="Tools\EllipseTool.h">
+      <Filter>Tools</Filter>
+    </QtMoc>
+    <QtMoc Include="Tools\LineTool.h">
+      <Filter>Tools</Filter>
+    </QtMoc>
+    <QtMoc Include="Tools\RectangleTool.h">
+      <Filter>Tools</Filter>
+    </QtMoc>
+    <QtMoc Include="Tools\SelectionTool.h">
+      <Filter>Tools</Filter>
+    </QtMoc>
+    <QtMoc Include="Tools\TextTool.h">
+      <Filter>Tools</Filter>
+    </QtMoc>
+    <QtMoc Include="Tools\Tool.h">
+      <Filter>Tools</Filter>
+    </QtMoc>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Animation\AnimationKeyframe.h">
+      <Filter>Animation</Filter>
+    </ClInclude>
+    <ClInclude Include="Animation\AnimationLayer.h">
+      <Filter>Animation</Filter>
+    </ClInclude>
+    <ClInclude Include="Commands\UndoCommands.h">
+      <Filter>Commands</Filter>
+    </ClInclude>
+    <ClInclude Include="VectorGraphics\VectorGraphicsItem.h">
+      <Filter>VectorGraphics</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="resources\icons\arrow-right.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\branch-closed.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\branch-open.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\check.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\close.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\Copy.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\Cut.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\delete.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\down-arrow.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\dropdown.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\exit.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\export.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\float.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\FrameDirector.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\FrameDirector.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\fullscreen.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\Grid.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\group.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\guides.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\import.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\new.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\open.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\Paste.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\pause.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\Play.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\recent.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\redo.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\rulers.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\save.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\save-as.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\select-all.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\snap.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\splash.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\stop.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\tool-bucket.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\tool-draw.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\tool-ellipse.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\tool-eraser.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\tool-eyedropper.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\tool-hand.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\tool-line.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\tool-rectangle.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\tool-select.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\tool-text.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\tool-zoom.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\undo.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\ungroup.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\up-arrow.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\zoom-100.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\zoom-fit.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\zoom-in.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\zoom-out.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="resources\styles\dark-theme.qss">
+      <Filter>Resource Files</Filter>
+    </None>
+  </ItemGroup>
+</Project>
