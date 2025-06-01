@@ -221,6 +221,12 @@ private:
     void setupTools();
     void activateTool(ToolType tool);
     Tool* getCurrentTool() const;
+    void connectToolsAndCanvas();        // <-- ADD THIS
+    void setupColorConnections();        // <-- ADD THIS
+    void createTestShape();              // <-- ADD THIS
+    void updateSelectedItemsStroke(const QColor& color);
+    void updateSelectedItemsFill(const QColor& color);
+
 
     // Animation helpers
     void createKeyframeAtCurrentFrame();

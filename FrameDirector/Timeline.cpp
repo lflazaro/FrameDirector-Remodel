@@ -20,6 +20,106 @@
 #include <QApplication>
 #include <QStyle>
 
+// TimelineDrawingArea implementation
+TimelineDrawingArea::TimelineDrawingArea(QWidget* parent)
+    : QWidget(parent), m_timeline(nullptr)
+{
+    setMouseTracking(true);
+    setFocusPolicy(Qt::StrongFocus);
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    setMinimumSize(800, 200);
+}
+
+void TimelineDrawingArea::paintEvent(QPaintEvent* event)
+{
+    if (!m_timeline) return;
+
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing, false);
+
+    QRect rect = event->rect();
+
+    // Draw all timeline components
+    m_timeline->drawTimelineBackground(&painter, rect);
+    m_timeline->drawFrameRuler(&painter, rect);
+    m_timeline->drawLayers(&painter, rect);
+    m_timeline->drawKeyframes(&painter, rect);
+    m_timeline->drawPlayhead(&painter, rect);
+    m_timeline->drawSelection(&painter, rect);
+}
+
+void TimelineDrawingArea::mousePressEvent(QMouseEvent* event)
+{
+    if (!m_timeline) return;
+
+    int mouseX = event->position().toPoint().x();
+    int mouseY = event->position().toPoint().y();
+
+    if (event->button() == Qt::LeftButton) {
+        int frame = m_timeline->getFrameFromX(mouseX);
+        int layer = m_timeline->getLayerFromY(mouseY);
+
+        if (mouseX > m_timeline->getDrawingAreaRect().left() &&
+            mouseY > m_timeline->getDrawingAreaRect().top()) {
+
+            if (event->modifiers() & Qt::ControlModifier) {
+                // Add/remove keyframe
+                if (m_timeline->hasKeyframe(layer, frame)) {
+                    m_timeline->removeKeyframe(layer, frame);
+                }
+                else {
+                    m_timeline->addKeyframe(layer, frame);
+                }
+            }
+            else {
+                // Set current frame
+                m_timeline->setCurrentFrame(frame);
+                emit m_timeline->layerSelected(layer);
+            }
+        }
+    }
+
+    update();
+}
+
+void TimelineDrawingArea::mouseMoveEvent(QMouseEvent* event)
+{
+    if (!m_timeline) return;
+
+    int mouseX = event->position().toPoint().x();
+
+    if (event->buttons() & Qt::LeftButton &&
+        mouseX > m_timeline->getDrawingAreaRect().left()) {
+        int frame = m_timeline->getFrameFromX(mouseX);
+        m_timeline->setCurrentFrame(frame);
+    }
+
+    update();
+}
+
+void TimelineDrawingArea::mouseReleaseEvent(QMouseEvent* event)
+{
+    // Handle mouse release
+    update();
+}
+
+void TimelineDrawingArea::wheelEvent(QWheelEvent* event)
+{
+    if (!m_timeline) return;
+
+    if (event->modifiers() & Qt::ControlModifier) {
+        // Zoom
+        double delta = event->angleDelta().y() / 120.0;
+        double newZoom = m_timeline->getZoomLevel() * (1.0 + delta * 0.1);
+        m_timeline->setZoomLevel(qBound(0.5, newZoom, 3.0));
+    }
+    else {
+        // Scroll
+        QWidget::wheelEvent(event);
+    }
+}
+
+// Timeline implementation
 Timeline::Timeline(MainWindow* parent)
     : QWidget(parent)
     , m_mainWindow(parent)
@@ -31,24 +131,24 @@ Timeline::Timeline(MainWindow* parent)
     , m_scrollX(0)
     , m_scrollY(0)
     , m_frameWidth(12)
-    , m_layerHeight(20)
-    , m_rulerHeight(30)
+    , m_layerHeight(22)
+    , m_rulerHeight(32)
     , m_layerPanelWidth(120)
     , m_dragging(false)
     , m_selectedLayer(-1)
 {
-    // Initialize colors
-    m_backgroundColor = QColor(45, 45, 48);
-    m_frameColor = QColor(60, 60, 63);
-    m_keyframeColor = QColor(255, 140, 0);
-    m_selectedKeyframeColor = QColor(255, 200, 100);
-    m_playheadColor = QColor(255, 0, 0);
-    m_rulerColor = QColor(80, 80, 85);
-    m_layerColor = QColor(62, 62, 66);
-    m_alternateLayerColor = QColor(70, 70, 75);
+    // Initialize colors (Flash-like dark theme)
+    m_backgroundColor = QColor(32, 32, 32);           // Dark gray background
+    m_frameColor = QColor(48, 48, 48);                // Slightly lighter frame areas
+    m_keyframeColor = QColor(255, 165, 0);            // Orange keyframes like Flash
+    m_selectedKeyframeColor = QColor(255, 200, 100);  // Light orange for selected
+    m_playheadColor = QColor(255, 0, 0);              // Red playhead
+    m_rulerColor = QColor(64, 64, 64);                // Dark ruler background
+    m_layerColor = QColor(42, 42, 42);                // Layer background
+    m_alternateLayerColor = QColor(38, 38, 38);       // Alternate layer color
 
     setupUI();
-    setMinimumHeight(150);
+    setMinimumHeight(200);
     setMaximumHeight(400);
 
     // Connect signals
@@ -83,7 +183,16 @@ void Timeline::setupUI()
     QVBoxLayout* layerPanelLayout = new QVBoxLayout;
 
     QLabel* layersLabel = new QLabel("Layers");
-    layersLabel->setStyleSheet("background-color: #3E3E42; color: white; padding: 4px; font-weight: bold;");
+    layersLabel->setStyleSheet(
+        "QLabel {"
+        "    background-color: #404040;"
+        "    color: #FFFFFF;"
+        "    padding: 6px;"
+        "    font-weight: bold;"
+        "    font-size: 11px;"
+        "    border-bottom: 1px solid #555555;"
+        "}"
+    );
     layersLabel->setAlignment(Qt::AlignCenter);
     layerPanelLayout->addWidget(layersLabel);
 
@@ -92,27 +201,58 @@ void Timeline::setupUI()
     m_layerList->setMinimumWidth(m_layerPanelWidth);
     m_layerList->setStyleSheet(
         "QListWidget {"
-        "    background-color: #2D2D30;"
-        "    color: white;"
-        "    border: 1px solid #5A5A5C;"
-        "    selection-background-color: #007ACC;"
+        "    background-color: #2A2A2A;"
+        "    color: #FFFFFF;"
+        "    border: none;"
+        "    border-right: 1px solid #555555;"
+        "    selection-background-color: #4A90E2;"
+        "    font-size: 11px;"
         "}"
         "QListWidget::item {"
-        "    padding: 4px;"
-        "    border-bottom: 1px solid #3E3E42;"
+        "    padding: 4px 8px;"
+        "    border-bottom: 1px solid #353535;"
+        "    min-height: 18px;"
         "}"
         "QListWidget::item:selected {"
-        "    background-color: #007ACC;"
+        "    background-color: #4A90E2;"
+        "    color: #FFFFFF;"
+        "}"
+        "QListWidget::item:hover {"
+        "    background-color: #383838;"
         "}"
     );
     layerPanelLayout->addWidget(m_layerList);
 
     // Layer buttons
     QHBoxLayout* layerButtonsLayout = new QHBoxLayout;
+    layerButtonsLayout->setContentsMargins(4, 4, 4, 4);
+
     m_addLayerButton = new QPushButton("+");
     m_removeLayerButton = new QPushButton("-");
-    m_addLayerButton->setMaximumSize(30, 20);
-    m_removeLayerButton->setMaximumSize(30, 20);
+
+    QString layerButtonStyle =
+        "QPushButton {"
+        "    background-color: #404040;"
+        "    color: #FFFFFF;"
+        "    border: 1px solid #555555;"
+        "    border-radius: 2px;"
+        "    padding: 2px 6px;"
+        "    font-weight: bold;"
+        "    font-size: 12px;"
+        "    min-width: 20px;"
+        "    max-width: 30px;"
+        "    min-height: 18px;"
+        "    max-height: 18px;"
+        "}"
+        "QPushButton:hover {"
+        "    background-color: #4A4A4A;"
+        "}"
+        "QPushButton:pressed {"
+        "    background-color: #353535;"
+        "}";
+
+    m_addLayerButton->setStyleSheet(layerButtonStyle);
+    m_removeLayerButton->setStyleSheet(layerButtonStyle);
 
     layerButtonsLayout->addWidget(m_addLayerButton);
     layerButtonsLayout->addWidget(m_removeLayerButton);
@@ -122,25 +262,52 @@ void Timeline::setupUI()
     QWidget* layerPanel = new QWidget;
     layerPanel->setLayout(layerPanelLayout);
     layerPanel->setMaximumWidth(m_layerPanelWidth);
-    layerPanel->setStyleSheet("background-color: #3E3E42;");
+    layerPanel->setStyleSheet("background-color: #2A2A2A; border-right: 1px solid #555555;");
 
     timelineLayout->addWidget(layerPanel);
 
-    // Timeline widget (custom painted)
-    m_timelineWidget = new QWidget;
-    m_timelineWidget->setMinimumSize(800, 100);
-    m_timelineWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    // Timeline drawing area
+    m_drawingArea = new TimelineDrawingArea;
+    m_drawingArea->setTimeline(this);
+    m_drawingArea->setStyleSheet("background-color: #202020;");
 
     // Scroll area for timeline
     m_scrollArea = new QScrollArea;
-    m_scrollArea->setWidget(m_timelineWidget);
+    m_scrollArea->setWidget(m_drawingArea);
     m_scrollArea->setWidgetResizable(true);
     m_scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_scrollArea->setStyleSheet(
         "QScrollArea {"
-        "    background-color: #2D2D30;"
-        "    border: 1px solid #5A5A5C;"
+        "    background-color: #202020;"
+        "    border: none;"
+        "    border-left: 1px solid #555555;"
+        "}"
+        "QScrollBar:horizontal {"
+        "    background-color: #303030;"
+        "    height: 15px;"
+        "    border: none;"
+        "}"
+        "QScrollBar::handle:horizontal {"
+        "    background-color: #606060;"
+        "    border-radius: 2px;"
+        "    min-width: 20px;"
+        "}"
+        "QScrollBar::handle:horizontal:hover {"
+        "    background-color: #707070;"
+        "}"
+        "QScrollBar:vertical {"
+        "    background-color: #303030;"
+        "    width: 15px;"
+        "    border: none;"
+        "}"
+        "QScrollBar::handle:vertical {"
+        "    background-color: #606060;"
+        "    border-radius: 2px;"
+        "    min-height: 20px;"
+        "}"
+        "QScrollBar::handle:vertical:hover {"
+        "    background-color: #707070;"
         "}"
     );
 
@@ -161,12 +328,15 @@ void Timeline::setupUI()
 
     // Add default layer
     addLayer("Layer 1");
+
+    updateLayout();
 }
 
 void Timeline::setupControls()
 {
     m_controlsLayout = new QHBoxLayout;
-    m_controlsLayout->setContentsMargins(4, 4, 4, 4);
+    m_controlsLayout->setContentsMargins(6, 4, 6, 4);
+    m_controlsLayout->setSpacing(6);
 
     // Playback controls
     m_firstFrameButton = new QPushButton("⏮");
@@ -176,20 +346,29 @@ void Timeline::setupControls()
     m_nextFrameButton = new QPushButton("⏩");
     m_lastFrameButton = new QPushButton("⏭");
 
-    // Style buttons
+    // Style buttons with Flash-like appearance
     QString buttonStyle =
         "QPushButton {"
-        "    background-color: #3E3E42;"
-        "    color: white;"
-        "    border: 1px solid #5A5A5C;"
+        "    background-color: #404040;"
+        "    color: #FFFFFF;"
+        "    border: 1px solid #555555;"
+        "    border-radius: 3px;"
         "    padding: 4px 8px;"
-        "    font-size: 12px;"
+        "    font-size: 11px;"
+        "    font-weight: bold;"
+        "    min-width: 28px;"
+        "    min-height: 22px;"
         "}"
         "QPushButton:hover {"
-        "    background-color: #4A4A4F;"
+        "    background-color: #4A4A4A;"
+        "    border: 1px solid #4A90E2;"
         "}"
         "QPushButton:pressed {"
-        "    background-color: #007ACC;"
+        "    background-color: #353535;"
+        "}"
+        "QPushButton:checked {"
+        "    background-color: #4A90E2;"
+        "    border: 1px solid #6AA8F0;"
         "}";
 
     m_firstFrameButton->setStyleSheet(buttonStyle);
@@ -206,52 +385,77 @@ void Timeline::setupControls()
     m_controlsLayout->addWidget(m_nextFrameButton);
     m_controlsLayout->addWidget(m_lastFrameButton);
 
-    m_controlsLayout->addSpacing(10);
+    m_controlsLayout->addSpacing(15);
 
     // Frame controls
     m_frameLabel = new QLabel("Frame:");
-    m_frameLabel->setStyleSheet("color: white;");
+    m_frameLabel->setStyleSheet("color: #CCCCCC; font-size: 11px; font-weight: bold;");
+
     m_frameSpinBox = new QSpinBox;
     m_frameSpinBox->setRange(1, m_totalFrames);
     m_frameSpinBox->setValue(m_currentFrame);
     m_frameSpinBox->setStyleSheet(
         "QSpinBox {"
-        "    background-color: #2D2D30;"
-        "    color: white;"
-        "    border: 1px solid #5A5A5C;"
-        "    padding: 2px;"
+        "    background-color: #353535;"
+        "    color: #FFFFFF;"
+        "    border: 1px solid #555555;"
+        "    border-radius: 2px;"
+        "    padding: 2px 4px;"
+        "    font-size: 11px;"
+        "    min-width: 40px;"
+        "    max-width: 60px;"
+        "}"
+        "QSpinBox::up-button, QSpinBox::down-button {"
+        "    background-color: #404040;"
+        "    border: 1px solid #555555;"
+        "    width: 12px;"
+        "}"
+        "QSpinBox::up-button:hover, QSpinBox::down-button:hover {"
+        "    background-color: #4A4A4A;"
         "}"
     );
 
     m_totalFramesLabel = new QLabel(QString("/ %1").arg(m_totalFrames));
-    m_totalFramesLabel->setStyleSheet("color: #CCCCCC;");
+    m_totalFramesLabel->setStyleSheet("color: #999999; font-size: 11px;");
 
     m_controlsLayout->addWidget(m_frameLabel);
     m_controlsLayout->addWidget(m_frameSpinBox);
     m_controlsLayout->addWidget(m_totalFramesLabel);
 
-    m_controlsLayout->addSpacing(10);
+    m_controlsLayout->addSpacing(15);
 
     // Frame rate
     QLabel* fpsLabel = new QLabel("FPS:");
-    fpsLabel->setStyleSheet("color: white;");
+    fpsLabel->setStyleSheet("color: #CCCCCC; font-size: 11px; font-weight: bold;");
+
     m_frameRateCombo = new QComboBox;
     m_frameRateCombo->addItems({ "12", "15", "24", "30", "60" });
     m_frameRateCombo->setCurrentText("24");
     m_frameRateCombo->setStyleSheet(
         "QComboBox {"
-        "    background-color: #3E3E42;"
-        "    color: white;"
-        "    border: 1px solid #5A5A5C;"
-        "    padding: 2px;"
+        "    background-color: #353535;"
+        "    color: #FFFFFF;"
+        "    border: 1px solid #555555;"
+        "    border-radius: 2px;"
+        "    padding: 2px 6px;"
+        "    font-size: 11px;"
+        "    min-width: 40px;"
         "}"
         "QComboBox::drop-down {"
         "    border: none;"
+        "    width: 15px;"
+        "}"
+        "QComboBox::down-arrow {"
+        "    image: none;"
+        "    border-left: 4px solid transparent;"
+        "    border-right: 4px solid transparent;"
+        "    border-top: 4px solid #CCCCCC;"
         "}"
         "QComboBox QAbstractItemView {"
-        "    background-color: #3E3E42;"
-        "    color: white;"
-        "    border: 1px solid #5A5A5C;"
+        "    background-color: #353535;"
+        "    color: #FFFFFF;"
+        "    border: 1px solid #555555;"
+        "    selection-background-color: #4A90E2;"
         "}"
     );
 
@@ -267,16 +471,20 @@ void Timeline::setupControls()
     m_frameSlider->setMinimumWidth(200);
     m_frameSlider->setStyleSheet(
         "QSlider::groove:horizontal {"
-        "    border: 1px solid #5A5A5C;"
-        "    height: 4px;"
-        "    background: #2D2D30;"
+        "    background-color: #353535;"
+        "    border: 1px solid #555555;"
+        "    height: 6px;"
+        "    border-radius: 3px;"
         "}"
         "QSlider::handle:horizontal {"
-        "    background: #007ACC;"
-        "    border: 1px solid #005A9B;"
-        "    width: 8px;"
+        "    background-color: #4A90E2;"
+        "    border: 1px solid #6AA8F0;"
+        "    width: 12px;"
         "    margin: -4px 0;"
-        "    border-radius: 2px;"
+        "    border-radius: 3px;"
+        "}"
+        "QSlider::handle:horizontal:hover {"
+        "    background-color: #5AA0F2;"
         "}"
     );
 
@@ -285,8 +493,13 @@ void Timeline::setupControls()
     // Create controls widget
     QWidget* controlsWidget = new QWidget;
     controlsWidget->setLayout(m_controlsLayout);
-    controlsWidget->setStyleSheet("background-color: #3E3E42; border-bottom: 1px solid #5A5A5C;");
-    controlsWidget->setMaximumHeight(40);
+    controlsWidget->setStyleSheet(
+        "QWidget {"
+        "    background-color: #404040;"
+        "    border-bottom: 1px solid #555555;"
+        "}"
+    );
+    controlsWidget->setMaximumHeight(36);
 
     m_mainLayout->addWidget(controlsWidget);
 
@@ -321,13 +534,174 @@ void Timeline::setupControls()
         });
 }
 
+// Rest of the methods (drawing, frame management, etc.)
+void Timeline::drawTimelineBackground(QPainter* painter, const QRect& rect)
+{
+    painter->fillRect(rect, m_backgroundColor);
+}
+
+void Timeline::drawFrameRuler(QPainter* painter, const QRect& rect)
+{
+    QRect rulerRect(m_layerPanelWidth, 0, rect.width() - m_layerPanelWidth, m_rulerHeight);
+
+    // Fill ruler background
+    painter->fillRect(rulerRect, m_rulerColor);
+
+    // Draw ruler border
+    painter->setPen(QPen(QColor(85, 85, 85), 1));
+    painter->drawLine(rulerRect.bottomLeft(), rulerRect.bottomRight());
+
+    // Draw frame numbers and ticks
+    painter->setPen(QPen(QColor(220, 220, 220), 1));
+    painter->setFont(QFont("Arial", 9));
+
+    int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
+    int startFrame = qMax(1, m_scrollX / frameWidth);
+    int endFrame = qMin(m_totalFrames, startFrame + rulerRect.width() / frameWidth + 1);
+
+    for (int frame = startFrame; frame <= endFrame; ++frame) {
+        int x = m_layerPanelWidth + (frame - 1) * frameWidth - m_scrollX;
+
+        if (frame % 5 == 1 || frame == 1) {
+            // Major tick and number
+            painter->drawLine(x, rulerRect.bottom() - 12, x, rulerRect.bottom());
+            painter->drawText(x + 2, rulerRect.bottom() - 14, QString::number(frame));
+        }
+        else {
+            // Minor tick
+            painter->drawLine(x, rulerRect.bottom() - 6, x, rulerRect.bottom());
+        }
+
+        // Draw frame separator
+        painter->setPen(QPen(QColor(64, 64, 64), 1));
+        painter->drawLine(x, m_rulerHeight, x, rect.bottom());
+        painter->setPen(QPen(QColor(220, 220, 220), 1));
+    }
+}
+
+void Timeline::drawLayers(QPainter* painter, const QRect& rect)
+{
+    for (int i = 0; i < m_layers.size(); ++i) {
+        QRect layerRect = getLayerRect(i);
+        layerRect.setLeft(m_layerPanelWidth);
+        layerRect.setRight(rect.width());
+
+        // Alternate layer colors
+        QColor layerBg = (i % 2 == 0) ? m_layerColor : m_alternateLayerColor;
+        painter->fillRect(layerRect, layerBg);
+
+        // Draw layer separator
+        painter->setPen(QPen(QColor(85, 85, 85), 1));
+        painter->drawLine(layerRect.bottomLeft(), layerRect.bottomRight());
+    }
+}
+
+void Timeline::drawKeyframes(QPainter* painter, const QRect& rect)
+{
+    int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
+
+    for (const auto& keyframe : m_keyframes) {
+        QRect frameRect = getFrameRect(keyframe.frame);
+        QRect layerRect = getLayerRect(keyframe.layer);
+
+        if (frameRect.isEmpty() || layerRect.isEmpty()) continue;
+
+        int x = m_layerPanelWidth + (keyframe.frame - 1) * frameWidth - m_scrollX;
+        int y = layerRect.center().y();
+
+        QColor color = keyframe.selected ? m_selectedKeyframeColor : m_keyframeColor;
+
+        // Draw keyframe diamond (Flash-style)
+        painter->setBrush(QBrush(color));
+        painter->setPen(QPen(color.darker(120), 1));
+
+        QPolygon diamond;
+        diamond << QPoint(x, y - 6)      // Top
+            << QPoint(x + 6, y)      // Right
+            << QPoint(x, y + 6)      // Bottom
+            << QPoint(x - 6, y);     // Left
+
+        painter->drawPolygon(diamond);
+    }
+}
+
+void Timeline::drawPlayhead(QPainter* painter, const QRect& rect)
+{
+    int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
+    int x = m_layerPanelWidth + (m_currentFrame - 1) * frameWidth - m_scrollX;
+
+    // Draw playhead line
+    painter->setPen(QPen(m_playheadColor, 2));
+    painter->drawLine(x, m_rulerHeight, x, rect.height());
+
+    // Draw playhead handle
+    QPolygon handle;
+    handle << QPoint(x - 8, m_rulerHeight - 2)
+        << QPoint(x + 8, m_rulerHeight - 2)
+        << QPoint(x, m_rulerHeight + 10);
+
+    painter->setBrush(QBrush(m_playheadColor));
+    painter->setPen(QPen(m_playheadColor.darker(120), 1));
+    painter->drawPolygon(handle);
+}
+
+void Timeline::drawSelection(QPainter* painter, const QRect& rect)
+{
+    if (m_selectedLayer >= 0 && m_selectedLayer < m_layers.size()) {
+        QRect layerRect = getLayerRect(m_selectedLayer);
+        layerRect.setLeft(0);
+        layerRect.setRight(m_layerPanelWidth);
+
+        painter->fillRect(layerRect, QColor(74, 144, 226, 60));
+        painter->setPen(QPen(QColor(74, 144, 226), 2));
+        painter->drawRect(layerRect);
+    }
+}
+
+// Implementation of other methods continues...
+QRect Timeline::getFrameRect(int frame) const
+{
+    int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
+    int x = m_layerPanelWidth + (frame - 1) * frameWidth - m_scrollX;
+    return QRect(x, m_rulerHeight, frameWidth, height() - m_rulerHeight);
+}
+
+QRect Timeline::getLayerRect(int layer) const
+{
+    if (layer < 0 || layer >= m_layers.size()) return QRect();
+
+    int y = m_rulerHeight + layer * m_layerHeight - m_scrollY;
+    return QRect(0, y, width(), m_layerHeight);
+}
+
+QRect Timeline::getDrawingAreaRect() const
+{
+    return QRect(m_layerPanelWidth, m_rulerHeight, width() - m_layerPanelWidth, height() - m_rulerHeight);
+}
+
+int Timeline::getFrameFromX(int x) const
+{
+    int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
+    int adjustedX = x - m_layerPanelWidth + m_scrollX;
+    return qMax(1, qMin(m_totalFrames, adjustedX / frameWidth + 1));
+}
+
+int Timeline::getLayerFromY(int y) const
+{
+    int adjustedY = y - m_rulerHeight + m_scrollY;
+    int layer = adjustedY / m_layerHeight;
+    return qMax(0, qMin(static_cast<int>(m_layers.size()) - 1, layer));
+}
+
 void Timeline::setCurrentFrame(int frame)
 {
     if (frame != m_currentFrame && frame >= 1 && frame <= m_totalFrames) {
         m_currentFrame = frame;
         m_frameSpinBox->setValue(frame);
         m_frameSlider->setValue(frame);
-        update();
+        if (m_drawingArea) {
+            m_drawingArea->update();
+        }
         emit frameChanged(frame);
     }
 }
@@ -344,7 +718,10 @@ void Timeline::setTotalFrames(int frames)
         m_frameSpinBox->setRange(1, frames);
         m_frameSlider->setRange(1, frames);
         m_totalFramesLabel->setText(QString("/ %1").arg(frames));
-        update();
+        updateLayout();
+        if (m_drawingArea) {
+            m_drawingArea->update();
+        }
     }
 }
 
@@ -383,7 +760,6 @@ bool Timeline::isPlaying() const
 void Timeline::addKeyframe(int layer, int frame)
 {
     if (layer >= 0 && layer < m_layers.size() && frame >= 1 && frame <= m_totalFrames) {
-        // Check if keyframe already exists
         for (const auto& kf : m_keyframes) {
             if (kf.layer == layer && kf.frame == frame) {
                 return; // Already exists
@@ -397,7 +773,9 @@ void Timeline::addKeyframe(int layer, int frame)
         keyframe.color = m_keyframeColor;
 
         m_keyframes.push_back(keyframe);
-        update();
+        if (m_drawingArea) {
+            m_drawingArea->update();
+        }
         emit keyframeAdded(layer, frame);
     }
 }
@@ -411,7 +789,9 @@ void Timeline::removeKeyframe(int layer, int frame)
 
     if (it != m_keyframes.end()) {
         m_keyframes.erase(it, m_keyframes.end());
-        update();
+        if (m_drawingArea) {
+            m_drawingArea->update();
+        }
         emit keyframeRemoved(layer, frame);
     }
 }
@@ -440,20 +820,21 @@ void Timeline::addLayer(const QString& name)
     item->setFlags(item->flags() | Qt::ItemIsEditable);
     m_layerList->addItem(item);
 
-    update();
+    updateLayout();
+    if (m_drawingArea) {
+        m_drawingArea->update();
+    }
 }
 
 void Timeline::removeLayer(int index)
 {
     if (index >= 0 && index < m_layers.size()) {
-        // Remove all keyframes for this layer
         auto it = std::remove_if(m_keyframes.begin(), m_keyframes.end(),
             [index](const Keyframe& kf) {
                 return kf.layer == index;
             });
         m_keyframes.erase(it, m_keyframes.end());
 
-        // Adjust layer indices for remaining keyframes
         for (auto& kf : m_keyframes) {
             if (kf.layer > index) {
                 kf.layer--;
@@ -467,7 +848,10 @@ void Timeline::removeLayer(int index)
             m_selectedLayer = m_layers.size() - 1;
         }
 
-        update();
+        updateLayout();
+        if (m_drawingArea) {
+            m_drawingArea->update();
+        }
     }
 }
 
@@ -476,239 +860,13 @@ int Timeline::getLayerCount() const
     return m_layers.size();
 }
 
-void Timeline::paintEvent(QPaintEvent* event)
-{
-    QPainter painter(this);
-    painter.setRenderHint(QPainter::Antialiasing, false);
-
-    drawTimelineBackground(&painter);
-    drawFrameRuler(&painter);
-    drawLayers(&painter);
-    drawKeyframes(&painter);
-    drawPlayhead(&painter);
-    drawSelection(&painter);
-}
-
-void Timeline::drawTimelineBackground(QPainter* painter)
-{
-    painter->fillRect(rect(), m_backgroundColor);
-}
-
-void Timeline::drawFrameRuler(QPainter* painter)
-{
-    if (!m_timelineWidget) return;
-
-    QRect timelineRect = m_scrollArea->widget()->geometry();
-    QRect rulerRect(m_layerPanelWidth, 0, timelineRect.width() - m_layerPanelWidth, m_rulerHeight);
-
-    painter->fillRect(rulerRect, m_rulerColor);
-
-    painter->setPen(QPen(Qt::white, 1));
-    painter->setFont(QFont("Arial", 8));
-
-    int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
-    int startFrame = qMax(1, m_scrollX / frameWidth);
-    int endFrame = qMin(m_totalFrames, startFrame + rulerRect.width() / frameWidth + 1);
-
-    for (int frame = startFrame; frame <= endFrame; ++frame) {
-        int x = m_layerPanelWidth + (frame - 1) * frameWidth - m_scrollX;
-
-        if (frame % 5 == 1) {
-            painter->drawLine(x, rulerRect.bottom() - 10, x, rulerRect.bottom());
-            painter->drawText(x + 2, rulerRect.bottom() - 12, QString::number(frame));
-        }
-        else {
-            painter->drawLine(x, rulerRect.bottom() - 5, x, rulerRect.bottom());
-        }
-    }
-}
-
-void Timeline::drawLayers(QPainter* painter)
-{
-    if (!m_timelineWidget) return;
-
-    QRect timelineRect = m_scrollArea->widget()->geometry();
-
-    for (int i = 0; i < m_layers.size(); ++i) {
-        QRect layerRect = getLayerRect(i);
-        layerRect.setLeft(m_layerPanelWidth);
-        layerRect.setRight(timelineRect.width());
-
-        painter->fillRect(layerRect, m_layers[i].color);
-
-        // Draw layer separator
-        painter->setPen(QPen(QColor(90, 90, 95), 1));
-        painter->drawLine(layerRect.bottomLeft(), layerRect.bottomRight());
-
-        // Draw frame separators
-        painter->setPen(QPen(QColor(50, 50, 55), 1));
-        int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
-        int startFrame = qMax(1, m_scrollX / frameWidth);
-        int endFrame = qMin(m_totalFrames, startFrame + layerRect.width() / frameWidth + 1);
-
-        for (int frame = startFrame; frame <= endFrame; ++frame) {
-            int x = m_layerPanelWidth + (frame - 1) * frameWidth - m_scrollX;
-            painter->drawLine(x, layerRect.top(), x, layerRect.bottom());
-        }
-    }
-}
-
-void Timeline::drawKeyframes(QPainter* painter)
-{
-    int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
-
-    for (const auto& keyframe : m_keyframes) {
-        QRect frameRect = getFrameRect(keyframe.frame);
-        QRect layerRect = getLayerRect(keyframe.layer);
-
-        if (frameRect.isEmpty() || layerRect.isEmpty()) continue;
-
-        QRect keyframeRect(frameRect.center().x() - 4, layerRect.center().y() - 4, 8, 8);
-
-        QColor color = keyframe.selected ? m_selectedKeyframeColor : keyframe.color;
-        painter->setBrush(QBrush(color));
-        painter->setPen(QPen(color.darker(150), 1));
-        painter->drawEllipse(keyframeRect);
-    }
-}
-
-void Timeline::drawPlayhead(QPainter* painter)
-{
-    QRect frameRect = getFrameRect(m_currentFrame);
-    if (frameRect.isEmpty()) return;
-
-    int x = frameRect.left();
-    QRect timelineRect = m_scrollArea->widget()->geometry();
-
-    painter->setPen(QPen(m_playheadColor, 2));
-    painter->drawLine(x, m_rulerHeight, x, timelineRect.height());
-
-    // Draw playhead triangle
-    QPolygon triangle;
-    triangle << QPoint(x - 6, m_rulerHeight - 2)
-        << QPoint(x + 6, m_rulerHeight - 2)
-        << QPoint(x, m_rulerHeight + 8);
-
-    painter->setBrush(QBrush(m_playheadColor));
-    painter->drawPolygon(triangle);
-}
-
-void Timeline::drawSelection(QPainter* painter)
-{
-    // Draw selection highlight for selected layer
-    if (m_selectedLayer >= 0 && m_selectedLayer < m_layers.size()) {
-        QRect layerRect = getLayerRect(m_selectedLayer);
-        layerRect.setLeft(0);
-        layerRect.setRight(m_layerPanelWidth);
-
-        painter->fillRect(layerRect, QColor(0, 122, 204, 50));
-        painter->setPen(QPen(QColor(0, 122, 204), 2));
-        painter->drawRect(layerRect);
-    }
-}
-
-QRect Timeline::getFrameRect(int frame) const
-{
-    if (!m_timelineWidget) return QRect();
-
-    int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
-    int x = m_layerPanelWidth + (frame - 1) * frameWidth - m_scrollX;
-    int y = m_rulerHeight;
-    QRect timelineRect = m_scrollArea->widget()->geometry();
-    int height = timelineRect.height() - m_rulerHeight;
-
-    return QRect(x, y, frameWidth, height);
-}
-
-QRect Timeline::getLayerRect(int layer) const
-{
-    if (layer < 0 || layer >= m_layers.size()) return QRect();
-
-    int y = m_rulerHeight + layer * m_layerHeight - m_scrollY;
-    return QRect(0, y, width(), m_layerHeight);
-}
-
-int Timeline::getFrameFromX(int x) const
-{
-    int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
-    int adjustedX = x - m_layerPanelWidth + m_scrollX;
-    return qMax(1, qMin(m_totalFrames, adjustedX / frameWidth + 1));
-}
-
-int Timeline::getLayerFromY(int y) const
-{
-    int adjustedY = y - m_rulerHeight + m_scrollY;
-    int layer = adjustedY / m_layerHeight;
-    return qMax(0, qMin(static_cast<int>(m_layers.size()) - 1, layer));
-}
-
-void Timeline::mousePressEvent(QMouseEvent* event)
-{
-    int mouseX = event->position().toPoint().x();
-    int mouseY = event->position().toPoint().y();
-    if (event->button() == Qt::LeftButton) {
-        int frame = getFrameFromX(mouseX);
-        int layer = getLayerFromY(mouseY);
-
-        if (mouseX > m_layerPanelWidth && mouseY > m_rulerHeight) {
-            // Timeline area click
-            if (event->modifiers() & Qt::ControlModifier) {
-                // Add/remove keyframe
-                if (hasKeyframe(layer, frame)) {
-                    removeKeyframe(layer, frame);
-                }
-                else {
-                    addKeyframe(layer, frame);
-                }
-            }
-            else {
-                // Set current frame
-                setCurrentFrame(frame);
-                m_selectedLayer = layer;
-                emit layerSelected(layer);
-                update();
-            }
-        }
-    }
-
-    QWidget::mousePressEvent(event);
-}
-
-void Timeline::mouseMoveEvent(QMouseEvent* event)
-{
-    int mouseX = event->position().toPoint().x();
-    if (event->buttons() & Qt::LeftButton && mouseX > m_layerPanelWidth) {
-        int frame = getFrameFromX(mouseX);
-        setCurrentFrame(frame);
-    }
-
-    QWidget::mouseMoveEvent(event);
-}
-
-void Timeline::mouseReleaseEvent(QMouseEvent* event)
-{
-    QWidget::mouseReleaseEvent(event);
-}
-
-void Timeline::wheelEvent(QWheelEvent* event)
-{
-    if (event->modifiers() & Qt::ControlModifier) {
-        // Zoom
-        double delta = event->angleDelta().y() / 120.0;
-        double newZoom = m_zoomLevel * (1.0 + delta * 0.1);
-        setZoomLevel(qBound(0.5, newZoom, 3.0));
-    }
-    else {
-        // Scroll
-        QWidget::wheelEvent(event);
-    }
-}
-
 void Timeline::setZoomLevel(double zoom)
 {
     m_zoomLevel = zoom;
     updateLayout();
-    update();
+    if (m_drawingArea) {
+        m_drawingArea->update();
+    }
 }
 
 double Timeline::getZoomLevel() const
@@ -718,13 +876,13 @@ double Timeline::getZoomLevel() const
 
 void Timeline::updateLayout()
 {
-    if (!m_timelineWidget) return;
+    if (!m_drawingArea) return;
 
     int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
-    int totalWidth = m_totalFrames * frameWidth + m_layerPanelWidth + 100;
+    int totalWidth = m_totalFrames * frameWidth + 100;
     int totalHeight = m_rulerHeight + m_layers.size() * m_layerHeight + 50;
 
-    m_timelineWidget->setMinimumSize(totalWidth, totalHeight);
+    m_drawingArea->setMinimumSize(totalWidth, totalHeight);
 }
 
 void Timeline::onFrameSliderChanged(int value)
@@ -748,25 +906,15 @@ void Timeline::onLayerSelectionChanged()
 {
     m_selectedLayer = m_layerList->currentRow();
     emit layerSelected(m_selectedLayer);
-    update();
+    if (m_drawingArea) {
+        m_drawingArea->update();
+    }
 }
 
-void Timeline::resizeEvent(QResizeEvent* event)
-{
-    QWidget::resizeEvent(event);
-    updateLayout();
-
-    if (m_timelineWidget) {
-        int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
-        int totalWidth = m_totalFrames * frameWidth + m_layerPanelWidth + 100;
-        int totalHeight = m_rulerHeight + m_layers.size() * m_layerHeight + 50;
-
-        m_timelineWidget->setMinimumSize(totalWidth, totalHeight);
-    }
-
-    if (m_scrollArea) {
-        m_scrollArea->updateGeometry();
-    }
-
-    update();
-}
+// Add the remaining methods as needed...
+void Timeline::selectKeyframe(int layer, int frame) {}
+void Timeline::clearKeyframeSelection() {}
+void Timeline::setLayerName(int index, const QString& name) {}
+void Timeline::setLayerVisible(int index, bool visible) {}
+void Timeline::setLayerLocked(int index, bool locked) {}
+void Timeline::scrollToFrame(int frame) {}

@@ -12,6 +12,7 @@
 #include <QScrollBar>
 #include <QApplication>
 #include <QtMath>
+#include <QDebug>
 
 Canvas::Canvas(MainWindow* parent)
     : QGraphicsView(parent)
@@ -44,11 +45,21 @@ Canvas::Canvas(MainWindow* parent)
     setMouseTracking(true);
 
     // Set background
-    setBackgroundBrush(QBrush(QColor(40, 40, 40)));
+    setBackgroundBrush(QBrush(QColor(48, 48, 48)));
+
+    // Set scene background color
+    if (m_scene) {
+        m_scene->setBackgroundBrush(QBrush(QColor(64, 64, 64)));
+    }
 
     // Connect scene signals
     connect(m_scene, &QGraphicsScene::selectionChanged,
         this, &Canvas::onSceneSelectionChanged);
+
+    // Make sure the canvas has focus to receive key events
+    setFocusPolicy(Qt::StrongFocus);
+
+    qDebug() << "Canvas created with scene:" << m_scene;
 }
 
 Canvas::~Canvas()
@@ -61,42 +72,66 @@ Canvas::~Canvas()
 void Canvas::setupScene()
 {
     m_scene = new QGraphicsScene(this);
-    m_scene->setSceneRect(-2000, -2000, 4000, 4000);
+
+    // Set a reasonable scene size
+    m_scene->setSceneRect(-1000, -1000, 2000, 2000);
+
+    // Set the scene background
+    m_scene->setBackgroundBrush(QBrush(QColor(64, 64, 64)));
+
     setScene(m_scene);
+
+    qDebug() << "Scene set up with rect:" << m_scene->sceneRect();
 }
 
 void Canvas::clear()
 {
-    m_scene->clear();
-    emit selectionChanged();
+    if (m_scene) {
+        m_scene->clear();
+        emit selectionChanged();
+    }
 }
 
 void Canvas::selectAll()
 {
-    QPainterPath path;
-    path.addRect(m_scene->itemsBoundingRect());
-    m_scene->setSelectionArea(path);
-    emit selectionChanged();
+    if (m_scene) {
+        QPainterPath path;
+        path.addRect(m_scene->itemsBoundingRect());
+
+        // Select all selectable items
+        QList<QGraphicsItem*> allItems = m_scene->items();
+        for (QGraphicsItem* item : allItems) {
+            if (item->flags() & QGraphicsItem::ItemIsSelectable) {
+                item->setSelected(true);
+            }
+        }
+
+        emit selectionChanged();
+    }
 }
 
 void Canvas::clearSelection()
 {
-    m_scene->clearSelection();
-    emit selectionChanged();
+    if (m_scene) {
+        m_scene->clearSelection();
+        emit selectionChanged();
+    }
 }
 
 bool Canvas::hasSelection() const
 {
-    return !m_scene->selectedItems().isEmpty();
+    return m_scene && !m_scene->selectedItems().isEmpty();
 }
 
 int Canvas::getSelectionCount() const
 {
-    return m_scene->selectedItems().count();
+    return m_scene ? m_scene->selectedItems().count() : 0;
 }
 
 void Canvas::deleteSelected()
 {
+    if (!m_scene) return;
+
     QList<QGraphicsItem*> selectedItems = m_scene->selectedItems();
     for (QGraphicsItem* item : selectedItems) {
         m_scene->removeItem(item);
@@ -109,6 +144,8 @@ void Canvas::setCurrentTool(Tool* tool)
 {
     m_currentTool = tool;
     updateCursor();
+
+    qDebug() << "Tool set to:" << tool;
 }
 
 Tool* Canvas::getCurrentTool() const
@@ -134,6 +171,8 @@ void Canvas::zoomOut()
 
 void Canvas::zoomToFit()
 {
+    if (!m_scene) return;
+
     QRectF itemsRect = m_scene->itemsBoundingRect();
     if (!itemsRect.isEmpty()) {
         fitInView(itemsRect, Qt::KeepAspectRatio);
@@ -189,6 +228,8 @@ bool Canvas::areRulersVisible() const
 
 void Canvas::groupSelectedItems()
 {
+    if (!m_scene) return;
+
     QList<QGraphicsItem*> selectedItems = m_scene->selectedItems();
     if (selectedItems.count() > 1) {
         QGraphicsItemGroup* group = m_scene->createItemGroup(selectedItems);
@@ -200,6 +241,8 @@ void Canvas::groupSelectedItems()
 
 void Canvas::ungroupSelectedItems()
 {
+    if (!m_scene) return;
+
     QList<QGraphicsItem*> selectedItems = m_scene->selectedItems();
     for (QGraphicsItem* item : selectedItems) {
         QGraphicsItemGroup* group = qgraphicsitem_cast<QGraphicsItemGroup*>(item);
@@ -212,10 +255,12 @@ void Canvas::ungroupSelectedItems()
 
 void Canvas::alignSelectedItems(int alignment)
 {
+    if (!m_scene) return;
+
     QList<QGraphicsItem*> selectedItems = m_scene->selectedItems();
     if (selectedItems.count() < 2) return;
 
-    QRectF boundingRect = selectedItems.first()->boundingRect();
+    QRectF boundingRect = selectedItems.first()->sceneBoundingRect();
     for (QGraphicsItem* item : selectedItems) {
         boundingRect = boundingRect.united(item->sceneBoundingRect());
     }
@@ -251,6 +296,8 @@ void Canvas::alignSelectedItems(int alignment)
 
 void Canvas::bringSelectedToFront()
 {
+    if (!m_scene) return;
+
     QList<QGraphicsItem*> selectedItems = m_scene->selectedItems();
     qreal maxZ = 0;
 
@@ -270,6 +317,8 @@ void Canvas::bringSelectedToFront()
 
 void Canvas::bringSelectedForward()
 {
+    if (!m_scene) return;
+
     QList<QGraphicsItem*> selectedItems = m_scene->selectedItems();
     for (QGraphicsItem* item : selectedItems) {
         item->setZValue(item->zValue() + 1);
@@ -278,6 +327,8 @@ void Canvas::bringSelectedForward()
 
 void Canvas::sendSelectedBackward()
 {
+    if (!m_scene) return;
+
     QList<QGraphicsItem*> selectedItems = m_scene->selectedItems();
     for (QGraphicsItem* item : selectedItems) {
         item->setZValue(item->zValue() - 1);
@@ -286,6 +337,8 @@ void Canvas::sendSelectedBackward()
 
 void Canvas::sendSelectedToBack()
 {
+    if (!m_scene) return;
+
     QList<QGraphicsItem*> selectedItems = m_scene->selectedItems();
     qreal minZ = 0;
 
@@ -305,6 +358,8 @@ void Canvas::sendSelectedToBack()
 
 void Canvas::flipSelectedHorizontal()
 {
+    if (!m_scene) return;
+
     QList<QGraphicsItem*> selectedItems = m_scene->selectedItems();
     for (QGraphicsItem* item : selectedItems) {
         QTransform transform = item->transform();
@@ -315,6 +370,8 @@ void Canvas::flipSelectedHorizontal()
 
 void Canvas::flipSelectedVertical()
 {
+    if (!m_scene) return;
+
     QList<QGraphicsItem*> selectedItems = m_scene->selectedItems();
     for (QGraphicsItem* item : selectedItems) {
         QTransform transform = item->transform();
@@ -325,6 +382,8 @@ void Canvas::flipSelectedVertical()
 
 void Canvas::rotateSelected(double angle)
 {
+    if (!m_scene) return;
+
     QList<QGraphicsItem*> selectedItems = m_scene->selectedItems();
     for (QGraphicsItem* item : selectedItems) {
         QPointF center = item->boundingRect().center();
@@ -348,11 +407,13 @@ int Canvas::getCurrentFrame() const
 void Canvas::setStrokeColor(const QColor& color)
 {
     m_strokeColor = color;
+    qDebug() << "Stroke color set to:" << color;
 }
 
 void Canvas::setFillColor(const QColor& color)
 {
     m_fillColor = color;
+    qDebug() << "Fill color set to:" << color;
 }
 
 void Canvas::setStrokeWidth(double width)
@@ -377,11 +438,18 @@ double Canvas::getStrokeWidth() const
 
 void Canvas::mousePressEvent(QMouseEvent* event)
 {
+    if (!m_scene) {
+        QGraphicsView::mousePressEvent(event);
+        return;
+    }
+
     QPointF scenePos = mapToScene(event->pos());
 
     if (m_snapToGrid) {
         scenePos = snapToGrid(scenePos);
     }
+
+    qDebug() << "Mouse press at scene pos:" << scenePos << "Tool:" << m_currentTool;
 
     if (m_currentTool) {
         m_currentTool->mousePressEvent(event, scenePos);
@@ -409,6 +477,11 @@ void Canvas::mousePressEvent(QMouseEvent* event)
 
 void Canvas::mouseMoveEvent(QMouseEvent* event)
 {
+    if (!m_scene) {
+        QGraphicsView::mouseMoveEvent(event);
+        return;
+    }
+
     QPointF scenePos = mapToScene(event->pos());
 
     if (m_snapToGrid) {
@@ -433,6 +506,11 @@ void Canvas::mouseMoveEvent(QMouseEvent* event)
 
 void Canvas::mouseReleaseEvent(QMouseEvent* event)
 {
+    if (!m_scene) {
+        QGraphicsView::mouseReleaseEvent(event);
+        return;
+    }
+
     QPointF scenePos = mapToScene(event->pos());
 
     if (m_snapToGrid) {
@@ -452,11 +530,11 @@ void Canvas::mouseReleaseEvent(QMouseEvent* event)
                 m_scene->clearSelection();
             }
 
-            // FIX: Use Qt 6 compatible selection method
+            // Use Qt 6 compatible selection method
             QPainterPath path;
             path.addPolygon(selectionArea);
 
-            // Qt 6 way - iterate through items and select manually
+            // Iterate through items and select manually
             QList<QGraphicsItem*> itemsInArea = m_scene->items(path, Qt::IntersectsItemShape);
             for (QGraphicsItem* item : itemsInArea) {
                 if (item->flags() & QGraphicsItem::ItemIsSelectable) {
@@ -471,7 +549,6 @@ void Canvas::mouseReleaseEvent(QMouseEvent* event)
 
     emit mousePositionChanged(scenePos);
 }
-
 
 void Canvas::wheelEvent(QWheelEvent* event)
 {
@@ -508,6 +585,7 @@ void Canvas::paintEvent(QPaintEvent* event)
 
 void Canvas::drawBackground(QPainter* painter, const QRectF& rect)
 {
+    // Draw the background color first
     QGraphicsView::drawBackground(painter, rect);
 
     if (m_gridVisible) {
@@ -528,7 +606,7 @@ void Canvas::drawGrid(QPainter* painter, const QRectF& rect)
 {
     painter->save();
 
-    QPen gridPen(QColor(60, 60, 60), 0.5);
+    QPen gridPen(QColor(96, 96, 96), 0.5);
     painter->setPen(gridPen);
 
     double left = int(rect.left()) - (int(rect.left()) % int(m_gridSize));

@@ -29,6 +29,27 @@ class TimelineTrack;
 class TimelineRuler;
 class AnimationKeyframe;
 
+// Custom widget for timeline drawing area
+class TimelineDrawingArea : public QWidget
+{
+    Q_OBJECT
+
+public:
+    explicit TimelineDrawingArea(QWidget* parent = nullptr);
+
+    void setTimeline(class Timeline* timeline) { m_timeline = timeline; }
+
+protected:
+    void paintEvent(QPaintEvent* event) override;
+    void mousePressEvent(QMouseEvent* event) override;
+    void mouseMoveEvent(QMouseEvent* event) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
+    void wheelEvent(QWheelEvent* event) override;
+
+private:
+    class Timeline* m_timeline;
+};
+
 class Timeline : public QWidget
 {
     Q_OBJECT
@@ -69,6 +90,21 @@ public:
     double getZoomLevel() const;
     void scrollToFrame(int frame);
 
+    // Drawing methods (called by TimelineDrawingArea)
+    void drawTimelineBackground(QPainter* painter, const QRect& rect);
+    void drawFrameRuler(QPainter* painter, const QRect& rect);
+    void drawLayers(QPainter* painter, const QRect& rect);
+    void drawKeyframes(QPainter* painter, const QRect& rect);
+    void drawPlayhead(QPainter* painter, const QRect& rect);
+    void drawSelection(QPainter* painter, const QRect& rect);
+
+    // Helper methods for drawing area
+    QRect getFrameRect(int frame) const;
+    QRect getLayerRect(int layer) const;
+    int getFrameFromX(int x) const;
+    int getLayerFromY(int y) const;
+    QRect getDrawingAreaRect() const;
+
 signals:
     void frameChanged(int frame);
     void frameRateChanged(int fps);
@@ -77,35 +113,16 @@ signals:
     void keyframeSelected(int layer, int frame);
     void layerSelected(int layer);
 
-protected:
-    void paintEvent(QPaintEvent* event) override;
-    void mousePressEvent(QMouseEvent* event) override;
-    void mouseMoveEvent(QMouseEvent* event) override;
-    void mouseReleaseEvent(QMouseEvent* event) override;
-    void wheelEvent(QWheelEvent* event) override;
-    void resizeEvent(QResizeEvent* event) override;
-
 private slots:
     void onFrameSliderChanged(int value);
     void onFrameSpinBoxChanged(int value);
-    void onFrameRateChanged(int fps);
+    void onFrameRateChanged(int index);
     void onLayerSelectionChanged();
 
 private:
     void setupUI();
     void setupControls();
     void updateLayout();
-    void drawTimelineBackground(QPainter* painter);
-    void drawFrameRuler(QPainter* painter);
-    void drawLayers(QPainter* painter);
-    void drawKeyframes(QPainter* painter);
-    void drawPlayhead(QPainter* painter);
-    void drawSelection(QPainter* painter);
-
-    QRect getFrameRect(int frame) const;
-    QRect getLayerRect(int layer) const;
-    int getFrameFromX(int x) const;
-    int getLayerFromY(int y) const;
     void updateScrollbars();
 
     MainWindow* m_mainWindow;
@@ -114,7 +131,7 @@ private:
     QVBoxLayout* m_mainLayout;
     QHBoxLayout* m_controlsLayout;
     QScrollArea* m_scrollArea;
-    QWidget* m_timelineWidget;
+    TimelineDrawingArea* m_drawingArea;
 
     // Controls
     QPushButton* m_playButton;

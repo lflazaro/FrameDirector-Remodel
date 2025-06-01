@@ -9,10 +9,10 @@
 #include "Tools/Tool.h"
 #include "Tools/SelectionTool.h"
 #include "Tools/DrawingTool.h"
-#include "Tools/LineTool.h"          // ← Make sure this exists!
-#include "Tools/RectangleTool.h"     // ← Make sure this exists!
-#include "Tools/EllipseTool.h"       // ← Make sure this exists!
-#include "Tools/TextTool.h"          // ← Make sure this exists!
+#include "Tools/LineTool.h"          
+#include "Tools/RectangleTool.h"     
+#include "Tools/EllipseTool.h"       
+#include "Tools/TextTool.h"          
 #include "Animation/AnimationLayer.h"
 #include "Animation/AnimationKeyframe.h"
 
@@ -41,6 +41,8 @@
 #include <QActionGroup>
 #include <QDockWidget>
 #include <QTabWidget>
+#include <QDebug>
+#include <QFileInfo>
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
@@ -101,6 +103,7 @@ MainWindow::MainWindow(QWidget* parent)
     m_canvas->setMinimumSize(400, 300);
     connect(m_canvas, &Canvas::selectionChanged, this, &MainWindow::onSelectionChanged);
     connect(m_canvas, &Canvas::mousePositionChanged, this, &MainWindow::onCanvasMouseMove);
+    connect(m_canvas, &Canvas::zoomChanged, this, &MainWindow::onZoomChanged);
 
     // Create timeline dock
     m_timelineDock = new QDockWidget("Timeline", this);
@@ -138,11 +141,163 @@ MainWindow::MainWindow(QWidget* parent)
 
     // Create default layer
     addLayer();
+
+    // Connect tools and canvas after everything is set up
+    connectToolsAndCanvas();
+    setupColorConnections();
+
+    // Set default tool
     setTool(SelectTool);
+
+    // Optional: Create a test shape to verify everything is working
+    // Remove this line after confirming the canvas works
+    QTimer::singleShot(1000, this, &MainWindow::createTestShape);
+
+    qDebug() << "MainWindow setup complete";
 }
 
 MainWindow::~MainWindow()
 {
+}
+
+void MainWindow::connectToolsAndCanvas()
+{
+    // Make sure canvas has the right colors and settings
+    if (m_canvas) {
+        m_canvas->setStrokeColor(m_currentStrokeColor);
+        m_canvas->setFillColor(m_currentFillColor);
+        m_canvas->setStrokeWidth(m_currentStrokeWidth);
+
+        // Connect tool signals for item creation
+        for (auto& toolPair : m_tools) {
+            Tool* tool = toolPair.second.get();
+            if (tool) {
+                connect(tool, &Tool::itemCreated, [this](QGraphicsItem* item) {
+                    if (item && m_canvas && m_canvas->scene()) {
+                        // Item is already added to scene by the tool, just emit signal
+                        onSelectionChanged();
+                        m_statusLabel->setText("Item created");
+                        m_isModified = true;
+                    }
+                    });
+                qDebug() << "Connected tool:" << static_cast<int>(toolPair.first) << "Tool object:" << tool;
+            }
+        }
+
+        qDebug() << "Tools and canvas connected successfully";
+    }
+
+    // Make sure the select tool is active by default
+    if (m_toolsPanel) {
+        m_toolsPanel->setActiveTool(SelectTool);
+    }
+
+    // Debug: Print all available tools
+    qDebug() << "Available tools:" << m_tools.size();
+    for (auto& toolPair : m_tools) {
+        qDebug() << "Tool type:" << static_cast<int>(toolPair.first) << "Tool:" << toolPair.second.get();
+    }
+}
+void MainWindow::setupColorConnections()
+{
+    if (m_colorPanel && m_canvas) {
+        // Set initial colors
+        m_colorPanel->setStrokeColor(m_currentStrokeColor);
+        m_colorPanel->setFillColor(m_currentFillColor);
+
+        // Connect color changes to canvas AND selected items
+        connect(m_colorPanel, &ColorPanel::strokeColorChanged, [this](const QColor& color) {
+            m_currentStrokeColor = color;
+            if (m_canvas) {
+                m_canvas->setStrokeColor(color);
+
+                // Update selected items
+                updateSelectedItemsStroke(color);
+            }
+            m_statusLabel->setText("Stroke color changed");
+            });
+
+        connect(m_colorPanel, &ColorPanel::fillColorChanged, [this](const QColor& color) {
+            m_currentFillColor = color;
+            if (m_canvas) {
+                m_canvas->setFillColor(color);
+
+                // Update selected items
+                updateSelectedItemsFill(color);
+            }
+            m_statusLabel->setText("Fill color changed");
+            });
+
+        qDebug() << "Color connections established";
+    }
+}
+
+// Add these new methods to update selected items
+void MainWindow::updateSelectedItemsStroke(const QColor& color)
+{
+    if (!m_canvas || !m_canvas->scene()) return;
+
+    QList<QGraphicsItem*> selectedItems = m_canvas->scene()->selectedItems();
+    for (QGraphicsItem* item : selectedItems) {
+        // Try to cast to different item types and update their stroke
+        if (auto rectItem = qgraphicsitem_cast<QGraphicsRectItem*>(item)) {
+            QPen pen = rectItem->pen();
+            pen.setColor(color);
+            rectItem->setPen(pen);
+        }
+        else if (auto ellipseItem = qgraphicsitem_cast<QGraphicsEllipseItem*>(item)) {
+            QPen pen = ellipseItem->pen();
+            pen.setColor(color);
+            ellipseItem->setPen(pen);
+        }
+        else if (auto lineItem = qgraphicsitem_cast<QGraphicsLineItem*>(item)) {
+            QPen pen = lineItem->pen();
+            pen.setColor(color);
+            lineItem->setPen(pen);
+        }
+        else if (auto pathItem = qgraphicsitem_cast<QGraphicsPathItem*>(item)) {
+            QPen pen = pathItem->pen();
+            pen.setColor(color);
+            pathItem->setPen(pen);
+        }
+    }
+}
+
+void MainWindow::updateSelectedItemsFill(const QColor& color)
+{
+    if (!m_canvas || !m_canvas->scene()) return;
+
+    QList<QGraphicsItem*> selectedItems = m_canvas->scene()->selectedItems();
+    for (QGraphicsItem* item : selectedItems) {
+        // Try to cast to different item types and update their fill
+        if (auto rectItem = qgraphicsitem_cast<QGraphicsRectItem*>(item)) {
+            rectItem->setBrush(QBrush(color));
+        }
+        else if (auto ellipseItem = qgraphicsitem_cast<QGraphicsEllipseItem*>(item)) {
+            ellipseItem->setBrush(QBrush(color));
+        }
+        else if (auto pathItem = qgraphicsitem_cast<QGraphicsPathItem*>(item)) {
+            pathItem->setBrush(QBrush(color));
+        }
+    }
+}
+
+
+void MainWindow::createTestShape()
+{
+    if (m_canvas && m_canvas->scene()) {
+        // Create a test rectangle to verify the canvas is working
+        QGraphicsRectItem* testRect = new QGraphicsRectItem(0, 0, 100, 100);
+        testRect->setPen(QPen(Qt::red, 2));
+        testRect->setBrush(QBrush(Qt::blue));
+        testRect->setFlags(QGraphicsItem::ItemIsSelectable | QGraphicsItem::ItemIsMovable);
+        testRect->setPos(0, 0);
+
+        m_canvas->scene()->addItem(testRect);
+
+        m_statusLabel->setText("Test shape created - canvas is working!");
+        qDebug() << "Test shape created at scene center";
+    }
 }
 
 void MainWindow::createActions()
@@ -355,6 +510,14 @@ void MainWindow::createActions()
     m_bringToFrontAction->setShortcut(QKeySequence("Ctrl+Shift+]"));
     connect(m_bringToFrontAction, &QAction::triggered, this, &MainWindow::bringToFront);
 
+    m_bringForwardAction = new QAction("Bring &Forward", this);
+    m_bringForwardAction->setShortcut(QKeySequence("Ctrl+]"));
+    connect(m_bringForwardAction, &QAction::triggered, this, &MainWindow::bringForward);
+
+    m_sendBackwardAction = new QAction("Send &Backward", this);
+    m_sendBackwardAction->setShortcut(QKeySequence("Ctrl+["));
+    connect(m_sendBackwardAction, &QAction::triggered, this, &MainWindow::sendBackward);
+
     m_sendToBackAction = new QAction("Send to &Back", this);
     m_sendToBackAction->setShortcut(QKeySequence("Ctrl+Shift+["));
     connect(m_sendToBackAction, &QAction::triggered, this, &MainWindow::sendToBack);
@@ -364,6 +527,12 @@ void MainWindow::createActions()
 
     m_flipVerticalAction = new QAction("Flip &Vertical", this);
     connect(m_flipVerticalAction, &QAction::triggered, this, &MainWindow::flipVertical);
+
+    m_rotateClockwiseAction = new QAction("Rotate &Clockwise", this);
+    connect(m_rotateClockwiseAction, &QAction::triggered, this, &MainWindow::rotateClockwise);
+
+    m_rotateCounterClockwiseAction = new QAction("Rotate &Counter-Clockwise", this);
+    connect(m_rotateCounterClockwiseAction, &QAction::triggered, this, &MainWindow::rotateCounterClockwise);
 }
 
 void MainWindow::createMenus()
@@ -420,11 +589,15 @@ void MainWindow::createMenus()
 
     m_arrangeMenu = m_objectMenu->addMenu("A&rrange");
     m_arrangeMenu->addAction(m_bringToFrontAction);
+    m_arrangeMenu->addAction(m_bringForwardAction);
+    m_arrangeMenu->addAction(m_sendBackwardAction);
     m_arrangeMenu->addAction(m_sendToBackAction);
 
     m_transformMenu = m_objectMenu->addMenu("&Transform");
     m_transformMenu->addAction(m_flipHorizontalAction);
     m_transformMenu->addAction(m_flipVerticalAction);
+    m_transformMenu->addAction(m_rotateClockwiseAction);
+    m_transformMenu->addAction(m_rotateCounterClockwiseAction);
 
     // View Menu
     m_viewMenu = menuBar()->addMenu("&View");
@@ -533,8 +706,6 @@ void MainWindow::createDockWindows()
 
     // Connect panels
     connect(m_toolsPanel, &ToolsPanel::toolSelected, this, &MainWindow::setTool);
-    connect(m_colorPanel, &ColorPanel::strokeColorChanged, this, &MainWindow::setStrokeColor);
-    connect(m_colorPanel, &ColorPanel::fillColorChanged, this, &MainWindow::setFillColor);
     connect(m_layerManager, &LayerManager::layerAdded, this, &MainWindow::addLayer);
     connect(m_layerManager, &LayerManager::layerRemoved, this, &MainWindow::removeLayer);
 }
@@ -556,14 +727,35 @@ void MainWindow::createStatusBar()
     statusBar()->addPermanentWidget(m_fpsLabel);
 }
 
+
 void MainWindow::setupTools()
 {
-    m_tools[SelectTool] = std::make_unique<SelectionTool>(this);
-    m_tools[DrawTool] = std::make_unique<DrawingTool>(this);
-    m_tools[LineTool] = std::make_unique<::LineTool>(this);
-    m_tools[RectangleTool] = std::make_unique<::RectangleTool>(this);
-    m_tools[EllipseTool] = std::make_unique<::EllipseTool>(this);
-    m_tools[TextTool] = std::make_unique<::TextTool>(this);
+    qDebug() << "Setting up tools...";
+
+    try {
+        m_tools[SelectTool] = std::make_unique<SelectionTool>(this);
+        qDebug() << "Created SelectionTool:" << m_tools[SelectTool].get();
+
+        m_tools[DrawTool] = std::make_unique<DrawingTool>(this);
+        qDebug() << "Created DrawingTool:" << m_tools[DrawTool].get();
+
+        m_tools[LineTool] = std::make_unique<::LineTool>(this);
+        qDebug() << "Created LineTool:" << m_tools[LineTool].get();
+
+        m_tools[RectangleTool] = std::make_unique<::RectangleTool>(this);
+        qDebug() << "Created RectangleTool:" << m_tools[RectangleTool].get();
+
+        m_tools[EllipseTool] = std::make_unique<::EllipseTool>(this);
+        qDebug() << "Created EllipseTool:" << m_tools[EllipseTool].get();
+
+        m_tools[TextTool] = std::make_unique<::TextTool>(this);
+        qDebug() << "Created TextTool:" << m_tools[TextTool].get();
+
+        qDebug() << "All tools created successfully. Total tools:" << m_tools.size();
+    }
+    catch (const std::exception& e) {
+        qDebug() << "Error creating tools:" << e.what();
+    }
 }
 
 void MainWindow::setupAnimationSystem()
@@ -735,6 +927,22 @@ void MainWindow::importVector()
     }
 }
 
+void MainWindow::importAudio()
+{
+    QString fileName = QFileDialog::getOpenFileName(this,
+        "Import Audio", "",
+        "Audio Files (*.wav *.mp3 *.aac *.ogg *.flac);;All Files (*.*)");
+
+    if (!fileName.isEmpty()) {
+        m_statusLabel->setText(QString("Audio imported: %1").arg(QFileInfo(fileName).fileName()));
+
+        QMessageBox::information(this, "Audio Import",
+            QString("Audio file '%1' imported successfully.\n"
+                "Audio track functionality will be implemented in a future version.")
+            .arg(QFileInfo(fileName).fileName()));
+    }
+}
+
 void MainWindow::exportAnimation()
 {
     QString fileName = QFileDialog::getSaveFileName(this,
@@ -894,6 +1102,56 @@ void MainWindow::previousFrame()
     }
 }
 
+void MainWindow::nextKeyframe()
+{
+    if (!m_timeline) return;
+
+    int nextFrame = -1;
+
+    for (const auto& frameKeyframes : m_keyframes) {
+        int frameNum = frameKeyframes.first;
+        if (frameNum > m_currentFrame) {
+            if (nextFrame == -1 || frameNum < nextFrame) {
+                nextFrame = frameNum;
+            }
+        }
+    }
+
+    if (nextFrame != -1) {
+        onFrameChanged(nextFrame);
+    }
+    else {
+        lastFrame();
+    }
+
+    m_statusLabel->setText("Jumped to next keyframe");
+}
+
+void MainWindow::previousKeyframe()
+{
+    if (!m_timeline) return;
+
+    int prevFrame = -1;
+
+    for (const auto& frameKeyframes : m_keyframes) {
+        int frameNum = frameKeyframes.first;
+        if (frameNum < m_currentFrame) {
+            if (prevFrame == -1 || frameNum > prevFrame) {
+                prevFrame = frameNum;
+            }
+        }
+    }
+
+    if (prevFrame != -1) {
+        onFrameChanged(prevFrame);
+    }
+    else {
+        firstFrame();
+    }
+
+    m_statusLabel->setText("Jumped to previous keyframe");
+}
+
 void MainWindow::firstFrame()
 {
     onFrameChanged(1);
@@ -924,13 +1182,46 @@ void MainWindow::setFrameRate(int fps)
 }
 
 // Tool operations
+
 void MainWindow::setTool(ToolType tool)
 {
+    qDebug() << "setTool called with:" << static_cast<int>(tool);
+
     if (m_currentTool != tool) {
         m_currentTool = tool;
+
         if (m_canvas && m_tools.find(tool) != m_tools.end()) {
-            m_canvas->setCurrentTool(m_tools[tool].get());
+            Tool* selectedTool = m_tools[tool].get();
+            m_canvas->setCurrentTool(selectedTool);
+
+            qDebug() << "Tool changed to:" << tool << "Tool object:" << selectedTool;
         }
+        else {
+            qDebug() << "ERROR: Tool not found or canvas is null. Tool type:" << static_cast<int>(tool);
+            if (!m_canvas) qDebug() << "Canvas is null";
+            if (m_tools.find(tool) == m_tools.end()) qDebug() << "Tool not found in tools map";
+        }
+
+        // Update tool panel
+        if (m_toolsPanel) {
+            m_toolsPanel->setActiveTool(tool);
+            qDebug() << "Updated tools panel";
+        }
+        else {
+            qDebug() << "Tools panel is null";
+        }
+
+        // Update menu actions
+        switch (tool) {
+        case SelectTool: if (m_selectToolAction) m_selectToolAction->setChecked(true); break;
+        case DrawTool: if (m_drawToolAction) m_drawToolAction->setChecked(true); break;
+        case LineTool: if (m_lineToolAction) m_lineToolAction->setChecked(true); break;
+        case RectangleTool: if (m_rectangleToolAction) m_rectangleToolAction->setChecked(true); break;
+        case EllipseTool: if (m_ellipseToolAction) m_ellipseToolAction->setChecked(true); break;
+        case TextTool: if (m_textToolAction) m_textToolAction->setChecked(true); break;
+        default: break;
+        }
+
         onToolChanged(tool);
     }
 }
@@ -1069,6 +1360,9 @@ void MainWindow::setStrokeColor()
         if (m_colorPanel) {
             m_colorPanel->setStrokeColor(color);
         }
+        if (m_canvas) {
+            m_canvas->setStrokeColor(color);
+        }
     }
 }
 
@@ -1080,12 +1374,18 @@ void MainWindow::setFillColor()
         if (m_colorPanel) {
             m_colorPanel->setFillColor(color);
         }
+        if (m_canvas) {
+            m_canvas->setFillColor(color);
+        }
     }
 }
 
 void MainWindow::setStrokeWidth(double width)
 {
     m_currentStrokeWidth = width;
+    if (m_canvas) {
+        m_canvas->setStrokeWidth(width);
+    }
 }
 
 void MainWindow::setOpacity(double opacity)
@@ -1179,6 +1479,77 @@ void MainWindow::onPlaybackTimer()
     else {
         firstFrame();
     }
+}
+
+void MainWindow::togglePanel(const QString& panelName)
+{
+    QDockWidget* dock = nullptr;
+
+    if (panelName.toLower() == "tools") {
+        dock = m_toolsDock;
+    }
+    else if (panelName.toLower() == "properties") {
+        dock = m_propertiesDock;
+    }
+    else if (panelName.toLower() == "timeline") {
+        dock = m_timelineDock;
+    }
+
+    if (dock) {
+        if (dock->isVisible()) {
+            dock->hide();
+        }
+        else {
+            dock->show();
+            dock->raise();
+        }
+
+        m_statusLabel->setText(QString("%1 panel %2")
+            .arg(panelName)
+            .arg(dock->isVisible() ? "shown" : "hidden"));
+    }
+    else {
+        m_statusLabel->setText(QString("Panel '%1' not found").arg(panelName));
+    }
+}
+
+void MainWindow::updatePlayback()
+{
+    if (m_playAction) {
+        m_playAction->setText(m_isPlaying ? "Pause" : "Play");
+        m_playAction->setToolTip(m_isPlaying ? "Pause animation" : "Play animation");
+    }
+
+    if (m_timeline) {
+        m_timeline->setPlaying(m_isPlaying);
+    }
+
+    if (m_fpsLabel) {
+        m_fpsLabel->setText(QString("FPS: %1").arg(m_frameRate));
+    }
+
+    if (m_frameLabel) {
+        m_frameLabel->setText(QString("Frame: %1 / %2").arg(m_currentFrame).arg(m_totalFrames));
+    }
+
+    if (m_statusLabel) {
+        if (m_isPlaying) {
+            m_statusLabel->setText("Playing animation");
+        }
+        else {
+            m_statusLabel->setText("Animation stopped");
+        }
+    }
+
+    if (m_playbackTimer) {
+        m_playbackTimer->setInterval(1000 / m_frameRate);
+    }
+
+    // Enable/disable frame navigation during playback
+    if (m_nextFrameAction) m_nextFrameAction->setEnabled(!m_isPlaying);
+    if (m_prevFrameAction) m_prevFrameAction->setEnabled(!m_isPlaying);
+    if (m_firstFrameAction) m_firstFrameAction->setEnabled(!m_isPlaying);
+    if (m_lastFrameAction) m_lastFrameAction->setEnabled(!m_isPlaying);
 }
 
 // Helper methods
@@ -1282,141 +1653,4 @@ void MainWindow::keyPressEvent(QKeyEvent* event)
     default:
         QMainWindow::keyPressEvent(event);
     }
-}
-
-void MainWindow::importAudio()
-{
-    QString fileName = QFileDialog::getOpenFileName(this,
-        "Import Audio", "",
-        "Audio Files (*.wav *.mp3 *.aac *.ogg *.flac);;All Files (*.*)");
-
-    if (!fileName.isEmpty()) {
-        m_statusLabel->setText(QString("Audio imported: %1").arg(QFileInfo(fileName).fileName()));
-
-        QMessageBox::information(this, "Audio Import",
-            QString("Audio file '%1' imported successfully.\n"
-                "Audio track functionality will be implemented in a future version.")
-            .arg(QFileInfo(fileName).fileName()));
-    }
-}
-
-void MainWindow::nextKeyframe()
-{
-    if (!m_timeline) return;
-
-    int nextFrame = -1;
-
-    for (const auto& frameKeyframes : m_keyframes) {
-        int frameNum = frameKeyframes.first;
-        if (frameNum > m_currentFrame) {
-            if (nextFrame == -1 || frameNum < nextFrame) {
-                nextFrame = frameNum;
-            }
-        }
-    }
-
-    if (nextFrame != -1) {
-        onFrameChanged(nextFrame);
-    }
-    else {
-        lastFrame();
-    }
-
-    m_statusLabel->setText("Jumped to next keyframe");
-}
-
-void MainWindow::previousKeyframe()
-{
-    if (!m_timeline) return;
-
-    int prevFrame = -1;
-
-    for (const auto& frameKeyframes : m_keyframes) {
-        int frameNum = frameKeyframes.first;
-        if (frameNum < m_currentFrame) {
-            if (prevFrame == -1 || frameNum > prevFrame) {
-                prevFrame = frameNum;
-            }
-        }
-    }
-
-    if (prevFrame != -1) {
-        onFrameChanged(prevFrame);
-    }
-    else {
-        firstFrame();
-    }
-
-    m_statusLabel->setText("Jumped to previous keyframe");
-}
-
-void MainWindow::togglePanel(const QString& panelName)
-{
-    QDockWidget* dock = nullptr;
-
-    if (panelName.toLower() == "tools") {
-        dock = m_toolsDock;
-    }
-    else if (panelName.toLower() == "properties") {
-        dock = m_propertiesDock;
-    }
-    else if (panelName.toLower() == "timeline") {
-        dock = m_timelineDock;
-    }
-
-    if (dock) {
-        if (dock->isVisible()) {
-            dock->hide();
-        }
-        else {
-            dock->show();
-            dock->raise();
-        }
-
-        m_statusLabel->setText(QString("%1 panel %2")
-            .arg(panelName)
-            .arg(dock->isVisible() ? "shown" : "hidden"));
-    }
-    else {
-        m_statusLabel->setText(QString("Panel '%1' not found").arg(panelName));
-    }
-}
-
-void MainWindow::updatePlayback()
-{
-    if (m_playAction) {
-        m_playAction->setText(m_isPlaying ? "Pause" : "Play");
-        m_playAction->setToolTip(m_isPlaying ? "Pause animation" : "Play animation");
-    }
-
-    if (m_timeline) {
-        m_timeline->setPlaying(m_isPlaying);
-    }
-
-    if (m_fpsLabel) {
-        m_fpsLabel->setText(QString("FPS: %1").arg(m_frameRate));
-    }
-
-    if (m_frameLabel) {
-        m_frameLabel->setText(QString("Frame: %1 / %2").arg(m_currentFrame).arg(m_totalFrames));
-    }
-
-    if (m_statusLabel) {
-        if (m_isPlaying) {
-            m_statusLabel->setText("Playing animation");
-        }
-        else {
-            m_statusLabel->setText("Animation stopped");
-        }
-    }
-
-    if (m_playbackTimer) {
-        m_playbackTimer->setInterval(1000 / m_frameRate);
-    }
-
-    // Enable/disable frame navigation during playback
-    if (m_nextFrameAction) m_nextFrameAction->setEnabled(!m_isPlaying);
-    if (m_prevFrameAction) m_prevFrameAction->setEnabled(!m_isPlaying);
-    if (m_firstFrameAction) m_firstFrameAction->setEnabled(!m_isPlaying);
-    if (m_lastFrameAction) m_lastFrameAction->setEnabled(!m_isPlaying);
 }
