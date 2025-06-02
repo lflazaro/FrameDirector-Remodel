@@ -89,8 +89,6 @@ MainWindow::MainWindow(QWidget* parent)
     createToolBars();
     createDockWindows();
     createStatusBar();
-    setupTools();
-    setupAnimationSystem();
 
     // Setup central widget layout
     QWidget* centralWidget = new QWidget;
@@ -141,6 +139,8 @@ MainWindow::MainWindow(QWidget* parent)
 
     // Create default layer
     addLayer();
+    setupTools();
+    setupAnimationSystem();
 
     // Connect tools and canvas after everything is set up
     connectToolsAndCanvas();
