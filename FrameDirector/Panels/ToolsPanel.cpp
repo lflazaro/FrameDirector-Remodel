@@ -49,8 +49,8 @@ void ToolsPanel::setupUI()
     createToolButton(":/icons/tool-rectangle.png", "Rectangle Tool", MainWindow::RectangleTool, "R");
     createToolButton(":/icons/tool-ellipse.png", "Ellipse Tool", MainWindow::EllipseTool, "O");
     createToolButton(":/icons/tool-text.png", "Text Tool", MainWindow::TextTool, "T");
-    //createToolButton(":/icons/tool-bucket.png", "Bucket Fill Tool", MainWindow::BucketFillTool, "B");
-    //createToolButton(":/icons/tool-eraser.png", "Erase Tool", MainWindow::EraseTool, "E");
+    createToolButton(":/icons/tool-bucket.png", "Bucket Fill Tool", MainWindow::BucketFillTool, "B");
+    createToolButton(":/icons/tool-eraser.png", "Erase Tool", MainWindow::EraseTool, "E");
 
     m_mainLayout->addLayout(m_toolsLayout);
     m_mainLayout->addStretch();
