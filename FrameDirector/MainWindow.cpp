@@ -145,6 +145,7 @@ MainWindow::MainWindow(QWidget* parent)
     // Connect tools and canvas after everything is set up
     connectToolsAndCanvas();
     setupColorConnections();
+    connectLayerManager();
 
     // Set default tool
     setTool(SelectTool);
@@ -858,6 +859,46 @@ void MainWindow::setupStyleSheet()
         "}"
     );
 }
+
+void MainWindow::connectLayerManager()
+{
+    if (m_layerManager && m_canvas) {
+        // Connect layer manager signals to canvas
+        connect(m_layerManager, &LayerManager::layerAdded, [this]() {
+            // Layer was added through layer manager, update timeline
+            if (m_timeline) {
+                m_timeline->updateLayersFromCanvas();
+            }
+            });
+
+        connect(m_layerManager, &LayerManager::layerRemoved, [this](int index) {
+            // Layer was removed through layer manager
+            if (m_timeline) {
+                m_timeline->updateLayersFromCanvas();
+            }
+            });
+
+        connect(m_layerManager, &LayerManager::currentLayerChanged, [this](int index) {
+            m_canvas->setCurrentLayer(index);
+            });
+
+        connect(m_layerManager, &LayerManager::layerVisibilityChanged, [this](int index, bool visible) {
+            m_canvas->setLayerVisible(index, visible);
+            });
+
+        connect(m_layerManager, &LayerManager::layerLockChanged, [this](int index, bool locked) {
+            m_canvas->setLayerLocked(index, locked);
+            });
+
+        connect(m_layerManager, &LayerManager::layerOpacityChanged, [this](int index, int opacity) {
+            m_canvas->setLayerOpacity(index, opacity / 100.0);
+            });
+
+        // Connect canvas signals to layer manager
+        connect(m_canvas, &Canvas::layerChanged, m_layerManager, &LayerManager::setCurrentLayer);
+    }
+}
+
 
 // File operations
 void MainWindow::newFile()

@@ -37,6 +37,7 @@ private slots:
     void onStyleChanged();
     void onStrokeColorClicked();
     void onFillColorClicked();
+    void onSelectionChanged();
 
 private:
     void setupUI();

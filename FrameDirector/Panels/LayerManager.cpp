@@ -1,6 +1,7 @@
 ﻿// Panels/LayerManager.cpp
 #include "LayerManager.h"
 #include "../MainWindow.h"
+#include "../Canvas.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QListWidget>
@@ -402,8 +403,30 @@ void LayerManager::createLayerControls()
 
 void LayerManager::updateLayers()
 {
-    // This would typically be called when the layer system in MainWindow changes
-    // For now, just update the controls
+    Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+    if (!canvas) return;
+
+    // Clear current list
+    m_layerList->clear();
+
+    // Populate from canvas layers
+    for (int i = 0; i < canvas->getLayerCount(); ++i) {
+        LayerGraphicsGroup* canvasLayer = canvas->getLayer(i);
+        if (canvasLayer) {
+            LayerItem* item = new LayerItem(canvasLayer->getLayerName(), i);
+            item->setVisible(canvasLayer->isLayerVisible());
+            item->setLocked(canvasLayer->isLayerLocked());
+            item->setOpacity(static_cast<int>(canvasLayer->getLayerOpacity() * 100));
+            m_layerList->addItem(item);
+        }
+    }
+
+    // Set current layer
+    if (canvas->getCurrentLayer() >= 0 && canvas->getCurrentLayer() < m_layerList->count()) {
+        m_layerList->setCurrentRow(canvas->getCurrentLayer());
+        m_currentLayer = canvas->getCurrentLayer();
+    }
+
     updateLayerControls();
 }
 
@@ -520,13 +543,29 @@ void LayerManager::moveLayerDown(int index)
 
 void LayerManager::onAddLayerClicked()
 {
-    addLayer();
+    Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+    if (canvas) {
+        QString layerName = QString("Layer %1").arg(canvas->getLayerCount() + 1);
+        canvas->addLayer(layerName);
+        updateLayers();
+
+        // Select the new layer
+        m_currentLayer = canvas->getLayerCount() - 1;
+        m_layerList->setCurrentRow(m_currentLayer);
+        canvas->setCurrentLayer(m_currentLayer);
+
+        emit layerAdded();
+    }
 }
+
 
 void LayerManager::onRemoveLayerClicked()
 {
-    if (m_layerList->count() > 1) {
-        removeLayer(m_currentLayer);
+    Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+    if (canvas && m_currentLayer >= 0 && canvas->getLayerCount() > 1) {
+        canvas->removeLayer(m_currentLayer);
+        updateLayers();
+        emit layerRemoved(m_currentLayer);
     }
     else {
         QMessageBox::information(this, "Cannot Delete",
@@ -534,10 +573,24 @@ void LayerManager::onRemoveLayerClicked()
     }
 }
 
+
 void LayerManager::onDuplicateLayerClicked()
 {
-    if (m_currentLayer >= 0) {
-        duplicateLayer(m_currentLayer);
+    Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+    if (canvas && m_currentLayer >= 0) {
+        LayerGraphicsGroup* currentLayer = canvas->getLayer(m_currentLayer);
+        if (currentLayer) {
+            QString newName = currentLayer->getLayerName() + " Copy";
+            int newIndex = canvas->addLayer(newName);
+            updateLayers();
+
+            // Select the new layer
+            m_currentLayer = newIndex;
+            m_layerList->setCurrentRow(m_currentLayer);
+            canvas->setCurrentLayer(m_currentLayer);
+
+            emit layerDuplicated(m_currentLayer);
+        }
     }
 }
 
@@ -553,12 +606,15 @@ void LayerManager::onMoveDownClicked()
 
 void LayerManager::onLayerSelectionChanged()
 {
+    Canvas* canvas = m_mainWindow->findChild<Canvas*>();
     m_currentLayer = m_layerList->currentRow();
-    updateLayerControls();
 
-    if (m_currentLayer >= 0) {
-        emit currentLayerChanged(m_currentLayer);
+    if (canvas && m_currentLayer >= 0) {
+        canvas->setCurrentLayer(m_currentLayer);
     }
+
+    updateLayerControls();
+    emit currentLayerChanged(m_currentLayer);
 }
 
 void LayerManager::onLayerContextMenu(const QPoint& pos)
@@ -570,27 +626,39 @@ void LayerManager::onLayerContextMenu(const QPoint& pos)
 
 void LayerManager::onVisibilityToggled(bool visible)
 {
-    LayerItem* item = static_cast<LayerItem*>(m_layerList->currentItem());
-    if (item) {
-        item->setVisible(visible);
+    Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+    if (canvas && m_currentLayer >= 0) {
+        canvas->setLayerVisible(m_currentLayer, visible);
+        LayerItem* item = static_cast<LayerItem*>(m_layerList->currentItem());
+        if (item) {
+            item->setVisible(visible);
+        }
         emit layerVisibilityChanged(m_currentLayer, visible);
     }
 }
 
 void LayerManager::onLockToggled(bool locked)
 {
-    LayerItem* item = static_cast<LayerItem*>(m_layerList->currentItem());
-    if (item) {
-        item->setLocked(locked);
+    Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+    if (canvas && m_currentLayer >= 0) {
+        canvas->setLayerLocked(m_currentLayer, locked);
+        LayerItem* item = static_cast<LayerItem*>(m_layerList->currentItem());
+        if (item) {
+            item->setLocked(locked);
+        }
         emit layerLockChanged(m_currentLayer, locked);
     }
 }
 
 void LayerManager::onOpacityChanged(int opacity)
 {
-    LayerItem* item = static_cast<LayerItem*>(m_layerList->currentItem());
-    if (item) {
-        item->setOpacity(opacity);
+    Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+    if (canvas && m_currentLayer >= 0) {
+        canvas->setLayerOpacity(m_currentLayer, opacity / 100.0);
+        LayerItem* item = static_cast<LayerItem*>(m_layerList->currentItem());
+        if (item) {
+            item->setOpacity(opacity);
+        }
         emit layerOpacityChanged(m_currentLayer, opacity);
     }
 }

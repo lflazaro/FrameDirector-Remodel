@@ -33,6 +33,9 @@ signals:
     void toolFinished();
 
 protected:
+    // Helper method for tools to add items to the current layer
+    void addItemToCanvas(QGraphicsItem* item);
+
     MainWindow* m_mainWindow;
     Canvas* m_canvas;
 };

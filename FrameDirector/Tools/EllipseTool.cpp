@@ -29,6 +29,8 @@ void EllipseTool::mousePressEvent(QMouseEvent* event, const QPointF& scenePos)
         m_currentEllipse->setBrush(brush);
 
         m_currentEllipse->setFlags(QGraphicsItem::ItemIsSelectable | QGraphicsItem::ItemIsMovable);
+
+        // Add to scene temporarily for preview
         m_canvas->scene()->addItem(m_currentEllipse);
     }
 }
@@ -49,7 +51,9 @@ void EllipseTool::mouseReleaseEvent(QMouseEvent* event, const QPointF& scenePos)
         if (m_currentEllipse) {
             QRectF rect = m_currentEllipse->rect();
             if (rect.width() > 1 && rect.height() > 1) {
-                emit itemCreated(m_currentEllipse);
+                // Remove from scene (addItemToCanvas will handle adding to layer)
+                m_canvas->scene()->removeItem(m_currentEllipse);
+                addItemToCanvas(m_currentEllipse);
             }
             else {
                 m_canvas->scene()->removeItem(m_currentEllipse);

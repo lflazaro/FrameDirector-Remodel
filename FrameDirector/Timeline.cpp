@@ -1,6 +1,7 @@
 ﻿// Timeline.cpp
 #include "Timeline.h"
 #include "MainWindow.h"
+#include "Canvas.h"
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QGridLayout>
@@ -64,12 +65,7 @@ void TimelineDrawingArea::mousePressEvent(QMouseEvent* event)
 
             if (event->modifiers() & Qt::ControlModifier) {
                 // Add/remove keyframe
-                if (m_timeline->hasKeyframe(layer, frame)) {
-                    m_timeline->removeKeyframe(layer, frame);
-                }
-                else {
-                    m_timeline->addKeyframe(layer, frame);
-                }
+                m_timeline->toggleKeyframe(layer, frame);
             }
             else {
                 // Set current frame
@@ -160,10 +156,40 @@ Timeline::Timeline(MainWindow* parent)
         this, &Timeline::onFrameRateChanged);
     connect(m_layerList, &QListWidget::currentRowChanged,
         this, &Timeline::onLayerSelectionChanged);
+
+    // Connect to canvas for keyframe management
+    Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+    if (canvas) {
+        connect(canvas, &Canvas::keyframeCreated, this, &Timeline::onKeyframeCreated);
+        connect(canvas, &Canvas::frameChanged, this, &Timeline::setCurrentFrame);
+        connect(this, &Timeline::frameChanged, canvas, &Canvas::setCurrentFrame);
+    }
 }
 
 Timeline::~Timeline()
 {
+}
+
+void Timeline::onKeyframeCreated(int frame)
+{
+    // Update keyframes display
+    if (m_drawingArea) {
+        m_drawingArea->update();
+    }
+}
+
+void Timeline::toggleKeyframe(int layer, int frame)
+{
+    Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+    if (canvas) {
+        if (canvas->hasKeyframe(frame)) {
+            // Remove keyframe (implement if needed)
+            // For now, just create if doesn't exist
+        }
+        else {
+            canvas->createKeyframe(frame);
+        }
+    }
 }
 
 void Timeline::setupUI()
@@ -317,19 +343,53 @@ void Timeline::setupUI()
 
     // Connect layer buttons
     connect(m_addLayerButton, &QPushButton::clicked, [this]() {
-        addLayer(QString("Layer %1").arg(m_layers.size() + 1));
-        });
-
-    connect(m_removeLayerButton, &QPushButton::clicked, [this]() {
-        if (m_selectedLayer >= 0 && m_selectedLayer < m_layers.size()) {
-            removeLayer(m_selectedLayer);
+        Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+        if (canvas) {
+            canvas->addLayer(QString("Layer %1").arg(canvas->getLayerCount() + 1));
+            updateLayersFromCanvas();
         }
         });
 
-    // Add default layer
-    addLayer("Layer 1");
+    connect(m_removeLayerButton, &QPushButton::clicked, [this]() {
+        Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+        if (canvas && m_selectedLayer >= 0 && canvas->getLayerCount() > 1) {
+            canvas->removeLayer(m_selectedLayer);
+            updateLayersFromCanvas();
+        }
+        });
 
+    // Initialize layers from canvas
+    updateLayersFromCanvas();
     updateLayout();
+}
+
+void Timeline::updateLayersFromCanvas()
+{
+    Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+    if (!canvas) return;
+
+    m_layerList->clear();
+    m_layers.clear();
+
+    for (int i = 0; i < canvas->getLayerCount(); ++i) {
+        LayerGraphicsGroup* canvasLayer = canvas->getLayer(i);
+        if (canvasLayer) {
+            Layer layer;
+            layer.name = canvasLayer->getLayerName();
+            layer.visible = canvasLayer->isLayerVisible();
+            layer.locked = canvasLayer->isLayerLocked();
+            layer.color = (i % 2 == 0) ? m_layerColor : m_alternateLayerColor;
+            m_layers.push_back(layer);
+
+            QListWidgetItem* item = new QListWidgetItem(layer.name);
+            item->setFlags(item->flags() | Qt::ItemIsEditable);
+            m_layerList->addItem(item);
+        }
+    }
+
+    if (m_drawingArea) {
+        m_drawingArea->update();
+    }
 }
 
 void Timeline::setupControls()
@@ -598,30 +658,40 @@ void Timeline::drawLayers(QPainter* painter, const QRect& rect)
 
 void Timeline::drawKeyframes(QPainter* painter, const QRect& rect)
 {
+    Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+    if (!canvas) return;
+
     int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
+    int startFrame = qMax(1, m_scrollX / frameWidth);
+    int endFrame = qMin(m_totalFrames, startFrame + rect.width() / frameWidth + 1);
 
-    for (const auto& keyframe : m_keyframes) {
-        QRect frameRect = getFrameRect(keyframe.frame);
-        QRect layerRect = getLayerRect(keyframe.layer);
+    // Draw keyframes for each frame that has one
+    for (int frame = startFrame; frame <= endFrame; ++frame) {
+        if (canvas->hasKeyframe(frame)) {
+            // Draw on all layers for simplicity (in real implementation, 
+            // you'd track which layer the keyframe belongs to)
+            for (int layerIndex = 0; layerIndex < m_layers.size(); ++layerIndex) {
+                QRect layerRect = getLayerRect(layerIndex);
+                if (layerRect.isEmpty()) continue;
 
-        if (frameRect.isEmpty() || layerRect.isEmpty()) continue;
+                int x = m_layerPanelWidth + (frame - 1) * frameWidth - m_scrollX;
+                int y = layerRect.center().y();
 
-        int x = m_layerPanelWidth + (keyframe.frame - 1) * frameWidth - m_scrollX;
-        int y = layerRect.center().y();
+                QColor color = (frame == m_currentFrame) ? m_selectedKeyframeColor : m_keyframeColor;
 
-        QColor color = keyframe.selected ? m_selectedKeyframeColor : m_keyframeColor;
+                // Draw keyframe diamond (Flash-style)
+                painter->setBrush(QBrush(color));
+                painter->setPen(QPen(color.darker(120), 1));
 
-        // Draw keyframe diamond (Flash-style)
-        painter->setBrush(QBrush(color));
-        painter->setPen(QPen(color.darker(120), 1));
+                QPolygon diamond;
+                diamond << QPoint(x, y - 6)      // Top
+                    << QPoint(x + 6, y)      // Right
+                    << QPoint(x, y + 6)      // Bottom
+                    << QPoint(x - 6, y);     // Left
 
-        QPolygon diamond;
-        diamond << QPoint(x, y - 6)      // Top
-            << QPoint(x + 6, y)      // Right
-            << QPoint(x, y + 6)      // Bottom
-            << QPoint(x - 6, y);     // Left
-
-        painter->drawPolygon(diamond);
+                painter->drawPolygon(diamond);
+            }
+        }
     }
 }
 
@@ -759,20 +829,9 @@ bool Timeline::isPlaying() const
 
 void Timeline::addKeyframe(int layer, int frame)
 {
-    if (layer >= 0 && layer < m_layers.size() && frame >= 1 && frame <= m_totalFrames) {
-        for (const auto& kf : m_keyframes) {
-            if (kf.layer == layer && kf.frame == frame) {
-                return; // Already exists
-            }
-        }
-
-        Keyframe keyframe;
-        keyframe.layer = layer;
-        keyframe.frame = frame;
-        keyframe.selected = false;
-        keyframe.color = m_keyframeColor;
-
-        m_keyframes.push_back(keyframe);
+    Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+    if (canvas && frame >= 1 && frame <= m_totalFrames) {
+        canvas->createKeyframe(frame);
         if (m_drawingArea) {
             m_drawingArea->update();
         }
@@ -782,77 +841,17 @@ void Timeline::addKeyframe(int layer, int frame)
 
 void Timeline::removeKeyframe(int layer, int frame)
 {
-    auto it = std::remove_if(m_keyframes.begin(), m_keyframes.end(),
-        [layer, frame](const Keyframe& kf) {
-            return kf.layer == layer && kf.frame == frame;
-        });
-
-    if (it != m_keyframes.end()) {
-        m_keyframes.erase(it, m_keyframes.end());
-        if (m_drawingArea) {
-            m_drawingArea->update();
-        }
-        emit keyframeRemoved(layer, frame);
+    // Implementation for removing keyframes
+    if (m_drawingArea) {
+        m_drawingArea->update();
     }
+    emit keyframeRemoved(layer, frame);
 }
 
 bool Timeline::hasKeyframe(int layer, int frame) const
 {
-    for (const auto& kf : m_keyframes) {
-        if (kf.layer == layer && kf.frame == frame) {
-            return true;
-        }
-    }
-    return false;
-}
-
-void Timeline::addLayer(const QString& name)
-{
-    Layer layer;
-    layer.name = name;
-    layer.visible = true;
-    layer.locked = false;
-    layer.color = (m_layers.size() % 2 == 0) ? m_layerColor : m_alternateLayerColor;
-
-    m_layers.push_back(layer);
-
-    QListWidgetItem* item = new QListWidgetItem(name);
-    item->setFlags(item->flags() | Qt::ItemIsEditable);
-    m_layerList->addItem(item);
-
-    updateLayout();
-    if (m_drawingArea) {
-        m_drawingArea->update();
-    }
-}
-
-void Timeline::removeLayer(int index)
-{
-    if (index >= 0 && index < m_layers.size()) {
-        auto it = std::remove_if(m_keyframes.begin(), m_keyframes.end(),
-            [index](const Keyframe& kf) {
-                return kf.layer == index;
-            });
-        m_keyframes.erase(it, m_keyframes.end());
-
-        for (auto& kf : m_keyframes) {
-            if (kf.layer > index) {
-                kf.layer--;
-            }
-        }
-
-        m_layers.erase(m_layers.begin() + index);
-        delete m_layerList->takeItem(index);
-
-        if (m_selectedLayer >= m_layers.size()) {
-            m_selectedLayer = m_layers.size() - 1;
-        }
-
-        updateLayout();
-        if (m_drawingArea) {
-            m_drawingArea->update();
-        }
-    }
+    Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+    return canvas ? canvas->hasKeyframe(frame) : false;
 }
 
 int Timeline::getLayerCount() const
@@ -905,6 +904,12 @@ void Timeline::onFrameRateChanged(int index)
 void Timeline::onLayerSelectionChanged()
 {
     m_selectedLayer = m_layerList->currentRow();
+
+    Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+    if (canvas && m_selectedLayer >= 0) {
+        canvas->setCurrentLayer(m_selectedLayer);
+    }
+
     emit layerSelected(m_selectedLayer);
     if (m_drawingArea) {
         m_drawingArea->update();

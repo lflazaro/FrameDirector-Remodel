@@ -1,4 +1,3 @@
-
 #include "LineTool.h"
 #include "../MainWindow.h"
 #include "../Canvas.h"
@@ -28,6 +27,8 @@ void LineTool::mousePressEvent(QMouseEvent* event, const QPointF& scenePos)
         m_currentLine->setPen(pen);
 
         m_currentLine->setFlags(QGraphicsItem::ItemIsSelectable | QGraphicsItem::ItemIsMovable);
+
+        // Add to scene temporarily for preview
         m_canvas->scene()->addItem(m_currentLine);
     }
 }
@@ -45,7 +46,9 @@ void LineTool::mouseReleaseEvent(QMouseEvent* event, const QPointF& scenePos)
         m_drawing = false;
 
         if (m_currentLine) {
-            emit itemCreated(m_currentLine);
+            // Remove from scene (addItemToCanvas will handle adding to layer)
+            m_canvas->scene()->removeItem(m_currentLine);
+            addItemToCanvas(m_currentLine);
             m_currentLine = nullptr;
         }
     }

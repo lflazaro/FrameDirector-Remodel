@@ -29,6 +29,8 @@ void RectangleTool::mousePressEvent(QMouseEvent* event, const QPointF& scenePos)
         m_currentRect->setBrush(brush);
 
         m_currentRect->setFlags(QGraphicsItem::ItemIsSelectable | QGraphicsItem::ItemIsMovable);
+
+        // Add to scene temporarily for preview
         m_canvas->scene()->addItem(m_currentRect);
     }
 }
@@ -49,7 +51,9 @@ void RectangleTool::mouseReleaseEvent(QMouseEvent* event, const QPointF& scenePo
         if (m_currentRect) {
             QRectF rect = m_currentRect->rect();
             if (rect.width() > 1 && rect.height() > 1) {
-                emit itemCreated(m_currentRect);
+                // Remove from scene (addItemToCanvas will handle adding to layer)
+                m_canvas->scene()->removeItem(m_currentRect);
+                addItemToCanvas(m_currentRect);
             }
             else {
                 m_canvas->scene()->removeItem(m_currentRect);

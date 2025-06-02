@@ -223,6 +223,7 @@ private:
     Tool* getCurrentTool() const;
     void connectToolsAndCanvas();        // <-- ADD THIS
     void setupColorConnections();        // <-- ADD THIS
+    void connectLayerManager();
     void createTestShape();              // <-- ADD THIS
     void updateSelectedItemsStroke(const QColor& color);
     void updateSelectedItemsFill(const QColor& color);

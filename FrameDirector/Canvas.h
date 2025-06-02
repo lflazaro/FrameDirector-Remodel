@@ -10,6 +10,7 @@
 #include <QGraphicsLineItem>
 #include <QGraphicsTextItem>
 #include <QGraphicsPathItem>
+#include <QGraphicsItemGroup>
 #include <QMouseEvent>
 #include <QKeyEvent>
 #include <QWheelEvent>
@@ -22,10 +23,38 @@
 #include <QTimer>
 #include <memory>
 #include <vector>
+#include <map>
 
 class Tool;
 class VectorGraphicsItem;
 class MainWindow;
+class AnimationLayer;
+
+// Custom layer item that holds all graphics for a layer
+class LayerGraphicsGroup : public QGraphicsItemGroup
+{
+public:
+    LayerGraphicsGroup(int layerIndex, const QString& name);
+
+    int m_layerIndex;
+    QString m_layerName;
+    void setLayerVisible(bool visible);
+    void setLayerLocked(bool locked);
+    void setLayerOpacity(double opacity);
+
+    bool isLayerVisible() const { return m_visible; }
+    bool isLayerLocked() const { return m_locked; }
+    double getLayerOpacity() const { return m_opacity; }
+    int getLayerIndex() const { return m_layerIndex; }
+    QString getLayerName() const { return m_layerName; }
+
+    void setLayerName(const QString& name) { m_layerName = name; }
+
+private:
+    bool m_visible;
+    bool m_locked;
+    double m_opacity;
+};
 
 class Canvas : public QGraphicsView
 {
@@ -42,6 +71,32 @@ public:
     bool hasSelection() const;
     int getSelectionCount() const;
     void deleteSelected();
+    QList<QGraphicsItem*> getSelectedItems() const;
+
+    // Canvas size and background
+    void setCanvasSize(const QSize& size);
+    QSize getCanvasSize() const;
+    QRectF getCanvasRect() const;
+
+    // Layer management
+    int addLayer(const QString& name = QString());
+    void removeLayer(int layerIndex);
+    void setCurrentLayer(int layerIndex);
+    int getCurrentLayer() const;
+    int getLayerCount() const;
+    LayerGraphicsGroup* getLayer(int index) const;
+    void setLayerVisible(int layerIndex, bool visible);
+    void setLayerLocked(int layerIndex, bool locked);
+    void setLayerOpacity(int layerIndex, double opacity);
+    void moveLayer(int fromIndex, int toIndex);
+
+    // Frame management
+    void setCurrentFrame(int frame);
+    int getCurrentFrame() const;
+    void saveFrameState(int frame);
+    void loadFrameState(int frame);
+    void createKeyframe(int frame);
+    bool hasKeyframe(int frame) const;
 
     // Tools
     void setCurrentTool(Tool* tool);
@@ -73,10 +128,8 @@ public:
     void flipSelectedHorizontal();
     void flipSelectedVertical();
     void rotateSelected(double angle);
-
-    // Animation
-    void setCurrentFrame(int frame);
-    int getCurrentFrame() const;
+    void storeCurrentFrameState();
+    void clearFrameState();
 
     // Drawing properties
     void setStrokeColor(const QColor& color);
@@ -86,10 +139,16 @@ public:
     QColor getFillColor() const;
     double getStrokeWidth() const;
 
+    // Item management
+    void addItemToCurrentLayer(QGraphicsItem* item);
+
 signals:
     void selectionChanged();
     void mousePositionChanged(QPointF position);
     void zoomChanged(double factor);
+    void layerChanged(int layerIndex);
+    void frameChanged(int frame);
+    void keyframeCreated(int frame);
 
 protected:
     void mousePressEvent(QMouseEvent* event) override;
@@ -106,14 +165,30 @@ private slots:
 
 private:
     void setupScene();
+    void setupDefaultLayers();
     void drawGrid(QPainter* painter, const QRectF& rect);
     void drawRulers(QPainter* painter);
+    void drawCanvasBounds(QPainter* painter, const QRectF& rect);
     QPointF snapToGrid(const QPointF& point);
     void updateCursor();
 
     MainWindow* m_mainWindow;
     QGraphicsScene* m_scene;
     Tool* m_currentTool;
+
+    // Canvas properties
+    QSize m_canvasSize;
+    QRectF m_canvasRect;
+    QGraphicsRectItem* m_backgroundRect;
+
+    // Layer management
+    std::vector<LayerGraphicsGroup*> m_layers;
+    int m_currentLayerIndex;
+
+    // Frame and keyframe management
+    int m_currentFrame;
+    std::map<int, std::map<int, QList<QGraphicsItem*>>> m_frameStates; // frame -> layer -> items
+    std::set<int> m_keyframes;
 
     // View properties
     double m_zoomFactor;
@@ -126,9 +201,6 @@ private:
     QColor m_strokeColor;
     QColor m_fillColor;
     double m_strokeWidth;
-
-    // Animation
-    int m_currentFrame;
 
     // Interaction state
     bool m_dragging;

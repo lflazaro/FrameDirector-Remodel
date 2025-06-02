@@ -30,6 +30,8 @@ void DrawingTool::mousePressEvent(QMouseEvent* event, const QPointF& scenePos)
         m_currentPath->setPen(pen);
 
         m_currentPath->setFlags(QGraphicsItem::ItemIsSelectable | QGraphicsItem::ItemIsMovable);
+
+        // Add to scene temporarily for preview
         m_canvas->scene()->addItem(m_currentPath);
     }
 }
@@ -49,7 +51,9 @@ void DrawingTool::mouseReleaseEvent(QMouseEvent* event, const QPointF& scenePos)
         m_drawing = false;
 
         if (m_currentPath) {
-            emit itemCreated(m_currentPath);
+            // Remove from scene (addItemToCanvas will handle adding to layer)
+            m_canvas->scene()->removeItem(m_currentPath);
+            addItemToCanvas(m_currentPath);
             m_currentPath = nullptr;
         }
 

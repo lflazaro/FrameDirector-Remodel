@@ -32,9 +32,7 @@ void TextTool::mousePressEvent(QMouseEvent* event, const QPointF& scenePos)
                 QGraphicsItem::ItemIsFocusable);
             m_currentText->setTextInteractionFlags(Qt::TextEditorInteraction);
 
-            m_canvas->scene()->addItem(m_currentText);
-            emit itemCreated(m_currentText);
-
+            addItemToCanvas(m_currentText);
             m_currentText = nullptr;
         }
     }

@@ -28,6 +28,7 @@ class TimelineHeader;
 class TimelineTrack;
 class TimelineRuler;
 class AnimationKeyframe;
+class LayerGraphicsGroup;
 
 // Custom widget for timeline drawing area
 class TimelineDrawingArea : public QWidget
@@ -76,6 +77,7 @@ public:
     bool hasKeyframe(int layer, int frame) const;
     void selectKeyframe(int layer, int frame);
     void clearKeyframeSelection();
+    void toggleKeyframe(int layer, int frame);
 
     // Layers
     void addLayer(const QString& name);
@@ -84,6 +86,7 @@ public:
     void setLayerVisible(int index, bool visible);
     void setLayerLocked(int index, bool locked);
     int getLayerCount() const;
+    void updateLayersFromCanvas();
 
     // View
     void setZoomLevel(double zoom);
@@ -118,6 +121,7 @@ private slots:
     void onFrameSpinBoxChanged(int value);
     void onFrameRateChanged(int index);
     void onLayerSelectionChanged();
+    void onKeyframeCreated(int frame);
 
 private:
     void setupUI();
