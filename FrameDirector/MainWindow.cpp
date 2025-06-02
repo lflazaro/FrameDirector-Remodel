@@ -548,7 +548,6 @@ void MainWindow::createActions()
 
 void MainWindow::createMenus()
 {
-    // File Menu
     m_fileMenu = menuBar()->addMenu("&File");
     m_fileMenu->addAction(m_newAction);
     m_fileMenu->addAction(m_openAction);
