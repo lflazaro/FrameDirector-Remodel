@@ -145,6 +145,7 @@
     <ClInclude Include="Animation\AnimationKeyframe.h" />
     <ClInclude Include="Animation\AnimationLayer.h" />
     <ClInclude Include="Commands\UndoCommands.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="VectorGraphics\VectorGraphicsItem.h" />
     <QtMoc Include="Tools\Tool.h" />
     <QtMoc Include="Tools\TextTool.h" />
@@ -155,61 +156,167 @@
     <QtMoc Include="Tools\DrawingTool.h" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="resources\icons\arrow-right.png" />
-    <Image Include="resources\icons\branch-closed.png" />
-    <Image Include="resources\icons\branch-open.png" />
-    <Image Include="resources\icons\check.png" />
-    <Image Include="resources\icons\close.png" />
-    <Image Include="resources\icons\Copy.png" />
-    <Image Include="resources\icons\Cut.png" />
-    <Image Include="resources\icons\delete.png" />
-    <Image Include="resources\icons\down-arrow.png" />
-    <Image Include="resources\icons\dropdown.png" />
-    <Image Include="resources\icons\exit.png" />
-    <Image Include="resources\icons\export.png" />
-    <Image Include="resources\icons\float.png" />
+    <Image Include="resources\icons\arrow-right.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\branch-closed.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\branch-open.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\check.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\close.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\Copy.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\Cut.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\delete.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\down-arrow.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\dropdown.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\exit.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\export.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\float.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
     <Image Include="resources\icons\FrameDirector.ico" />
     <Image Include="resources\icons\FrameDirector.png" />
-    <Image Include="resources\icons\fullscreen.png" />
-    <Image Include="resources\icons\Grid.png" />
-    <Image Include="resources\icons\group.png" />
-    <Image Include="resources\icons\guides.png" />
-    <Image Include="resources\icons\import.png" />
-    <Image Include="resources\icons\new.png" />
-    <Image Include="resources\icons\open.png" />
-    <Image Include="resources\icons\Paste.png" />
-    <Image Include="resources\icons\pause.png" />
-    <Image Include="resources\icons\Play.png" />
-    <Image Include="resources\icons\recent.png" />
-    <Image Include="resources\icons\redo.png" />
-    <Image Include="resources\icons\rulers.png" />
-    <Image Include="resources\icons\save-as.png" />
-    <Image Include="resources\icons\save.png" />
-    <Image Include="resources\icons\select-all.png" />
-    <Image Include="resources\icons\snap.png" />
-    <Image Include="resources\icons\splash.png" />
-    <Image Include="resources\icons\stop.png" />
-    <Image Include="resources\icons\tool-bucket.png" />
-    <Image Include="resources\icons\tool-draw.png" />
-    <Image Include="resources\icons\tool-ellipse.png" />
-    <Image Include="resources\icons\tool-eraser.png" />
-    <Image Include="resources\icons\tool-eyedropper.png" />
-    <Image Include="resources\icons\tool-hand.png" />
-    <Image Include="resources\icons\tool-line.png" />
-    <Image Include="resources\icons\tool-rectangle.png" />
-    <Image Include="resources\icons\tool-select.png" />
-    <Image Include="resources\icons\tool-text.png" />
-    <Image Include="resources\icons\tool-zoom.png" />
-    <Image Include="resources\icons\undo.png" />
-    <Image Include="resources\icons\ungroup.png" />
-    <Image Include="resources\icons\up-arrow.png" />
-    <Image Include="resources\icons\zoom-100.png" />
-    <Image Include="resources\icons\zoom-fit.png" />
-    <Image Include="resources\icons\zoom-in.png" />
-    <Image Include="resources\icons\zoom-out.png" />
+    <Image Include="resources\icons\fullscreen.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\Grid.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\group.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\guides.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\import.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\new.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\open.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\Paste.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\pause.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\Play.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\recent.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\redo.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\rulers.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\save-as.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\save.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\select-all.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\snap.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\splash.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\stop.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\tool-bucket.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\tool-draw.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\tool-ellipse.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\tool-eraser.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\tool-eyedropper.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\tool-hand.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\tool-line.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\tool-rectangle.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\tool-select.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\tool-text.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\tool-zoom.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\undo.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\ungroup.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\up-arrow.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\zoom-100.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\zoom-fit.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\zoom-in.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\zoom-out.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\styles\dark-theme.qss" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="FrameDirector.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <QtRcc Include="resources\icons.qrc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Condition="Exists('$(QtMsBuild)\qt.targets')">

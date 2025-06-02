@@ -1,6 +1,6 @@
 <!DOCTYPE RCC>
 <RCC version="1.0">
-    <qresource prefix="/icons">
+    <qresource prefix="/">
         <!-- Application Icons -->
         <file>icons/framedirector.png</file>
         <file>icons/framedirector.ico</file>

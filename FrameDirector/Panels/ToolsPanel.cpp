@@ -4,6 +4,7 @@
 #include <QVBoxLayout>
 #include <QGridLayout>
 #include <QLabel>
+#include <QIcon>
 
 ToolsPanel::ToolsPanel(MainWindow* parent)
     : QWidget(parent)
@@ -41,14 +42,15 @@ void ToolsPanel::setupUI()
     m_toolButtonGroup = new QButtonGroup(this);
     m_toolButtonGroup->setExclusive(true);
 
-    createToolButton("↖", "Select Tool (V)", MainWindow::SelectTool, "V");
-    createToolButton("✏", "Draw Tool (P)", MainWindow::DrawTool, "P");
-    createToolButton("╱", "Line Tool (L)", MainWindow::LineTool, "L");
-    createToolButton("□", "Rectangle Tool (R)", MainWindow::RectangleTool, "R");
-    createToolButton("○", "Ellipse Tool (O)", MainWindow::EllipseTool, "O");
-    createToolButton("T", "Text Tool (T)", MainWindow::TextTool, "T");
-    createToolButton("🪣", "Bucket Fill Tool (B)", MainWindow::BucketFillTool, "B");
-    createToolButton("🗙", "Erase Tool (E)", MainWindow::EraseTool, "E");
+    // Create tool buttons with icons
+    createToolButton(":/icons/tool-select.png", "Select Tool", MainWindow::SelectTool, "V");
+    createToolButton(":/icons/tool-draw.png", "Draw Tool", MainWindow::DrawTool, "P");
+    createToolButton(":/icons/tool-line.png", "Line Tool", MainWindow::LineTool, "L");
+    createToolButton(":/icons/tool-rectangle.png", "Rectangle Tool", MainWindow::RectangleTool, "R");
+    createToolButton(":/icons/tool-ellipse.png", "Ellipse Tool", MainWindow::EllipseTool, "O");
+    createToolButton(":/icons/tool-text.png", "Text Tool", MainWindow::TextTool, "T");
+    //createToolButton(":/icons/tool-bucket.png", "Bucket Fill Tool", MainWindow::BucketFillTool, "B");
+    //createToolButton(":/icons/tool-eraser.png", "Erase Tool", MainWindow::EraseTool, "E");
 
     m_mainLayout->addLayout(m_toolsLayout);
     m_mainLayout->addStretch();
@@ -65,10 +67,16 @@ void ToolsPanel::setupUI()
     m_selectButton->setChecked(true);
 }
 
-void ToolsPanel::createToolButton(const QString& iconText, const QString& tooltip,
+void ToolsPanel::createToolButton(const QString& iconPath, const QString& tooltip,
     MainWindow::ToolType tool, const QString& shortcut)
 {
-    QPushButton* button = new QPushButton(iconText);
+    QPushButton* button = new QPushButton();
+
+    // Set icon instead of text
+    QIcon icon(iconPath);
+    button->setIcon(icon);
+    button->setIconSize(QSize(24, 24)); // Set appropriate icon size
+
     button->setToolTip(QString("%1 (%2)").arg(tooltip, shortcut));
     button->setCheckable(true);
     button->setMinimumSize(40, 40);
@@ -82,6 +90,7 @@ void ToolsPanel::createToolButton(const QString& iconText, const QString& toolti
         "    border-radius: 4px;"
         "    font-size: 14px;"
         "    font-weight: bold;"
+        "    padding: 2px;"
         "}"
         "QPushButton:hover {"
         "    background-color: #4A4A4F;"

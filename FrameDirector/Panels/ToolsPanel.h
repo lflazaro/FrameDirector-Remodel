@@ -28,7 +28,7 @@ private slots:
 
 private:
     void setupUI();
-    void createToolButton(const QString& iconText, const QString& tooltip,
+    void createToolButton(const QString& iconPath, const QString& tooltip,
         MainWindow::ToolType tool, const QString& shortcut);
 
     MainWindow* m_mainWindow;
