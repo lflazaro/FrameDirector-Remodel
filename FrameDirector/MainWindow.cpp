@@ -151,7 +151,6 @@ MainWindow::MainWindow(QWidget* parent)
 
     // Optional: Create a test shape to verify everything is working
     // Remove this line after confirming the canvas works
-    QTimer::singleShot(1000, this, &MainWindow::createTestShape);
 
     qDebug() << "MainWindow setup complete";
 }
