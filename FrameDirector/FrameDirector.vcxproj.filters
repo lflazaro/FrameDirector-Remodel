@@ -101,6 +101,9 @@
     <ClCompile Include="VectorGraphics\VectorGraphicsItem.cpp">
       <Filter>VectorGraphics</Filter>
     </ClCompile>
+    <ClCompile Include="BucketFillTool.cpp">
+      <Filter>Tools</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="Canvas.h">
@@ -149,6 +152,9 @@
       <Filter>Tools</Filter>
     </QtMoc>
     <QtMoc Include="Tools\Tool.h">
+      <Filter>Tools</Filter>
+    </QtMoc>
+    <QtMoc Include="BucketFillTool.h">
       <Filter>Tools</Filter>
     </QtMoc>
   </ItemGroup>

@@ -30,6 +30,10 @@
 #include <QGraphicsEffect>
 #include <QUndoStack>
 #include <QUndoCommand>
+#include <QProgressDialog>  // Add this include
+#include <QFileDialog>      // Add this include
+#include <QMessageBox>      // Add this include
+#include <QApplication>     // Add this include
 #include <memory>
 #include <vector>
 #include <map>
@@ -56,12 +60,12 @@ class SelectionTool;
 class VectorGraphicsItem;
 class AnimationKeyframe;
 class AnimationLayer;
+class AddItemCommand;  // Add this forward declaration
+class DrawCommand;     // Add this forward declaration
 
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
-
-
 
 public:
     MainWindow(QWidget* parent = nullptr);
@@ -89,6 +93,9 @@ public:
         DistributeVertically
     };
 
+    // Public member access for undo commands
+    QUndoStack* m_undoStack;  // Made public for undo commands access
+
 public slots:
     void alignObjects(AlignmentType alignment);
     void bringToFront();
@@ -109,6 +116,8 @@ private slots:
     void importImage();
     void importVector();
     void importAudio();
+    void importMultipleFiles();     // Add this declaration
+    void showSupportedFormats();    // Add this declaration
     void exportAnimation();
     void exportFrame();
     void exportSVG();
@@ -218,18 +227,18 @@ private:
     QString strippedName(const QString& fullFileName);
     void updateUI();
     void updateStatusBar();
+    void updateImportMenu();        // Add this declaration
 
     // Tool management
     void setupTools();
     void activateTool(ToolType tool);
     Tool* getCurrentTool() const;
-    void connectToolsAndCanvas();        // <-- ADD THIS
-    void setupColorConnections();        // <-- ADD THIS
+    void connectToolsAndCanvas();
+    void setupColorConnections();
     void connectLayerManager();
-    void createTestShape();              // <-- ADD THIS
+    void createTestShape();
     void updateSelectedItemsStroke(const QColor& color);
     void updateSelectedItemsFill(const QColor& color);
-
 
     // Animation helpers
     void createKeyframeAtCurrentFrame();
@@ -274,9 +283,6 @@ private:
     int m_frameRate;
     bool m_isPlaying;
     QTimer* m_playbackTimer;
-
-    // Undo/Redo system
-    QUndoStack* m_undoStack;
 
     // Animation and layers
     std::vector<std::unique_ptr<AnimationLayer>> m_layers;

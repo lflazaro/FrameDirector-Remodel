@@ -23,6 +23,9 @@ class PropertiesPanel : public QWidget
 {
     Q_OBJECT
 
+public slots:
+    void onSelectionChanged();
+
 public:
     explicit PropertiesPanel(MainWindow* parent = nullptr);
 
@@ -37,7 +40,6 @@ private slots:
     void onStyleChanged();
     void onStrokeColorClicked();
     void onFillColorClicked();
-    void onSelectionChanged();
 
 private:
     void setupUI();

@@ -21,6 +21,10 @@
 #include <QGraphicsLineItem>
 #include <QGraphicsTextItem>
 #include <QGraphicsPathItem>
+#include <QPen>
+#include <QBrush>
+#include <QTransform>
+#include <QtMath>
 
 PropertiesPanel::PropertiesPanel(MainWindow* parent)
     : QWidget(parent)
@@ -62,6 +66,9 @@ void PropertiesPanel::setupUI()
     setupAnimationGroup();
 
     m_mainLayout->addStretch();
+
+    // Initially disable all controls
+    clearProperties();
 }
 
 void PropertiesPanel::setupTransformGroup()
@@ -92,7 +99,7 @@ void PropertiesPanel::setupTransformGroup()
         "    border: 1px solid #5A5A5C;"
         "    border-radius: 2px;"
         "    padding: 2px;"
-        "    font-size: 11px;"
+        "    font-weight: normal;"
         "}"
         "QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {"
         "    background-color: #3E3E42;"
@@ -104,39 +111,41 @@ void PropertiesPanel::setupTransformGroup()
 
     // Position
     m_xSpinBox = new QDoubleSpinBox;
-    m_xSpinBox->setRange(-10000, 10000);
+    m_xSpinBox->setRange(-9999, 9999);
     m_xSpinBox->setDecimals(1);
     m_xSpinBox->setStyleSheet(spinBoxStyle);
 
     m_ySpinBox = new QDoubleSpinBox;
-    m_ySpinBox->setRange(-10000, 10000);
+    m_ySpinBox->setRange(-9999, 9999);
     m_ySpinBox->setDecimals(1);
     m_ySpinBox->setStyleSheet(spinBoxStyle);
 
-    QHBoxLayout* positionLayout = new QHBoxLayout;
-    positionLayout->addWidget(new QLabel("X:"));
-    positionLayout->addWidget(m_xSpinBox);
-    positionLayout->addWidget(new QLabel("Y:"));
-    positionLayout->addWidget(m_ySpinBox);
-    transformLayout->addRow("Position:", positionLayout);
+    QHBoxLayout* posLayout = new QHBoxLayout;
+    posLayout->addWidget(m_xSpinBox);
+    posLayout->addWidget(m_ySpinBox);
+
+    QLabel* posLabel = new QLabel("Position:");
+    posLabel->setStyleSheet("color: white; font-weight: normal;");
+    transformLayout->addRow(posLabel, posLayout);
 
     // Size
     m_widthSpinBox = new QDoubleSpinBox;
-    m_widthSpinBox->setRange(0.1, 10000);
+    m_widthSpinBox->setRange(1, 9999);
     m_widthSpinBox->setDecimals(1);
     m_widthSpinBox->setStyleSheet(spinBoxStyle);
 
     m_heightSpinBox = new QDoubleSpinBox;
-    m_heightSpinBox->setRange(0.1, 10000);
+    m_heightSpinBox->setRange(1, 9999);
     m_heightSpinBox->setDecimals(1);
     m_heightSpinBox->setStyleSheet(spinBoxStyle);
 
     QHBoxLayout* sizeLayout = new QHBoxLayout;
-    sizeLayout->addWidget(new QLabel("W:"));
     sizeLayout->addWidget(m_widthSpinBox);
-    sizeLayout->addWidget(new QLabel("H:"));
     sizeLayout->addWidget(m_heightSpinBox);
-    transformLayout->addRow("Size:", sizeLayout);
+
+    QLabel* sizeLabel = new QLabel("Size:");
+    sizeLabel->setStyleSheet("color: white; font-weight: normal;");
+    transformLayout->addRow(sizeLabel, sizeLayout);
 
     // Rotation
     m_rotationSpinBox = new QDoubleSpinBox;
@@ -144,27 +153,33 @@ void PropertiesPanel::setupTransformGroup()
     m_rotationSpinBox->setDecimals(1);
     m_rotationSpinBox->setSuffix("°");
     m_rotationSpinBox->setStyleSheet(spinBoxStyle);
-    transformLayout->addRow("Rotation:", m_rotationSpinBox);
+
+    QLabel* rotLabel = new QLabel("Rotation:");
+    rotLabel->setStyleSheet("color: white; font-weight: normal;");
+    transformLayout->addRow(rotLabel, m_rotationSpinBox);
 
     // Scale
     m_scaleXSpinBox = new QDoubleSpinBox;
-    m_scaleXSpinBox->setRange(0.01, 100);
-    m_scaleXSpinBox->setDecimals(2);
+    m_scaleXSpinBox->setRange(0.1, 10.0);
     m_scaleXSpinBox->setValue(1.0);
+    m_scaleXSpinBox->setDecimals(2);
+    m_scaleXSpinBox->setSingleStep(0.1);
     m_scaleXSpinBox->setStyleSheet(spinBoxStyle);
 
     m_scaleYSpinBox = new QDoubleSpinBox;
-    m_scaleYSpinBox->setRange(0.01, 100);
-    m_scaleYSpinBox->setDecimals(2);
+    m_scaleYSpinBox->setRange(0.1, 10.0);
     m_scaleYSpinBox->setValue(1.0);
+    m_scaleYSpinBox->setDecimals(2);
+    m_scaleYSpinBox->setSingleStep(0.1);
     m_scaleYSpinBox->setStyleSheet(spinBoxStyle);
 
     QHBoxLayout* scaleLayout = new QHBoxLayout;
-    scaleLayout->addWidget(new QLabel("X:"));
     scaleLayout->addWidget(m_scaleXSpinBox);
-    scaleLayout->addWidget(new QLabel("Y:"));
     scaleLayout->addWidget(m_scaleYSpinBox);
-    transformLayout->addRow("Scale:", scaleLayout);
+
+    QLabel* scaleLabel = new QLabel("Scale:");
+    scaleLabel->setStyleSheet("color: white; font-weight: normal;");
+    transformLayout->addRow(scaleLabel, scaleLayout);
 
     m_mainLayout->addWidget(m_transformGroup);
 
@@ -199,6 +214,7 @@ void PropertiesPanel::setupStyleGroup()
         "    border: 1px solid #5A5A5C;"
         "    border-radius: 3px;"
         "    padding: 4px 8px;"
+        "    font-weight: normal;"
         "    min-height: 20px;"
         "}"
         "QPushButton:hover {"
@@ -209,21 +225,26 @@ void PropertiesPanel::setupStyleGroup()
         "    background-color: #007ACC;"
         "}";
 
-    // Stroke color
-    m_strokeColorButton = new QPushButton("Stroke Color");
+    // Color buttons
+    m_strokeColorButton = new QPushButton("Black");
     m_strokeColorButton->setStyleSheet(buttonStyle);
-    styleLayout->addRow("Stroke:", m_strokeColorButton);
 
-    // Fill color
-    m_fillColorButton = new QPushButton("Fill Color");
+    m_fillColorButton = new QPushButton("None");
     m_fillColorButton->setStyleSheet(buttonStyle);
-    styleLayout->addRow("Fill:", m_fillColorButton);
+
+    QLabel* strokeLabel = new QLabel("Stroke:");
+    strokeLabel->setStyleSheet("color: white; font-weight: normal;");
+    styleLayout->addRow(strokeLabel, m_strokeColorButton);
+
+    QLabel* fillLabel = new QLabel("Fill:");
+    fillLabel->setStyleSheet("color: white; font-weight: normal;");
+    styleLayout->addRow(fillLabel, m_fillColorButton);
 
     // Stroke width
     m_strokeWidthSpinBox = new QDoubleSpinBox;
-    m_strokeWidthSpinBox->setRange(0.1, 100);
+    m_strokeWidthSpinBox->setRange(0.1, 50.0);
     m_strokeWidthSpinBox->setDecimals(1);
-    m_strokeWidthSpinBox->setValue(2.0);
+    m_strokeWidthSpinBox->setSuffix(" px");
     m_strokeWidthSpinBox->setStyleSheet(
         "QDoubleSpinBox {"
         "    background-color: #2D2D30;"
@@ -231,9 +252,20 @@ void PropertiesPanel::setupStyleGroup()
         "    border: 1px solid #5A5A5C;"
         "    border-radius: 2px;"
         "    padding: 2px;"
+        "    font-weight: normal;"
+        "}"
+        "QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {"
+        "    background-color: #3E3E42;"
+        "    border: 1px solid #5A5A5C;"
+        "}"
+        "QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover {"
+        "    background-color: #4A4A4F;"
         "}"
     );
-    styleLayout->addRow("Stroke Width:", m_strokeWidthSpinBox);
+
+    QLabel* widthLabel = new QLabel("Width:");
+    widthLabel->setStyleSheet("color: white; font-weight: normal;");
+    styleLayout->addRow(widthLabel, m_strokeWidthSpinBox);
 
     // Opacity
     QHBoxLayout* opacityLayout = new QHBoxLayout;
@@ -255,30 +287,43 @@ void PropertiesPanel::setupStyleGroup()
         "    margin: -4px 0;"
         "    border-radius: 2px;"
         "}"
+        "QSlider::handle:horizontal:hover {"
+        "    background: #4A9EDF;"
+        "}"
     );
 
     m_opacityLabel = new QLabel("100%");
-    m_opacityLabel->setStyleSheet("color: white; min-width: 30px;");
+    m_opacityLabel->setStyleSheet("color: white; font-weight: normal; min-width: 35px;");
     m_opacityLabel->setAlignment(Qt::AlignRight);
 
     opacityLayout->addWidget(m_opacitySlider);
     opacityLayout->addWidget(m_opacityLabel);
-    styleLayout->addRow("Opacity:", opacityLayout);
+
+    QLabel* opLabel = new QLabel("Opacity:");
+    opLabel->setStyleSheet("color: white; font-weight: normal;");
+    styleLayout->addRow(opLabel, opacityLayout);
 
     // Stroke style
     m_strokeStyleCombo = new QComboBox;
-    m_strokeStyleCombo->addItems({ "Solid", "Dashed", "Dotted", "Dash-Dot" });
+    m_strokeStyleCombo->addItems({ "Solid", "Dashed", "Dotted", "Dash Dot" });
     m_strokeStyleCombo->setStyleSheet(
         "QComboBox {"
         "    background-color: #2D2D30;"
         "    color: white;"
         "    border: 1px solid #5A5A5C;"
         "    border-radius: 2px;"
-        "    padding: 2px;"
+        "    padding: 2px 6px;"
+        "    font-weight: normal;"
         "}"
         "QComboBox::drop-down {"
         "    border: none;"
         "    width: 15px;"
+        "}"
+        "QComboBox::down-arrow {"
+        "    image: none;"
+        "    border-left: 4px solid transparent;"
+        "    border-right: 4px solid transparent;"
+        "    border-top: 4px solid #CCCCCC;"
         "}"
         "QComboBox QAbstractItemView {"
         "    background-color: #2D2D30;"
@@ -287,7 +332,10 @@ void PropertiesPanel::setupStyleGroup()
         "    selection-background-color: #007ACC;"
         "}"
     );
-    styleLayout->addRow("Stroke Style:", m_strokeStyleCombo);
+
+    QLabel* styleLabel = new QLabel("Style:");
+    styleLabel->setStyleSheet("color: white; font-weight: normal;");
+    styleLayout->addRow(styleLabel, m_strokeStyleCombo);
 
     m_mainLayout->addWidget(m_styleGroup);
 
@@ -296,14 +344,12 @@ void PropertiesPanel::setupStyleGroup()
     connect(m_fillColorButton, &QPushButton::clicked, this, &PropertiesPanel::onFillColorClicked);
     connect(m_strokeWidthSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
         this, &PropertiesPanel::onStyleChanged);
-    connect(m_opacitySlider, &QSlider::valueChanged, this, &PropertiesPanel::onStyleChanged);
+    connect(m_opacitySlider, &QSlider::valueChanged, this, [this](int value) {
+        m_opacityLabel->setText(QString("%1%").arg(value));
+        onStyleChanged();
+        });
     connect(m_strokeStyleCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
         this, &PropertiesPanel::onStyleChanged);
-
-    // Connect opacity slider to label update
-    connect(m_opacitySlider, &QSlider::valueChanged, [this](int value) {
-        m_opacityLabel->setText(QString("%1%").arg(value));
-        });
 }
 
 void PropertiesPanel::setupAnimationGroup()
@@ -311,12 +357,13 @@ void PropertiesPanel::setupAnimationGroup()
     m_animationGroup = new QGroupBox("Animation");
     m_animationGroup->setStyleSheet(m_transformGroup->styleSheet());
 
-    QFormLayout* animationLayout = new QFormLayout(m_animationGroup);
+    QFormLayout* animLayout = new QFormLayout(m_animationGroup);
 
     m_enableAnimationCheckBox = new QCheckBox("Enable Animation");
     m_enableAnimationCheckBox->setStyleSheet(
         "QCheckBox {"
         "    color: white;"
+        "    font-weight: normal;"
         "}"
         "QCheckBox::indicator {"
         "    width: 16px;"
@@ -331,12 +378,12 @@ void PropertiesPanel::setupAnimationGroup()
         "    border: 1px solid #005A9B;"
         "}"
     );
-    animationLayout->addRow(m_enableAnimationCheckBox);
 
     m_durationSpinBox = new QSpinBox;
-    m_durationSpinBox->setRange(1, 10000);
-    m_durationSpinBox->setValue(1000);
-    m_durationSpinBox->setSuffix(" ms");
+    m_durationSpinBox->setRange(1, 300);
+    m_durationSpinBox->setValue(24);
+    m_durationSpinBox->setSuffix(" frames");
+    m_durationSpinBox->setEnabled(false);
     m_durationSpinBox->setStyleSheet(
         "QSpinBox {"
         "    background-color: #2D2D30;"
@@ -344,48 +391,71 @@ void PropertiesPanel::setupAnimationGroup()
         "    border: 1px solid #5A5A5C;"
         "    border-radius: 2px;"
         "    padding: 2px;"
+        "    font-weight: normal;"
+        "}"
+        "QSpinBox:disabled {"
+        "    color: #666666;"
+        "    background-color: #1A1A1A;"
         "}"
     );
-    animationLayout->addRow("Duration:", m_durationSpinBox);
 
     m_easingCombo = new QComboBox;
     m_easingCombo->addItems({ "Linear", "Ease In", "Ease Out", "Ease In Out" });
-    m_easingCombo->setStyleSheet(m_strokeStyleCombo->styleSheet());
-    animationLayout->addRow("Easing:", m_easingCombo);
+    m_easingCombo->setEnabled(false);
+    m_easingCombo->setStyleSheet(
+        "QComboBox {"
+        "    background-color: #2D2D30;"
+        "    color: white;"
+        "    border: 1px solid #5A5A5C;"
+        "    border-radius: 2px;"
+        "    padding: 2px 6px;"
+        "    font-weight: normal;"
+        "}"
+        "QComboBox:disabled {"
+        "    color: #666666;"
+        "    background-color: #1A1A1A;"
+        "}"
+    );
+
+    animLayout->addRow(m_enableAnimationCheckBox);
+
+    QLabel* durLabel = new QLabel("Duration:");
+    durLabel->setStyleSheet("color: white; font-weight: normal;");
+    animLayout->addRow(durLabel, m_durationSpinBox);
+
+    QLabel* easingLabel = new QLabel("Easing:");
+    easingLabel->setStyleSheet("color: white; font-weight: normal;");
+    animLayout->addRow(easingLabel, m_easingCombo);
 
     m_mainLayout->addWidget(m_animationGroup);
-}
 
-void PropertiesPanel::onSelectionChanged()
-{
-    Canvas* canvas = m_mainWindow->findChild<Canvas*>();
-    if (!canvas) return;
-
-    QList<QGraphicsItem*> selectedItems = canvas->getSelectedItems();
-    updateProperties(selectedItems);
+    // Connect animation signals
+    connect(m_enableAnimationCheckBox, &QCheckBox::toggled, [this](bool enabled) {
+        m_durationSpinBox->setEnabled(enabled);
+        m_easingCombo->setEnabled(enabled);
+        });
 }
 
 void PropertiesPanel::updateProperties(const QList<QGraphicsItem*>& selectedItems)
 {
-    m_selectedItems = selectedItems;
-
     if (selectedItems.isEmpty()) {
         clearProperties();
         return;
     }
 
     m_updating = true;
+    m_selectedItems = selectedItems;
 
-    // Update transform properties (use first selected item as reference)
-    QGraphicsItem* firstItem = selectedItems.first();
-    updateTransformControls(firstItem);
-    updateStyleControls(firstItem);
+    // For multiple selection, show properties of the first item
+    QGraphicsItem* item = selectedItems.first();
 
-    // Enable/disable controls based on selection
-    bool hasSelection = !selectedItems.isEmpty();
-    m_transformGroup->setEnabled(hasSelection);
-    m_styleGroup->setEnabled(hasSelection);
-    m_animationGroup->setEnabled(hasSelection);
+    updateTransformControls(item);
+    updateStyleControls(item);
+
+    // Enable all controls
+    m_transformGroup->setEnabled(true);
+    m_styleGroup->setEnabled(true);
+    m_animationGroup->setEnabled(true);
 
     m_updating = false;
 }
@@ -393,8 +463,14 @@ void PropertiesPanel::updateProperties(const QList<QGraphicsItem*>& selectedItem
 void PropertiesPanel::clearProperties()
 {
     m_updating = true;
+    m_selectedItems.clear();
 
-    // Clear transform controls
+    // Disable all controls
+    m_transformGroup->setEnabled(false);
+    m_styleGroup->setEnabled(false);
+    m_animationGroup->setEnabled(false);
+
+    // Reset values
     m_xSpinBox->setValue(0);
     m_ySpinBox->setValue(0);
     m_widthSpinBox->setValue(0);
@@ -403,15 +479,12 @@ void PropertiesPanel::clearProperties()
     m_scaleXSpinBox->setValue(1.0);
     m_scaleYSpinBox->setValue(1.0);
 
-    // Clear style controls
-    m_strokeWidthSpinBox->setValue(2.0);
+    m_strokeColorButton->setText("Black");
+    m_fillColorButton->setText("None");
+    m_strokeWidthSpinBox->setValue(1.0);
     m_opacitySlider->setValue(100);
+    m_opacityLabel->setText("100%");
     m_strokeStyleCombo->setCurrentIndex(0);
-
-    // Disable all groups
-    m_transformGroup->setEnabled(false);
-    m_styleGroup->setEnabled(false);
-    m_animationGroup->setEnabled(false);
 
     m_updating = false;
 }
@@ -420,20 +493,16 @@ void PropertiesPanel::updateTransformControls(QGraphicsItem* item)
 {
     if (!item) return;
 
-    // Position
     QPointF pos = item->pos();
     m_xSpinBox->setValue(pos.x());
     m_ySpinBox->setValue(pos.y());
 
-    // Size (get from bounding rect)
-    QRectF boundingRect = item->boundingRect();
-    m_widthSpinBox->setValue(boundingRect.width());
-    m_heightSpinBox->setValue(boundingRect.height());
+    QRectF rect = item->boundingRect();
+    m_widthSpinBox->setValue(rect.width());
+    m_heightSpinBox->setValue(rect.height());
 
-    // Rotation
     m_rotationSpinBox->setValue(item->rotation());
 
-    // Scale
     QTransform transform = item->transform();
     m_scaleXSpinBox->setValue(transform.m11());
     m_scaleYSpinBox->setValue(transform.m22());
@@ -443,65 +512,69 @@ void PropertiesPanel::updateStyleControls(QGraphicsItem* item)
 {
     if (!item) return;
 
-    // Opacity
-    int opacity = static_cast<int>(item->opacity() * 100);
-    m_opacitySlider->setValue(opacity);
+    QPen pen;
+    QBrush brush;
 
-    // Try to get stroke and fill colors from different item types
-    QColor strokeColor = Qt::black;
-    QColor fillColor = Qt::transparent;
-    double strokeWidth = 2.0;
-
+    // Get pen and brush based on item type
     if (auto rectItem = qgraphicsitem_cast<QGraphicsRectItem*>(item)) {
-        strokeColor = rectItem->pen().color();
-        fillColor = rectItem->brush().color();
-        strokeWidth = rectItem->pen().widthF();
+        pen = rectItem->pen();
+        brush = rectItem->brush();
     }
     else if (auto ellipseItem = qgraphicsitem_cast<QGraphicsEllipseItem*>(item)) {
-        strokeColor = ellipseItem->pen().color();
-        fillColor = ellipseItem->brush().color();
-        strokeWidth = ellipseItem->pen().widthF();
+        pen = ellipseItem->pen();
+        brush = ellipseItem->brush();
     }
     else if (auto lineItem = qgraphicsitem_cast<QGraphicsLineItem*>(item)) {
-        strokeColor = lineItem->pen().color();
-        strokeWidth = lineItem->pen().widthF();
+        pen = lineItem->pen();
+        brush = QBrush(Qt::transparent);
     }
     else if (auto pathItem = qgraphicsitem_cast<QGraphicsPathItem*>(item)) {
-        strokeColor = pathItem->pen().color();
-        fillColor = pathItem->brush().color();
-        strokeWidth = pathItem->pen().widthF();
+        pen = pathItem->pen();
+        brush = pathItem->brush();
+    }
+    else if (auto textItem = qgraphicsitem_cast<QGraphicsTextItem*>(item)) {
+        pen = QPen(textItem->defaultTextColor());
+        brush = QBrush(Qt::transparent);
     }
 
-    // Update color button backgrounds
-    m_strokeColorButton->setStyleSheet(QString(
-        "QPushButton {"
-        "    background-color: %1;"
-        "    color: %2;"
-        "    border: 1px solid #5A5A5C;"
-        "    border-radius: 3px;"
-        "    padding: 4px 8px;"
-        "    min-height: 20px;"
-        "}"
-        "QPushButton:hover {"
-        "    border: 1px solid #007ACC;"
-        "}"
-    ).arg(strokeColor.name()).arg(strokeColor.lightness() > 128 ? "black" : "white"));
+    // Update stroke color button
+    QColor strokeColor = pen.color();
+    m_strokeColorButton->setText(strokeColor.name());
+    m_strokeColorButton->setStyleSheet(
+        QString("QPushButton { background-color: %1; color: %2; }")
+        .arg(strokeColor.name())
+        .arg(strokeColor.lightness() > 128 ? "black" : "white"));
 
-    m_fillColorButton->setStyleSheet(QString(
-        "QPushButton {"
-        "    background-color: %1;"
-        "    color: %2;"
-        "    border: 1px solid #5A5A5C;"
-        "    border-radius: 3px;"
-        "    padding: 4px 8px;"
-        "    min-height: 20px;"
-        "}"
-        "QPushButton:hover {"
-        "    border: 1px solid #007ACC;"
-        "}"
-    ).arg(fillColor.name()).arg(fillColor.lightness() > 128 ? "black" : "white"));
+    // Update fill color button
+    QColor fillColor = brush.color();
+    if (brush.style() == Qt::NoBrush) {
+        m_fillColorButton->setText("None");
+        m_fillColorButton->setStyleSheet("QPushButton { background-color: #3E3E42; color: white; }");
+    }
+    else {
+        m_fillColorButton->setText(fillColor.name());
+        m_fillColorButton->setStyleSheet(
+            QString("QPushButton { background-color: %1; color: %2; }")
+            .arg(fillColor.name())
+            .arg(fillColor.lightness() > 128 ? "black" : "white"));
+    }
 
-    m_strokeWidthSpinBox->setValue(strokeWidth);
+    // Update stroke width
+    m_strokeWidthSpinBox->setValue(pen.widthF());
+
+    // Update opacity
+    int opacity = static_cast<int>(item->opacity() * 100);
+    m_opacitySlider->setValue(opacity);
+    m_opacityLabel->setText(QString("%1%").arg(opacity));
+
+    // Update stroke style
+    switch (pen.style()) {
+    case Qt::SolidLine: m_strokeStyleCombo->setCurrentIndex(0); break;
+    case Qt::DashLine: m_strokeStyleCombo->setCurrentIndex(1); break;
+    case Qt::DotLine: m_strokeStyleCombo->setCurrentIndex(2); break;
+    case Qt::DashDotLine: m_strokeStyleCombo->setCurrentIndex(3); break;
+    default: m_strokeStyleCombo->setCurrentIndex(0); break;
+    }
 }
 
 void PropertiesPanel::onTransformChanged()
@@ -509,32 +582,31 @@ void PropertiesPanel::onTransformChanged()
     if (m_updating || m_selectedItems.isEmpty()) return;
 
     for (QGraphicsItem* item : m_selectedItems) {
-        if (!item) continue;
+        // Position
+        item->setPos(m_xSpinBox->value(), m_ySpinBox->value());
 
-        // Update position
-        QPointF newPos(m_xSpinBox->value(), m_ySpinBox->value());
-        item->setPos(newPos);
-
-        // Update rotation
+        // Rotation
         item->setRotation(m_rotationSpinBox->value());
 
-        // Update scale
+        // Scale
         QTransform transform;
         transform.scale(m_scaleXSpinBox->value(), m_scaleYSpinBox->value());
         item->setTransform(transform);
 
-        // Update size (for rect and ellipse items)
-        QRectF newRect(0, 0, m_widthSpinBox->value(), m_heightSpinBox->value());
-
+        // Size (for shapes that support it)
         if (auto rectItem = qgraphicsitem_cast<QGraphicsRectItem*>(item)) {
-            rectItem->setRect(newRect);
+            QRectF rect = rectItem->rect();
+            rect.setSize(QSizeF(m_widthSpinBox->value(), m_heightSpinBox->value()));
+            rectItem->setRect(rect);
         }
         else if (auto ellipseItem = qgraphicsitem_cast<QGraphicsEllipseItem*>(item)) {
-            ellipseItem->setRect(newRect);
+            QRectF rect = ellipseItem->rect();
+            rect.setSize(QSizeF(m_widthSpinBox->value(), m_heightSpinBox->value()));
+            ellipseItem->setRect(rect);
         }
     }
 
-    // Update canvas frame state
+    // Store frame state after transformation
     Canvas* canvas = m_mainWindow->findChild<Canvas*>();
     if (canvas) {
         canvas->storeCurrentFrameState();
@@ -547,39 +619,49 @@ void PropertiesPanel::onStyleChanged()
 {
     if (m_updating || m_selectedItems.isEmpty()) return;
 
-    for (QGraphicsItem* item : m_selectedItems) {
-        if (!item) continue;
+    double strokeWidth = m_strokeWidthSpinBox->value();
+    double opacity = m_opacitySlider->value() / 100.0;
 
+    Qt::PenStyle penStyle = Qt::SolidLine;
+    switch (m_strokeStyleCombo->currentIndex()) {
+    case 1: penStyle = Qt::DashLine; break;
+    case 2: penStyle = Qt::DotLine; break;
+    case 3: penStyle = Qt::DashDotLine; break;
+    default: penStyle = Qt::SolidLine; break;
+    }
+
+    for (QGraphicsItem* item : m_selectedItems) {
         // Update opacity
-        double opacity = m_opacitySlider->value() / 100.0;
         item->setOpacity(opacity);
 
-        // Update stroke width for applicable items
-        double strokeWidth = m_strokeWidthSpinBox->value();
-
+        // Update pen and brush based on item type
         if (auto rectItem = qgraphicsitem_cast<QGraphicsRectItem*>(item)) {
             QPen pen = rectItem->pen();
             pen.setWidthF(strokeWidth);
+            pen.setStyle(penStyle);
             rectItem->setPen(pen);
         }
         else if (auto ellipseItem = qgraphicsitem_cast<QGraphicsEllipseItem*>(item)) {
             QPen pen = ellipseItem->pen();
             pen.setWidthF(strokeWidth);
+            pen.setStyle(penStyle);
             ellipseItem->setPen(pen);
         }
         else if (auto lineItem = qgraphicsitem_cast<QGraphicsLineItem*>(item)) {
             QPen pen = lineItem->pen();
             pen.setWidthF(strokeWidth);
+            pen.setStyle(penStyle);
             lineItem->setPen(pen);
         }
         else if (auto pathItem = qgraphicsitem_cast<QGraphicsPathItem*>(item)) {
             QPen pen = pathItem->pen();
             pen.setWidthF(strokeWidth);
+            pen.setStyle(penStyle);
             pathItem->setPen(pen);
         }
     }
 
-    // Update canvas frame state
+    // Store frame state after style change
     Canvas* canvas = m_mainWindow->findChild<Canvas*>();
     if (canvas) {
         canvas->storeCurrentFrameState();
@@ -620,12 +702,19 @@ void PropertiesPanel::onStrokeColorClicked()
                 pen.setColor(color);
                 pathItem->setPen(pen);
             }
+            else if (auto textItem = qgraphicsitem_cast<QGraphicsTextItem*>(item)) {
+                textItem->setDefaultTextColor(color);
+            }
         }
 
-        // Update button color
-        updateStyleControls(m_selectedItems.first());
+        // Update button appearance
+        m_strokeColorButton->setText(color.name());
+        m_strokeColorButton->setStyleSheet(
+            QString("QPushButton { background-color: %1; color: %2; }")
+            .arg(color.name())
+            .arg(color.lightness() > 128 ? "black" : "white"));
 
-        // Update canvas frame state
+        // Store frame state after color change
         Canvas* canvas = m_mainWindow->findChild<Canvas*>();
         if (canvas) {
             canvas->storeCurrentFrameState();
@@ -639,7 +728,7 @@ void PropertiesPanel::onFillColorClicked()
 {
     if (m_selectedItems.isEmpty()) return;
 
-    QColor currentColor = Qt::transparent;
+    QColor currentColor = Qt::white;
     if (auto rectItem = qgraphicsitem_cast<QGraphicsRectItem*>(m_selectedItems.first())) {
         currentColor = rectItem->brush().color();
     }
@@ -658,15 +747,28 @@ void PropertiesPanel::onFillColorClicked()
             }
         }
 
-        // Update button color
-        updateStyleControls(m_selectedItems.first());
+        // Update button appearance
+        m_fillColorButton->setText(color.name());
+        m_fillColorButton->setStyleSheet(
+            QString("QPushButton { background-color: %1; color: %2; }")
+            .arg(color.name())
+            .arg(color.lightness() > 128 ? "black" : "white"));
 
-        // Update canvas frame state
+        // Store frame state after color change
         Canvas* canvas = m_mainWindow->findChild<Canvas*>();
         if (canvas) {
             canvas->storeCurrentFrameState();
         }
 
         emit propertyChanged();
+    }
+}
+
+void PropertiesPanel::onSelectionChanged()
+{
+    Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+    if (canvas) {
+        QList<QGraphicsItem*> selectedItems = canvas->getSelectedItems();
+        updateProperties(selectedItems);
     }
 }

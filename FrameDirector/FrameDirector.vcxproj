@@ -95,6 +95,7 @@
     <ClCompile Include="Animation\AnimationController.cpp" />
     <ClCompile Include="Animation\AnimationKeyframe.cpp" />
     <ClCompile Include="Animation\AnimationLayer.cpp" />
+    <ClCompile Include="BucketFillTool.cpp" />
     <ClCompile Include="Canvas.cpp" />
     <ClCompile Include="Commands\UndoCommands.cpp" />
     <ClCompile Include="main.cpp" />
@@ -144,6 +145,7 @@
   <ItemGroup>
     <ClInclude Include="Animation\AnimationKeyframe.h" />
     <ClInclude Include="Animation\AnimationLayer.h" />
+    <QtMoc Include="BucketFillTool.h" />
     <ClInclude Include="Commands\UndoCommands.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="VectorGraphics\VectorGraphicsItem.h" />

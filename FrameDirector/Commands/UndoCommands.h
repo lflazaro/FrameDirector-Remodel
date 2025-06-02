@@ -1,11 +1,17 @@
-// Commands/UndoCommands.h
+// Commands/UndoCommands.h - Enhanced Header
 #ifndef UNDOCOMMANDS_H
 #define UNDOCOMMANDS_H
 
 #include <QUndoCommand>
 #include <QGraphicsItem>
+#include <QGraphicsItemGroup>
 #include <QPointF>
+#include <QSizeF>
+#include <QTransform>
+#include <QVariant>
+#include <QColor>
 #include <QList>
+#include <QString>
 #include <memory>
 
 class Canvas;
@@ -98,6 +104,8 @@ public:
     void redo() override;
 
 private:
+    void applyStyle(QGraphicsItem* item, const QString& property, const QVariant& value);
+
     QGraphicsItem* m_item;
     QString m_property;
     QVariant m_oldValue;
@@ -134,6 +142,41 @@ private:
     QGraphicsItemGroup* m_group;
     QList<QGraphicsItem*> m_items;
     bool m_ungrouped;
+};
+
+// NEW: Property change command for properties panel
+class PropertyChangeCommand : public GraphicsItemCommand
+{
+public:
+    PropertyChangeCommand(Canvas* canvas, QGraphicsItem* item,
+        const QString& property, const QVariant& oldValue, const QVariant& newValue,
+        QUndoCommand* parent = nullptr);
+
+    void undo() override;
+    void redo() override;
+
+private:
+    void applyProperty(QGraphicsItem* item, const QString& property, const QVariant& value);
+
+    QGraphicsItem* m_item;
+    QString m_property;
+    QVariant m_oldValue;
+    QVariant m_newValue;
+};
+
+// NEW: Draw command for drawing operations
+class DrawCommand : public GraphicsItemCommand
+{
+public:
+    DrawCommand(Canvas* canvas, QGraphicsItem* item, QUndoCommand* parent = nullptr);
+    ~DrawCommand();
+
+    void undo() override;
+    void redo() override;
+
+private:
+    QGraphicsItem* m_item;
+    bool m_itemAdded;
 };
 
 #endif // UNDOCOMMANDS_H

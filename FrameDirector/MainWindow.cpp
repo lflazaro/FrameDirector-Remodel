@@ -13,6 +13,8 @@
 #include "Tools/RectangleTool.h"     
 #include "Tools/EllipseTool.h"       
 #include "Tools/TextTool.h"          
+#include "BucketFillTool.h"
+#include "Commands/UndoCommands.h"
 #include "Animation/AnimationLayer.h"
 #include "Animation/AnimationKeyframe.h"
 
@@ -43,6 +45,14 @@
 #include <QTabWidget>
 #include <QDebug>
 #include <QFileInfo>
+#include <QPixmap>
+#include <QSvgRenderer>
+#include <QGraphicsPixmapItem>
+#include <QGraphicsSvgItem>
+#include <QImageReader>
+#include <QSvgWidget>
+#include <QDir>
+#include <QStandardPaths>
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
@@ -196,6 +206,34 @@ void MainWindow::connectToolsAndCanvas()
     qDebug() << "Available tools:" << m_tools.size();
     for (auto& toolPair : m_tools) {
         qDebug() << "Tool type:" << static_cast<int>(toolPair.first) << "Tool:" << toolPair.second.get();
+    }
+
+    if (m_propertiesPanel && m_canvas) {
+        // Connect canvas selection changes to properties panel
+        connect(m_canvas, &Canvas::selectionChanged,
+            m_propertiesPanel, &PropertiesPanel::onSelectionChanged);
+
+        // Connect properties panel changes back to canvas
+        connect(m_propertiesPanel, &PropertiesPanel::propertyChanged, [this]() {
+            if (m_canvas) {
+                m_canvas->storeCurrentFrameState();
+                m_isModified = true;
+            }
+            });
+
+        qDebug() << "Properties panel connected to canvas successfully";
+    }
+    else {
+        qDebug() << "Warning: Could not connect properties panel - panel or canvas is null";
+    }
+
+    // Make sure undo stack is accessible to all tools
+    for (auto& toolPair : m_tools) {
+        Tool* tool = toolPair.second.get();
+        if (tool) {
+            // Tools can access undo stack through m_mainWindow->m_undoStack
+            qDebug() << "Tool" << static_cast<int>(toolPair.first) << "has access to undo stack";
+        }
     }
 }
 void MainWindow::setupColorConnections()
@@ -763,6 +801,10 @@ void MainWindow::setupTools()
         m_tools[TextTool] = std::make_unique<::TextTool>(this);
         qDebug() << "Created TextTool:" << m_tools[TextTool].get();
 
+        m_tools[BucketFillTool] = std::make_unique<::BucketFillTool>(this);
+        qDebug() << "Created BucketFillTool:" << m_tools[TextTool].get();
+
+
         qDebug() << "All tools created successfully. Total tools:" << m_tools.size();
     }
     catch (const std::exception& e) {
@@ -961,22 +1003,248 @@ void MainWindow::saveAs()
 
 void MainWindow::importImage()
 {
+    // Get supported image formats
+    QStringList formats;
+    QList<QByteArray> supportedFormats = QImageReader::supportedImageFormats();
+    for (const QByteArray& format : supportedFormats) {
+        formats << QString("*.%1").arg(QString::fromLatin1(format).toLower());
+    }
+
+    QString filter = QString("Image Files (%1)").arg(formats.join(" "));
+
     QString fileName = QFileDialog::getOpenFileName(this,
-        "Import Image", "", "Image Files (*.png *.jpg *.jpeg *.bmp *.gif)");
+        "Import Image",
+        QStandardPaths::writableLocation(QStandardPaths::PicturesLocation),
+        filter);
+
     if (!fileName.isEmpty()) {
-        // Implementation for importing images
-        m_statusLabel->setText("Image imported");
+        QFileInfo fileInfo(fileName);
+
+        // Load the image
+        QPixmap pixmap(fileName);
+        if (pixmap.isNull()) {
+            QMessageBox::warning(this, "Import Error",
+                QString("Could not load image file:\n%1").arg(fileName));
+            return;
+        }
+
+        // Scale down large images to reasonable size
+        const int maxSize = 800;
+        if (pixmap.width() > maxSize || pixmap.height() > maxSize) {
+            pixmap = pixmap.scaled(maxSize, maxSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+        }
+
+        // Create graphics item
+        QGraphicsPixmapItem* pixmapItem = new QGraphicsPixmapItem(pixmap);
+        pixmapItem->setFlag(QGraphicsItem::ItemIsSelectable, true);
+        pixmapItem->setFlag(QGraphicsItem::ItemIsMovable, true);
+
+        // Position at center of canvas
+        if (m_canvas) {
+            QRectF canvasRect = m_canvas->getCanvasRect();
+            QRectF itemRect = pixmapItem->boundingRect();
+            QPointF centerPos = canvasRect.center() - itemRect.center();
+            pixmapItem->setPos(centerPos);
+
+            // Add to current layer with undo command
+            QUndoCommand* command = new AddItemCommand(m_canvas, pixmapItem);
+            m_undoStack->push(command);
+        }
+
+        m_statusLabel->setText(QString("Image imported: %1").arg(fileInfo.fileName()));
+        m_isModified = true;
     }
 }
 
 void MainWindow::importVector()
 {
     QString fileName = QFileDialog::getOpenFileName(this,
-        "Import Vector", "", "Vector Files (*.svg)");
+        "Import Vector",
+        QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation),
+        "Vector Files (*.svg);;All Files (*.*)");
+
     if (!fileName.isEmpty()) {
-        // Implementation for importing vector files
-        m_statusLabel->setText("Vector imported");
+        QFileInfo fileInfo(fileName);
+
+        // Check if it's an SVG file
+        if (fileInfo.suffix().toLower() != "svg") {
+            QMessageBox::warning(this, "Import Error",
+                "Only SVG files are currently supported for vector import.");
+            return;
+        }
+
+        // Test if the SVG can be loaded
+        QSvgRenderer* renderer = new QSvgRenderer(fileName);
+        if (!renderer->isValid()) {
+            QMessageBox::warning(this, "Import Error",
+                QString("Could not load SVG file:\n%1\nThe file may be corrupted or use unsupported features.").arg(fileName));
+            delete renderer;
+            return;
+        }
+
+        // Create SVG graphics item
+        QGraphicsSvgItem* svgItem = new QGraphicsSvgItem(fileName);
+        svgItem->setFlag(QGraphicsItem::ItemIsSelectable, true);
+        svgItem->setFlag(QGraphicsItem::ItemIsMovable, true);
+
+        // Scale down large SVGs to reasonable size
+        QRectF svgRect = svgItem->boundingRect();
+        const qreal maxSize = 400;
+        if (svgRect.width() > maxSize || svgRect.height() > maxSize) {
+            qreal scaleFactor = qMin(maxSize / svgRect.width(), maxSize / svgRect.height());
+            svgItem->setScale(scaleFactor);
+        }
+
+        // Position at center of canvas
+        if (m_canvas) {
+            QRectF canvasRect = m_canvas->getCanvasRect();
+            QRectF itemRect = svgItem->boundingRect();
+            QPointF centerPos = canvasRect.center() - itemRect.center();
+            svgItem->setPos(centerPos);
+
+            // Add to current layer with undo command
+            QUndoCommand* command = new AddItemCommand(m_canvas, svgItem);
+            m_undoStack->push(command);
+        }
+
+        delete renderer;
+        m_statusLabel->setText(QString("SVG imported: %1").arg(fileInfo.fileName()));
+        m_isModified = true;
     }
+}
+
+void MainWindow::importMultipleFiles()
+{
+    // Get supported formats
+    QStringList imageFormats;
+    QList<QByteArray> supportedFormats = QImageReader::supportedImageFormats();
+    for (const QByteArray& format : supportedFormats) {
+        imageFormats << QString("*.%1").arg(QString::fromLatin1(format).toLower());
+    }
+
+    QString imageFilter = QString("Image Files (%1)").arg(imageFormats.join(" "));
+    QString svgFilter = "SVG Files (*.svg)";
+    QString allFilter = QString("All Supported (%1 *.svg)").arg(imageFormats.join(" "));
+
+    QString filter = QString("%1;;%2;;%3").arg(allFilter, imageFilter, svgFilter);
+
+    QStringList fileNames = QFileDialog::getOpenFileNames(this,
+        "Import Multiple Files",
+        QStandardPaths::writableLocation(QStandardPaths::PicturesLocation),
+        filter);
+
+    if (!fileNames.isEmpty()) {
+        QProgressDialog progress("Importing files...", "Cancel", 0, fileNames.size(), this);
+        progress.setWindowModality(Qt::WindowModal);
+        progress.show();
+
+        int imported = 0;
+        int failed = 0;
+        QStringList failedFiles;
+
+        for (int i = 0; i < fileNames.size(); ++i) {
+            if (progress.wasCanceled()) {
+                break;
+            }
+
+            progress.setValue(i);
+            progress.setLabelText(QString("Importing %1...").arg(QFileInfo(fileNames[i]).fileName()));
+            QApplication::processEvents();
+
+            QString fileName = fileNames[i];
+            QFileInfo fileInfo(fileName);
+            bool success = false;
+
+            if (fileInfo.suffix().toLower() == "svg") {
+                // Import SVG
+                QSvgRenderer* renderer = new QSvgRenderer(fileName);
+                if (renderer->isValid()) {
+                    QGraphicsSvgItem* svgItem = new QGraphicsSvgItem(fileName);
+                    svgItem->setFlag(QGraphicsItem::ItemIsSelectable, true);
+                    svgItem->setFlag(QGraphicsItem::ItemIsMovable, true);
+
+                    // Position items in a grid
+                    int gridX = (imported % 5) * 150;
+                    int gridY = (imported / 5) * 150;
+                    svgItem->setPos(gridX, gridY);
+
+                    if (m_canvas) {
+                        QUndoCommand* command = new AddItemCommand(m_canvas, svgItem);
+                        m_undoStack->push(command);
+                        success = true;
+                    }
+                }
+                delete renderer;
+            }
+            else {
+                // Import image
+                QPixmap pixmap(fileName);
+                if (!pixmap.isNull()) {
+                    // Scale down large images
+                    const int maxSize = 200;
+                    if (pixmap.width() > maxSize || pixmap.height() > maxSize) {
+                        pixmap = pixmap.scaled(maxSize, maxSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+                    }
+
+                    QGraphicsPixmapItem* pixmapItem = new QGraphicsPixmapItem(pixmap);
+                    pixmapItem->setFlag(QGraphicsItem::ItemIsSelectable, true);
+                    pixmapItem->setFlag(QGraphicsItem::ItemIsMovable, true);
+
+                    // Position items in a grid
+                    int gridX = (imported % 5) * 150;
+                    int gridY = (imported / 5) * 150;
+                    pixmapItem->setPos(gridX, gridY);
+
+                    if (m_canvas) {
+                        QUndoCommand* command = new AddItemCommand(m_canvas, pixmapItem);
+                        m_undoStack->push(command);
+                        success = true;
+                    }
+                }
+            }
+
+            if (success) {
+                imported++;
+            }
+            else {
+                failed++;
+                failedFiles << fileInfo.fileName();
+            }
+        }
+
+        progress.close();
+
+        QString message = QString("Import complete:\n%1 files imported successfully").arg(imported);
+        if (failed > 0) {
+            message += QString("\n%1 files failed to import").arg(failed);
+            if (failedFiles.size() <= 5) {
+                message += QString(":\n%1").arg(failedFiles.join("\n"));
+            }
+        }
+
+        QMessageBox::information(this, "Import Results", message);
+
+        if (imported > 0) {
+            m_statusLabel->setText(QString("%1 files imported").arg(imported));
+            m_isModified = true;
+        }
+    }
+}
+
+void MainWindow::showSupportedFormats()
+{
+    QStringList imageFormats;
+    QList<QByteArray> supportedFormats = QImageReader::supportedImageFormats();
+    for (const QByteArray& format : supportedFormats) {
+        imageFormats << QString::fromLatin1(format).toUpper();
+    }
+
+    QString message = "Supported Import Formats:\n\n";
+    message += "Images: " + imageFormats.join(", ") + "\n";
+    message += "Vectors: SVG\n\n";
+    message += "Note: Large images are automatically scaled down for performance.";
+
+    QMessageBox::information(this, "Supported Formats", message);
 }
 
 void MainWindow::importAudio()
