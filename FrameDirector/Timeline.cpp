@@ -372,19 +372,16 @@ void Timeline::updateLayersFromCanvas()
     m_layers.clear();
 
     for (int i = 0; i < canvas->getLayerCount(); ++i) {
-        LayerGraphicsGroup* canvasLayer = canvas->getLayer(i);
-        if (canvasLayer) {
-            Layer layer;
-            layer.name = canvasLayer->getLayerName();
-            layer.visible = canvasLayer->isLayerVisible();
-            layer.locked = canvasLayer->isLayerLocked();
-            layer.color = (i % 2 == 0) ? m_layerColor : m_alternateLayerColor;
-            m_layers.push_back(layer);
+        Layer layer;
+        layer.name = (i == 0) ? "Background" : QString("Layer %1").arg(i);
+        layer.visible = true;        // Default to visible
+        layer.locked = false;        // Default to unlocked
+        layer.color = (i % 2 == 0) ? m_layerColor : m_alternateLayerColor;
+        m_layers.push_back(layer);
 
-            QListWidgetItem* item = new QListWidgetItem(layer.name);
-            item->setFlags(item->flags() | Qt::ItemIsEditable);
-            m_layerList->addItem(item);
-        }
+        QListWidgetItem* item = new QListWidgetItem(layer.name);
+        item->setFlags(item->flags() | Qt::ItemIsEditable);
+        m_layerList->addItem(item);
     }
 
     if (m_drawingArea) {

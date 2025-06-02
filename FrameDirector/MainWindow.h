@@ -144,6 +144,8 @@ private slots:
     void addKeyframe();
     void removeKeyframe();
     void setFrameRate(int fps);
+    void copyCurrentFrame();
+    void createBlankKeyframe();
 
     // Tool actions
     void setTool(ToolType tool);
@@ -280,6 +282,8 @@ private:
     std::vector<std::unique_ptr<AnimationLayer>> m_layers;
     int m_currentLayerIndex;
     std::map<int, std::vector<std::unique_ptr<AnimationKeyframe>>> m_keyframes;
+    QAction* m_copyFrameAction;
+    QAction* m_blankKeyframeAction;
 
     // UI Colors and style
     QColor m_currentStrokeColor;

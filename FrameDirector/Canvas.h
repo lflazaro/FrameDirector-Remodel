@@ -84,11 +84,12 @@ public:
     void setCurrentLayer(int layerIndex);
     int getCurrentLayer() const;
     int getLayerCount() const;
-    LayerGraphicsGroup* getLayer(int index) const;
     void setLayerVisible(int layerIndex, bool visible);
     void setLayerLocked(int layerIndex, bool locked);
     void setLayerOpacity(int layerIndex, double opacity);
     void moveLayer(int fromIndex, int toIndex);
+    void createBlankKeyframe(int frame);
+    void clearCurrentFrameContent();
 
     // Frame management
     void setCurrentFrame(int frame);
@@ -182,12 +183,12 @@ private:
     QGraphicsRectItem* m_backgroundRect;
 
     // Layer management
-    std::vector<LayerGraphicsGroup*> m_layers;
+    std::vector<void*> m_layers;  // Placeholder vector for layer count
     int m_currentLayerIndex;
 
     // Frame and keyframe management
     int m_currentFrame;
-    std::map<int, std::map<int, QList<QGraphicsItem*>>> m_frameStates; // frame -> layer -> items
+    std::map<int, QList<QGraphicsItem*>> m_frameItems;  // CHANGED: Direct item tracking per frame
     std::set<int> m_keyframes;
 
     // View properties

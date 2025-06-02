@@ -438,7 +438,18 @@ void MainWindow::createActions()
 
     m_addKeyframeAction = new QAction("Add &Keyframe", this);
     m_addKeyframeAction->setShortcut(QKeySequence("Ctrl+K"));
+    m_addKeyframeAction->setStatusTip("Create keyframe at current frame");
     connect(m_addKeyframeAction, &QAction::triggered, this, &MainWindow::addKeyframe);
+
+    m_copyFrameAction = new QAction("&Copy Frame", this);
+    m_copyFrameAction->setShortcut(QKeySequence("Ctrl+Shift+C"));
+    m_copyFrameAction->setStatusTip("Copy current frame content");
+    connect(m_copyFrameAction, &QAction::triggered, this, &MainWindow::copyCurrentFrame);
+
+    m_blankKeyframeAction = new QAction("Create &Blank Keyframe", this);
+    m_blankKeyframeAction->setShortcut(QKeySequence("Ctrl+Shift+K"));
+    m_blankKeyframeAction->setStatusTip("Create blank keyframe (clear current frame)");
+    connect(m_blankKeyframeAction, &QAction::triggered, this, &MainWindow::createBlankKeyframe);
 
     // Tool Actions
     m_toolActionGroup = new QActionGroup(this);
@@ -621,6 +632,8 @@ void MainWindow::createMenus()
     m_animationMenu->addAction(m_lastFrameAction);
     m_animationMenu->addSeparator();
     m_animationMenu->addAction(m_addKeyframeAction);
+    m_animationMenu->addAction(m_copyFrameAction);      // ADD THIS
+    m_animationMenu->addAction(m_blankKeyframeAction);  // ADD THIS
 
     // Help Menu
     m_helpMenu = menuBar()->addMenu("&Help");
@@ -1204,9 +1217,49 @@ void MainWindow::lastFrame()
 
 void MainWindow::addKeyframe()
 {
-    // Implementation for adding keyframe at current frame
-    m_statusLabel->setText("Keyframe added");
+    if (m_canvas) {
+        // Create a keyframe at the current frame with current canvas content
+        m_canvas->createKeyframe(m_currentFrame);
+
+        if (m_timeline) {
+            m_timeline->updateLayersFromCanvas();
+        }
+
+        m_statusLabel->setText(QString("Keyframe created at frame %1").arg(m_currentFrame));
+        m_isModified = true;
+    }
 }
+
+void MainWindow::copyCurrentFrame()
+{
+    if (m_canvas && m_currentFrame > 1) {
+        // Check if there's content in the current frame
+        if (m_canvas->hasKeyframe(m_currentFrame)) {
+            // Copy current frame content to create a new keyframe
+            m_canvas->storeCurrentFrameState();
+            m_statusLabel->setText(QString("Frame %1 content saved").arg(m_currentFrame));
+        }
+        else {
+            m_statusLabel->setText("No content to copy in current frame");
+        }
+    }
+}
+
+void MainWindow::createBlankKeyframe()
+{
+    if (m_canvas) {
+        // FIXED: Use the new method to create truly blank keyframe
+        m_canvas->createBlankKeyframe(m_currentFrame);
+
+        if (m_timeline) {
+            m_timeline->updateLayersFromCanvas();
+        }
+
+        m_statusLabel->setText(QString("Blank keyframe created at frame %1").arg(m_currentFrame));
+        m_isModified = true;
+    }
+}
+
 
 void MainWindow::removeKeyframe()
 {

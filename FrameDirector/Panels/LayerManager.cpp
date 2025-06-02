@@ -409,16 +409,14 @@ void LayerManager::updateLayers()
     // Clear current list
     m_layerList->clear();
 
-    // Populate from canvas layers
+    // Populate with default layer names since we don't have LayerGraphicsGroup anymore
     for (int i = 0; i < canvas->getLayerCount(); ++i) {
-        LayerGraphicsGroup* canvasLayer = canvas->getLayer(i);
-        if (canvasLayer) {
-            LayerItem* item = new LayerItem(canvasLayer->getLayerName(), i);
-            item->setVisible(canvasLayer->isLayerVisible());
-            item->setLocked(canvasLayer->isLayerLocked());
-            item->setOpacity(static_cast<int>(canvasLayer->getLayerOpacity() * 100));
-            m_layerList->addItem(item);
-        }
+        QString layerName = (i == 0) ? "Background" : QString("Layer %1").arg(i);
+        LayerItem* item = new LayerItem(layerName, i);
+        item->setVisible(true);      // Default to visible
+        item->setLocked(false);      // Default to unlocked  
+        item->setOpacity(100);       // Default to full opacity
+        m_layerList->addItem(item);
     }
 
     // Set current layer
@@ -578,21 +576,20 @@ void LayerManager::onDuplicateLayerClicked()
 {
     Canvas* canvas = m_mainWindow->findChild<Canvas*>();
     if (canvas && m_currentLayer >= 0) {
-        LayerGraphicsGroup* currentLayer = canvas->getLayer(m_currentLayer);
-        if (currentLayer) {
-            QString newName = currentLayer->getLayerName() + " Copy";
-            int newIndex = canvas->addLayer(newName);
-            updateLayers();
+        QString currentLayerName = (m_currentLayer == 0) ? "Background" : QString("Layer %1").arg(m_currentLayer);
+        QString newName = currentLayerName + " Copy";
+        int newIndex = canvas->addLayer(newName);
+        updateLayers();
 
-            // Select the new layer
-            m_currentLayer = newIndex;
-            m_layerList->setCurrentRow(m_currentLayer);
-            canvas->setCurrentLayer(m_currentLayer);
+        // Select the new layer
+        m_currentLayer = newIndex;
+        m_layerList->setCurrentRow(m_currentLayer);
+        canvas->setCurrentLayer(m_currentLayer);
 
-            emit layerDuplicated(m_currentLayer);
-        }
+        emit layerDuplicated(m_currentLayer);
     }
 }
+
 
 void LayerManager::onMoveUpClicked()
 {
