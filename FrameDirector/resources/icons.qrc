@@ -63,7 +63,7 @@
         <file>icons/fullscreen.png</file>
 
         <!-- Animation Control Icons (24x24) -->
-        <file>icons/play.png</file>
+        <file>icons/Play.png</file>
         <file>icons/pause.png</file>
         <file>icons/stop.png</file>
     </qresource>

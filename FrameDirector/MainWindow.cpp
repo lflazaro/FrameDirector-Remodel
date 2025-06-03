@@ -342,149 +342,201 @@ void MainWindow::createActions()
 {
     // File Menu Actions
     m_newAction = new QAction("&New", this);
+    m_newAction->setIcon(QIcon(":/icons/new.png"));
     m_newAction->setShortcut(QKeySequence::New);
     m_newAction->setStatusTip("Create a new animation project");
     connect(m_newAction, &QAction::triggered, this, &MainWindow::newFile);
 
     m_openAction = new QAction("&Open", this);
+    m_openAction->setIcon(QIcon(":/icons/open.png"));
     m_openAction->setShortcut(QKeySequence::Open);
     m_openAction->setStatusTip("Open an existing project");
     connect(m_openAction, &QAction::triggered, this, &MainWindow::open);
 
     m_saveAction = new QAction("&Save", this);
+    m_saveAction->setIcon(QIcon(":/icons/save.png"));
     m_saveAction->setShortcut(QKeySequence::Save);
     m_saveAction->setStatusTip("Save the current project");
     connect(m_saveAction, &QAction::triggered, this, &MainWindow::save);
 
     m_saveAsAction = new QAction("Save &As...", this);
+    m_saveAsAction->setIcon(QIcon(":/icons/save-as.png"));
     m_saveAsAction->setShortcut(QKeySequence::SaveAs);
     m_saveAsAction->setStatusTip("Save the project with a new name");
     connect(m_saveAsAction, &QAction::triggered, this, &MainWindow::saveAs);
 
     m_importImageAction = new QAction("Import &Image", this);
+    m_importImageAction->setIcon(QIcon(":/icons/import.png"));
     m_importImageAction->setStatusTip("Import an image file");
     connect(m_importImageAction, &QAction::triggered, this, &MainWindow::importImage);
 
     m_importVectorAction = new QAction("Import &Vector", this);
+    m_importVectorAction->setIcon(QIcon(":/icons/import.png"));
     m_importVectorAction->setStatusTip("Import a vector file");
     connect(m_importVectorAction, &QAction::triggered, this, &MainWindow::importVector);
 
     m_exportAnimationAction = new QAction("Export &Animation", this);
+    m_exportAnimationAction->setIcon(QIcon(":/icons/export.png"));
     m_exportAnimationAction->setStatusTip("Export as video/GIF");
     connect(m_exportAnimationAction, &QAction::triggered, this, &MainWindow::exportAnimation);
 
     m_exportFrameAction = new QAction("Export &Frame", this);
+    m_exportFrameAction->setIcon(QIcon(":/icons/export.png"));
     m_exportFrameAction->setStatusTip("Export current frame as image");
     connect(m_exportFrameAction, &QAction::triggered, this, &MainWindow::exportFrame);
 
     m_exportSVGAction = new QAction("Export &SVG", this);
+    m_exportSVGAction->setIcon(QIcon(":/icons/export.png"));
     m_exportSVGAction->setStatusTip("Export as SVG file");
     connect(m_exportSVGAction, &QAction::triggered, this, &MainWindow::exportSVG);
 
     m_exitAction = new QAction("E&xit", this);
+    m_exitAction->setIcon(QIcon(":/icons/exit.png"));
     m_exitAction->setShortcut(QKeySequence::Quit);
     m_exitAction->setStatusTip("Exit FrameDirector");
     connect(m_exitAction, &QAction::triggered, this, &QWidget::close);
 
     // Edit Menu Actions
     m_undoAction = new QAction("&Undo", this);
+    m_undoAction->setIcon(QIcon(":/icons/undo.png"));
     m_undoAction->setShortcut(QKeySequence::Undo);
     m_undoAction->setEnabled(false);
     connect(m_undoAction, &QAction::triggered, this, &MainWindow::undo);
 
     m_redoAction = new QAction("&Redo", this);
+    m_redoAction->setIcon(QIcon(":/icons/redo.png"));
     m_redoAction->setShortcut(QKeySequence::Redo);
     m_redoAction->setEnabled(false);
     connect(m_redoAction, &QAction::triggered, this, &MainWindow::redo);
 
     m_cutAction = new QAction("Cu&t", this);
+    m_cutAction->setIcon(QIcon(":/icons/Cut.png"));
     m_cutAction->setShortcut(QKeySequence::Cut);
     connect(m_cutAction, &QAction::triggered, this, &MainWindow::cut);
 
     m_copyAction = new QAction("&Copy", this);
+    m_copyAction->setIcon(QIcon(":/icons/Copy.png"));
     m_copyAction->setShortcut(QKeySequence::Copy);
     connect(m_copyAction, &QAction::triggered, this, &MainWindow::copy);
 
     m_pasteAction = new QAction("&Paste", this);
+    m_pasteAction->setIcon(QIcon(":/icons/Paste.png"));
     m_pasteAction->setShortcut(QKeySequence::Paste);
     connect(m_pasteAction, &QAction::triggered, this, &MainWindow::paste);
 
     m_selectAllAction = new QAction("Select &All", this);
+    m_selectAllAction->setIcon(QIcon(":/icons/select-all.png"));
     m_selectAllAction->setShortcut(QKeySequence::SelectAll);
     connect(m_selectAllAction, &QAction::triggered, this, &MainWindow::selectAll);
 
     m_groupAction = new QAction("&Group", this);
+    m_groupAction->setIcon(QIcon(":/icons/group.png"));
     m_groupAction->setShortcut(QKeySequence("Ctrl+G"));
     connect(m_groupAction, &QAction::triggered, this, &MainWindow::group);
 
     m_ungroupAction = new QAction("&Ungroup", this);
+    m_ungroupAction->setIcon(QIcon(":/icons/ungroup.png"));
     m_ungroupAction->setShortcut(QKeySequence("Ctrl+Shift+G"));
     connect(m_ungroupAction, &QAction::triggered, this, &MainWindow::ungroup);
 
     // View Menu Actions
     m_zoomInAction = new QAction("Zoom &In", this);
+    m_zoomInAction->setIcon(QIcon(":/icons/zoom-in.png"));
     m_zoomInAction->setShortcut(QKeySequence::ZoomIn);
     connect(m_zoomInAction, &QAction::triggered, this, &MainWindow::zoomIn);
 
     m_zoomOutAction = new QAction("Zoom &Out", this);
+    m_zoomOutAction->setIcon(QIcon(":/icons/zoom-out.png"));
     m_zoomOutAction->setShortcut(QKeySequence::ZoomOut);
     connect(m_zoomOutAction, &QAction::triggered, this, &MainWindow::zoomOut);
 
     m_zoomToFitAction = new QAction("Zoom to &Fit", this);
+    m_zoomToFitAction->setIcon(QIcon(":/icons/zoom-fit.png"));
     m_zoomToFitAction->setShortcut(QKeySequence("Ctrl+0"));
     connect(m_zoomToFitAction, &QAction::triggered, this, &MainWindow::zoomToFit);
 
     m_toggleGridAction = new QAction("Show &Grid", this);
+    m_toggleGridAction->setIcon(QIcon(":/icons/Grid.png"));
     m_toggleGridAction->setCheckable(true);
     m_toggleGridAction->setChecked(true);
     connect(m_toggleGridAction, &QAction::triggered, this, &MainWindow::toggleGrid);
 
     m_toggleSnapAction = new QAction("&Snap to Grid", this);
+    m_toggleSnapAction->setIcon(QIcon(":/icons/snap.png"));
     m_toggleSnapAction->setCheckable(true);
     connect(m_toggleSnapAction, &QAction::triggered, this, &MainWindow::toggleSnapToGrid);
 
     m_toggleRulersAction = new QAction("Show &Rulers", this);
+    m_toggleRulersAction->setIcon(QIcon(":/icons/rulers.png"));
     m_toggleRulersAction->setCheckable(true);
     connect(m_toggleRulersAction, &QAction::triggered, this, &MainWindow::toggleRulers);
 
     // Animation Menu Actions
     m_playAction = new QAction("&Play", this);
+    m_playAction->setIcon(QIcon(":/icons/Play.png"));
     m_playAction->setShortcut(QKeySequence("Space"));
     m_playAction->setStatusTip("Play animation");
     connect(m_playAction, &QAction::triggered, this, &MainWindow::play);
 
     m_stopAction = new QAction("&Stop", this);
+    m_stopAction->setIcon(QIcon(":/icons/stop.png"));
     m_stopAction->setShortcut(QKeySequence("Shift+Space"));
     m_stopAction->setStatusTip("Stop animation");
     connect(m_stopAction, &QAction::triggered, this, &MainWindow::stop);
 
     m_nextFrameAction = new QAction("&Next Frame", this);
+    m_nextFrameAction->setIcon(QIcon(":/icons/arrow-right.png"));
     m_nextFrameAction->setShortcut(QKeySequence("Right"));
     connect(m_nextFrameAction, &QAction::triggered, this, &MainWindow::nextFrame);
 
     m_prevFrameAction = new QAction("&Previous Frame", this);
+    // Create a left arrow icon by rotating the right arrow
+    QPixmap leftArrow = QIcon(":/icons/arrow-right.png").pixmap(16, 16);
+    QTransform transform;
+    transform.rotate(180);
+    leftArrow = leftArrow.transformed(transform);
+    m_prevFrameAction->setIcon(QIcon(leftArrow));
     m_prevFrameAction->setShortcut(QKeySequence("Left"));
     connect(m_prevFrameAction, &QAction::triggered, this, &MainWindow::previousFrame);
 
     m_firstFrameAction = new QAction("&First Frame", this);
+    // Create a double left arrow for first frame
+    QPixmap firstFrame = QIcon(":/icons/arrow-right.png").pixmap(16, 16);
+    QPixmap doubleLeft(32, 16);
+    doubleLeft.fill(Qt::transparent);
+    QPainter painter(&doubleLeft);
+    painter.drawPixmap(0, 0, firstFrame.transformed(transform));
+    painter.drawPixmap(10, 0, firstFrame.transformed(transform));
+    m_firstFrameAction->setIcon(QIcon(doubleLeft));
     m_firstFrameAction->setShortcut(QKeySequence("Home"));
     connect(m_firstFrameAction, &QAction::triggered, this, &MainWindow::firstFrame);
 
     m_lastFrameAction = new QAction("&Last Frame", this);
+    // Create a double right arrow for last frame
+    QPixmap lastFrame = QIcon(":/icons/arrow-right.png").pixmap(16, 16);
+    QPixmap doubleRight(32, 16);
+    doubleRight.fill(Qt::transparent);
+    QPainter painter2(&doubleRight);
+    painter2.drawPixmap(0, 0, lastFrame);
+    painter2.drawPixmap(10, 0, lastFrame);
+    m_lastFrameAction->setIcon(QIcon(doubleRight));
     m_lastFrameAction->setShortcut(QKeySequence("End"));
     connect(m_lastFrameAction, &QAction::triggered, this, &MainWindow::lastFrame);
 
     m_addKeyframeAction = new QAction("Add &Keyframe", this);
+    m_addKeyframeAction->setIcon(QIcon(":/icons/branch-open.png")); // Using check as keyframe icon
     m_addKeyframeAction->setShortcut(QKeySequence("Ctrl+K"));
     m_addKeyframeAction->setStatusTip("Create keyframe at current frame");
     connect(m_addKeyframeAction, &QAction::triggered, this, &MainWindow::addKeyframe);
 
     m_copyFrameAction = new QAction("&Copy Frame", this);
+    m_copyFrameAction->setIcon(QIcon(":/icons/Copy.png"));
     m_copyFrameAction->setShortcut(QKeySequence("Ctrl+Shift+C"));
     m_copyFrameAction->setStatusTip("Copy current frame content");
     connect(m_copyFrameAction, &QAction::triggered, this, &MainWindow::copyCurrentFrame);
 
     m_blankKeyframeAction = new QAction("Create &Blank Keyframe", this);
+    m_blankKeyframeAction->setIcon(QIcon(":/icons/branch-closed.png")); // Using delete to represent blank/clear
     m_blankKeyframeAction->setShortcut(QKeySequence("Ctrl+Shift+K"));
     m_blankKeyframeAction->setStatusTip("Create blank keyframe (clear current frame)");
     connect(m_blankKeyframeAction, &QAction::triggered, this, &MainWindow::createBlankKeyframe);
@@ -493,6 +545,7 @@ void MainWindow::createActions()
     m_toolActionGroup = new QActionGroup(this);
 
     m_selectToolAction = new QAction("&Select Tool", this);
+    m_selectToolAction->setIcon(QIcon(":/icons/tool-select.png"));
     m_selectToolAction->setShortcut(QKeySequence("V"));
     m_selectToolAction->setCheckable(true);
     m_selectToolAction->setChecked(true);
@@ -500,30 +553,35 @@ void MainWindow::createActions()
     m_toolActionGroup->addAction(m_selectToolAction);
 
     m_drawToolAction = new QAction("&Draw Tool", this);
+    m_drawToolAction->setIcon(QIcon(":/icons/tool-draw.png"));
     m_drawToolAction->setShortcut(QKeySequence("P"));
     m_drawToolAction->setCheckable(true);
     m_drawToolAction->setData(static_cast<int>(DrawTool));
     m_toolActionGroup->addAction(m_drawToolAction);
 
     m_lineToolAction = new QAction("&Line Tool", this);
+    m_lineToolAction->setIcon(QIcon(":/icons/tool-line.png"));
     m_lineToolAction->setShortcut(QKeySequence("L"));
     m_lineToolAction->setCheckable(true);
     m_lineToolAction->setData(static_cast<int>(LineTool));
     m_toolActionGroup->addAction(m_lineToolAction);
 
     m_rectangleToolAction = new QAction("&Rectangle Tool", this);
+    m_rectangleToolAction->setIcon(QIcon(":/icons/tool-rectangle.png"));
     m_rectangleToolAction->setShortcut(QKeySequence("R"));
     m_rectangleToolAction->setCheckable(true);
     m_rectangleToolAction->setData(static_cast<int>(RectangleTool));
     m_toolActionGroup->addAction(m_rectangleToolAction);
 
     m_ellipseToolAction = new QAction("&Ellipse Tool", this);
+    m_ellipseToolAction->setIcon(QIcon(":/icons/tool-ellipse.png"));
     m_ellipseToolAction->setShortcut(QKeySequence("O"));
     m_ellipseToolAction->setCheckable(true);
     m_ellipseToolAction->setData(static_cast<int>(EllipseTool));
     m_toolActionGroup->addAction(m_ellipseToolAction);
 
     m_textToolAction = new QAction("&Text Tool", this);
+    m_textToolAction->setIcon(QIcon(":/icons/tool-text.png"));
     m_textToolAction->setShortcut(QKeySequence("T"));
     m_textToolAction->setCheckable(true);
     m_textToolAction->setData(static_cast<int>(TextTool));
@@ -531,56 +589,72 @@ void MainWindow::createActions()
 
     // Alignment Actions
     m_alignLeftAction = new QAction("Align &Left", this);
+    m_alignLeftAction->setIcon(QIcon(":/icons/arrow-right.png")); // We'll rotate this
     connect(m_alignLeftAction, &QAction::triggered, this, &MainWindow::alignLeft);
 
     m_alignCenterAction = new QAction("Align &Center", this);
+    m_alignCenterAction->setIcon(QIcon(":/icons/select-all.png")); // Repurpose for center align
     connect(m_alignCenterAction, &QAction::triggered, this, &MainWindow::alignCenter);
 
     m_alignRightAction = new QAction("Align &Right", this);
+    m_alignRightAction->setIcon(QIcon(":/icons/arrow-right.png"));
     connect(m_alignRightAction, &QAction::triggered, this, &MainWindow::alignRight);
 
     m_alignTopAction = new QAction("Align &Top", this);
+    m_alignTopAction->setIcon(QIcon(":/icons/up-arrow.png"));
     connect(m_alignTopAction, &QAction::triggered, this, &MainWindow::alignTop);
 
     m_alignMiddleAction = new QAction("Align &Middle", this);
+    m_alignMiddleAction->setIcon(QIcon(":/icons/select-all.png"));
     connect(m_alignMiddleAction, &QAction::triggered, this, &MainWindow::alignMiddle);
 
     m_alignBottomAction = new QAction("Align &Bottom", this);
+    m_alignBottomAction->setIcon(QIcon(":/icons/down-arrow.png"));
     connect(m_alignBottomAction, &QAction::triggered, this, &MainWindow::alignBottom);
 
     m_distributeHorizontallyAction = new QAction("Distribute &Horizontally", this);
+    m_distributeHorizontallyAction->setIcon(QIcon(":/icons/arrow-right.png"));
     connect(m_distributeHorizontallyAction, &QAction::triggered, this, &MainWindow::distributeHorizontally);
 
     m_distributeVerticallyAction = new QAction("Distribute &Vertically", this);
+    m_distributeVerticallyAction->setIcon(QIcon(":/icons/up-arrow.png"));
     connect(m_distributeVerticallyAction, &QAction::triggered, this, &MainWindow::distributeVertically);
 
     // Transform Actions
     m_bringToFrontAction = new QAction("Bring to &Front", this);
+    m_bringToFrontAction->setIcon(QIcon(":/icons/up-arrow.png"));
     m_bringToFrontAction->setShortcut(QKeySequence("Ctrl+Shift+]"));
     connect(m_bringToFrontAction, &QAction::triggered, this, &MainWindow::bringToFront);
 
     m_bringForwardAction = new QAction("Bring &Forward", this);
+    m_bringForwardAction->setIcon(QIcon(":/icons/up-arrow.png"));
     m_bringForwardAction->setShortcut(QKeySequence("Ctrl+]"));
     connect(m_bringForwardAction, &QAction::triggered, this, &MainWindow::bringForward);
 
     m_sendBackwardAction = new QAction("Send &Backward", this);
+    m_sendBackwardAction->setIcon(QIcon(":/icons/down-arrow.png"));
     m_sendBackwardAction->setShortcut(QKeySequence("Ctrl+["));
     connect(m_sendBackwardAction, &QAction::triggered, this, &MainWindow::sendBackward);
 
     m_sendToBackAction = new QAction("Send to &Back", this);
+    m_sendToBackAction->setIcon(QIcon(":/icons/down-arrow.png"));
     m_sendToBackAction->setShortcut(QKeySequence("Ctrl+Shift+["));
     connect(m_sendToBackAction, &QAction::triggered, this, &MainWindow::sendToBack);
 
     m_flipHorizontalAction = new QAction("Flip &Horizontal", this);
+    m_flipHorizontalAction->setIcon(QIcon(":/icons/arrow-right.png"));
     connect(m_flipHorizontalAction, &QAction::triggered, this, &MainWindow::flipHorizontal);
 
     m_flipVerticalAction = new QAction("Flip &Vertical", this);
+    m_flipVerticalAction->setIcon(QIcon(":/icons/up-arrow.png"));
     connect(m_flipVerticalAction, &QAction::triggered, this, &MainWindow::flipVertical);
 
     m_rotateClockwiseAction = new QAction("Rotate &Clockwise", this);
+    m_rotateClockwiseAction->setIcon(QIcon(":/icons/redo.png")); // Redo icon looks like rotation
     connect(m_rotateClockwiseAction, &QAction::triggered, this, &MainWindow::rotateClockwise);
 
     m_rotateCounterClockwiseAction = new QAction("Rotate &Counter-Clockwise", this);
+    m_rotateCounterClockwiseAction->setIcon(QIcon(":/icons/undo.png")); // Undo icon for counter-rotation
     connect(m_rotateCounterClockwiseAction, &QAction::triggered, this, &MainWindow::rotateCounterClockwise);
 }
 

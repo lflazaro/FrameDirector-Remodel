@@ -395,13 +395,34 @@ void Timeline::setupControls()
     m_controlsLayout->setContentsMargins(6, 4, 6, 4);
     m_controlsLayout->setSpacing(6);
 
-    // Playback controls
-    m_firstFrameButton = new QPushButton("⏮");
-    m_prevFrameButton = new QPushButton("⏪");
-    m_playButton = new QPushButton("▶");
-    m_stopButton = new QPushButton("⏹");
-    m_nextFrameButton = new QPushButton("⏩");
-    m_lastFrameButton = new QPushButton("⏭");
+    // Playback controls with icons
+    m_firstFrameButton = new QPushButton();
+    m_firstFrameButton->setIcon(QIcon(":/icons/arrow-right.png")); // Will be rotated to create double-left
+    m_firstFrameButton->setToolTip("First Frame");
+
+    m_prevFrameButton = new QPushButton();
+    // Create left arrow by rotating right arrow
+    QPixmap leftArrow = QIcon(":/icons/arrow-right.png").pixmap(16, 16);
+    QTransform transform;
+    transform.rotate(180);
+    m_prevFrameButton->setIcon(QIcon(leftArrow.transformed(transform)));
+    m_prevFrameButton->setToolTip("Previous Frame");
+
+    m_playButton = new QPushButton();
+    m_playButton->setIcon(QIcon(":/icons/Play.png"));
+    m_playButton->setToolTip("Play/Pause");
+
+    m_stopButton = new QPushButton();
+    m_stopButton->setIcon(QIcon(":/icons/stop.png"));
+    m_stopButton->setToolTip("Stop");
+
+    m_nextFrameButton = new QPushButton();
+    m_nextFrameButton->setIcon(QIcon(":/icons/arrow-right.png"));
+    m_nextFrameButton->setToolTip("Next Frame");
+
+    m_lastFrameButton = new QPushButton();
+    m_lastFrameButton->setIcon(QIcon(":/icons/arrow-right.png")); // Will show as double-right conceptually
+    m_lastFrameButton->setToolTip("Last Frame");
 
     // Style buttons with Flash-like appearance
     QString buttonStyle =
