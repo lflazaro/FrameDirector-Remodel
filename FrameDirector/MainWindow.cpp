@@ -14,6 +14,7 @@
 #include "Tools/EllipseTool.h"       
 #include "Tools/TextTool.h"          
 #include "BucketFillTool.h"
+#include "Tools/EraseTool.h"
 #include "Commands/UndoCommands.h"
 #include "Animation/AnimationLayer.h"
 #include "Animation/AnimationKeyframe.h"
@@ -166,9 +167,49 @@ MainWindow::MainWindow(QWidget* parent)
     qDebug() << "MainWindow setup complete";
 }
 
-MainWindow::~MainWindow()
-{
-}
+    MainWindow::~MainWindow()
+    {
+        qDebug() << "MainWindow destructor called";
+
+        // FIXED: Critical cleanup order to prevent crashes
+
+        // 1. First, clear the undo stack to delete all commands safely
+        if (m_undoStack) {
+            qDebug() << "Clearing undo stack...";
+            m_undoStack->clear();
+        }
+
+        // 2. Clean up tools that might have preview items
+        qDebug() << "Cleaning up tools...";
+        for (auto& toolPair : m_tools) {
+            Tool* tool = toolPair.second.get();
+            if (tool) {
+                // Special cleanup for eraser tool
+                if (toolPair.first == EraseTool) {
+                    ::EraseTool* eraserTool = dynamic_cast<::EraseTool*>(tool);
+                    if (eraserTool) {
+                        eraserTool->cleanup();
+                    }
+                }
+                // Add cleanup for other tools as needed
+            }
+        }
+
+        // 3. Clear the canvas before it's destroyed
+        if (m_canvas) {
+            qDebug() << "Clearing canvas...";
+            m_canvas->clear();
+        }
+
+        // 4. Stop any running timers
+        if (m_playbackTimer) {
+            m_playbackTimer->stop();
+        }
+
+        qDebug() << "MainWindow destructor completed";
+
+        // Qt will handle the rest of the cleanup in the correct order
+    }
 
 
 void MainWindow::connectToolsAndCanvas()
@@ -916,7 +957,10 @@ void MainWindow::setupTools()
 
         // FIXED: Create bucket fill tool
         m_tools[BucketFillTool] = std::make_unique<::BucketFillTool>(this);
-        qDebug() << "Created BucketFillTool:" << m_tools[BucketFillTool].get();
+        qDebug() << "Created BucketFillTool:" << m_tools[BucketFillTool].get();        
+        
+        m_tools[EraseTool] = std::make_unique<::EraseTool>(this);
+        qDebug() << "Created EraseTool:" << m_tools[EraseTool].get();
 
         qDebug() << "All tools created successfully. Total tools:" << m_tools.size();
 
@@ -1681,6 +1725,22 @@ void MainWindow::setTool(ToolType tool)
     qDebug() << "setTool called with:" << static_cast<int>(tool);
 
     if (m_currentTool != tool) {
+        // FIXED: Clean up the previous tool before switching
+        if (m_canvas && m_tools.find(m_currentTool) != m_tools.end()) {
+            Tool* previousTool = m_tools[m_currentTool].get();
+
+            // Special cleanup for eraser tool
+            if (m_currentTool == EraseTool) {
+                ::EraseTool* eraserTool = dynamic_cast<::EraseTool*>(previousTool);
+                if (eraserTool) {
+                    eraserTool->cleanup();
+                }
+            }
+
+            // Add cleanup for other tools as needed in the future
+            // You can extend this pattern for any tool that needs cleanup
+        }
+
         m_currentTool = tool;
 
         if (m_canvas && m_tools.find(tool) != m_tools.end()) {
@@ -2404,11 +2464,46 @@ void MainWindow::writeSettings()
 
 void MainWindow::closeEvent(QCloseEvent* event)
 {
+    qDebug() << "MainWindow::closeEvent called";
+
     if (maybeSave()) {
+        // FIXED: Proper cleanup before closing
+
+        // 1. Stop playback timer
+        if (m_playbackTimer) {
+            m_playbackTimer->stop();
+        }
+
+        // 2. Clean up all tools
+        qDebug() << "Cleaning up tools before close...";
+        for (auto& toolPair : m_tools) {
+            Tool* tool = toolPair.second.get();
+            if (tool) {
+                // Special cleanup for eraser tool
+                if (toolPair.first == EraseTool) {
+                    ::EraseTool* eraserTool = dynamic_cast<::EraseTool*>(tool);
+                    if (eraserTool) {
+                        eraserTool->cleanup();
+                    }
+                }
+                // Add cleanup for other tools as needed
+            }
+        }
+
+        // 3. Clear undo stack
+        if (m_undoStack) {
+            qDebug() << "Clearing undo stack before close...";
+            m_undoStack->clear();
+        }
+
+        // 4. Save settings
         writeSettings();
+
+        qDebug() << "Accepting close event";
         event->accept();
     }
     else {
+        qDebug() << "Close event ignored";
         event->ignore();
     }
 }

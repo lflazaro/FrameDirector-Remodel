@@ -1,4 +1,4 @@
-// Canvas.cpp - Fixed version with stable layer system
+// Canvas.cpp - Robustly fixed layer system with better state tracking
 
 #include "Canvas.h"
 #include "Tools/Tool.h"
@@ -15,20 +15,75 @@
 #include <QtMath>
 #include <QDebug>
 
-// FIXED: Proper layer data structure instead of void pointers
+// ROBUST: Enhanced layer data structure with better state management
 struct LayerData {
     QString name;
+    QString uuid;  // Unique identifier to prevent mix-ups
     bool visible;
     bool locked;
     double opacity;
     QList<QGraphicsItem*> items;
+    QHash<int, QList<QGraphicsItem*>> frameItems; // Per-frame item tracking
+    QSet<QGraphicsItem*> allTimeItems; // All items ever added to this layer
 
     LayerData(const QString& layerName)
         : name(layerName), visible(true), locked(false), opacity(1.0) {
+        // Generate unique ID to prevent layer confusion
+        uuid = QString("layer_%1_%2").arg(layerName).arg(QDateTime::currentMSecsSinceEpoch());
+    }
+
+    void addItem(QGraphicsItem* item, int frame) {
+        if (!item || allTimeItems.contains(item)) return;
+
+        items.append(item);
+        frameItems[frame].append(item);
+        allTimeItems.insert(item);
+    }
+
+    void removeItem(QGraphicsItem* item) {
+        if (!item) return;
+
+        items.removeAll(item);
+        allTimeItems.remove(item);
+
+        // Remove from all frames
+        for (auto& frameList : frameItems) {
+            frameList.removeAll(item);
+        }
+    }
+
+    bool containsItem(QGraphicsItem* item) const {
+        return allTimeItems.contains(item);
+    }
+
+    void setFrameItems(int frame, const QList<QGraphicsItem*>& itemList) {
+        frameItems[frame] = itemList;
+
+        // Update allTimeItems to include all items from all frames
+        for (QGraphicsItem* item : itemList) {
+            if (item && !allTimeItems.contains(item)) {
+                allTimeItems.insert(item);
+            }
+        }
+    }
+
+    QList<QGraphicsItem*> getFrameItems(int frame) const {
+        return frameItems.value(frame, QList<QGraphicsItem*>());
+    }
+
+    void clearFrame(int frame) {
+        frameItems.remove(frame);
+    }
+
+    void debugPrint() const {
+        qDebug() << "Layer" << name << "UUID:" << uuid
+            << "Items:" << items.size()
+            << "Frames:" << frameItems.keys()
+            << "AllTime:" << allTimeItems.size();
     }
 };
 
-// Canvas implementation
+// Canvas implementation with robust layer management
 Canvas::Canvas(MainWindow* parent)
     : QGraphicsView(parent)
     , m_mainWindow(parent)
@@ -66,21 +121,43 @@ Canvas::Canvas(MainWindow* parent)
     setFocusPolicy(Qt::StrongFocus);
     createKeyframe(1);
 
-    qDebug() << "Canvas created with size:" << m_canvasSize;
+    qDebug() << "Canvas created with robust layer system, size:" << m_canvasSize;
 }
 
 Canvas::~Canvas()
 {
-    // FIXED: Properly clean up layer data
-    for (void* layerPtr : m_layers) {
-        if (layerPtr) {
-            delete static_cast<LayerData*>(layerPtr);
-        }
-    }
+    qDebug() << "Canvas destructor called";
 
+    // FIXED: Proper cleanup order to prevent crashes
+
+    // 1. Clear all data structures that reference graphics items
+    m_frameItems.clear();
+    m_keyframes.clear();
+
+    // 2. Clear rubber band if it exists
     if (m_rubberBand) {
         delete m_rubberBand;
+        m_rubberBand = nullptr;
     }
+
+    // 3. Clean up layer data structures
+    for (void* layerPtr : m_layers) {
+        if (layerPtr) {
+            LayerData* layer = static_cast<LayerData*>(layerPtr);
+
+            // Clear the item lists first (don't delete items, scene will handle that)
+            layer->items.clear();
+
+            // Delete the layer data structure
+            delete layer;
+        }
+    }
+    m_layers.clear();
+
+    // 4. The scene and its items will be cleaned up by Qt automatically
+    // when the QGraphicsView is destroyed
+
+    qDebug() << "Canvas destructor completed";
 }
 
 void Canvas::setupScene()
@@ -97,10 +174,15 @@ void Canvas::setupScene()
 
 void Canvas::setupDefaultLayers()
 {
-    // FIXED: Create proper layer data structures
+    // ROBUST: Clear any existing layers completely
+    for (void* layerPtr : m_layers) {
+        if (layerPtr) {
+            delete static_cast<LayerData*>(layerPtr);
+        }
+    }
     m_layers.clear();
 
-    // Create background layer
+    // Create background layer with unique identification
     LayerData* backgroundLayer = new LayerData("Background");
     m_layers.push_back(backgroundLayer);
 
@@ -117,24 +199,27 @@ void Canvas::setupDefaultLayers()
     m_backgroundRect->setZValue(-1000);
     m_scene->addItem(m_backgroundRect);
 
-    // Add background to background layer
-    backgroundLayer->items.append(m_backgroundRect);
+    // Add background to background layer PROPERLY
+    backgroundLayer->addItem(m_backgroundRect, 1);
 
     // Set Layer 1 as current (not background)
     setCurrentLayer(1);
+
+    qDebug() << "Default layers created - Background UUID:" << backgroundLayer->uuid
+        << "Drawing UUID:" << drawingLayer->uuid;
 }
 
 int Canvas::addLayer(const QString& name)
 {
     QString layerName = name.isEmpty() ? QString("Layer %1").arg(m_layers.size()) : name;
 
-    // FIXED: Create new layer data structure
+    // ROBUST: Create new layer with unique identification
     LayerData* newLayer = new LayerData(layerName);
     m_layers.push_back(newLayer);
 
     int newIndex = m_layers.size() - 1;
 
-    qDebug() << "Added layer:" << layerName << "Index:" << newIndex;
+    qDebug() << "Added layer:" << layerName << "Index:" << newIndex << "UUID:" << newLayer->uuid;
     emit layerChanged(newIndex);
     return newIndex;
 }
@@ -144,10 +229,21 @@ void Canvas::removeLayer(int layerIndex)
     if (layerIndex >= 0 && layerIndex < m_layers.size() && m_layers.size() > 1) {
         LayerData* layer = static_cast<LayerData*>(m_layers[layerIndex]);
 
-        // Remove all items in this layer from scene (except background)
-        for (QGraphicsItem* item : layer->items) {
-            if (item != m_backgroundRect) {
-                m_scene->removeItem(item);
+        qDebug() << "Removing layer" << layerIndex << "UUID:" << layer->uuid;
+
+        // ROBUST: Remove all items in this layer from scene AND all frame tracking
+        for (QGraphicsItem* item : layer->allTimeItems) {
+            if (item && item != m_backgroundRect) {
+                // Remove from scene
+                if (m_scene->items().contains(item)) {
+                    m_scene->removeItem(item);
+                }
+
+                // Remove from ALL frame tracking in ALL layers (safety measure)
+                for (auto& frameEntry : m_frameItems) {
+                    frameEntry.second.removeAll(item);
+                }
+
                 delete item;
             }
         }
@@ -156,36 +252,39 @@ void Canvas::removeLayer(int layerIndex)
         delete layer;
         m_layers.erase(m_layers.begin() + layerIndex);
 
-        // Adjust current layer
+        // ROBUST: Adjust current layer carefully
         if (m_currentLayerIndex >= m_layers.size()) {
             m_currentLayerIndex = m_layers.size() - 1;
         }
-        if (m_currentLayerIndex < 0) {
+        if (m_currentLayerIndex < 0 && !m_layers.empty()) {
             m_currentLayerIndex = 0;
         }
 
+        // ROBUST: Recalculate Z-values for all remaining layers
+        updateAllLayerZValues();
+
         storeCurrentFrameState();
         emit layerChanged(m_currentLayerIndex);
+
+        qDebug() << "Layer removed. Current layer now:" << m_currentLayerIndex
+            << "Total layers:" << m_layers.size();
     }
 }
 
 void Canvas::setCurrentLayer(int layerIndex)
 {
     if (layerIndex >= 0 && layerIndex < m_layers.size()) {
+        LayerData* oldLayer = (m_currentLayerIndex >= 0 && m_currentLayerIndex < m_layers.size())
+            ? static_cast<LayerData*>(m_layers[m_currentLayerIndex]) : nullptr;
+        LayerData* newLayer = static_cast<LayerData*>(m_layers[layerIndex]);
+
         m_currentLayerIndex = layerIndex;
+
+        qDebug() << "Current layer changed from" << (oldLayer ? oldLayer->uuid : "none")
+            << "to" << newLayer->uuid << "index:" << layerIndex;
+
         emit layerChanged(layerIndex);
-        qDebug() << "Current layer set to:" << layerIndex;
     }
-}
-
-int Canvas::getCurrentLayer() const
-{
-    return m_currentLayerIndex;
-}
-
-int Canvas::getLayerCount() const
-{
-    return m_layers.size();
 }
 
 void Canvas::setLayerVisible(int layerIndex, bool visible)
@@ -194,13 +293,16 @@ void Canvas::setLayerVisible(int layerIndex, bool visible)
         LayerData* layer = static_cast<LayerData*>(m_layers[layerIndex]);
         layer->visible = visible;
 
-        // Update visibility of all items in this layer
-        for (QGraphicsItem* item : layer->items) {
-            item->setVisible(visible);
+        // ROBUST: Update visibility of items in current frame only
+        QList<QGraphicsItem*> currentFrameItems = layer->getFrameItems(m_currentFrame);
+        for (QGraphicsItem* item : currentFrameItems) {
+            if (item && m_scene->items().contains(item)) {
+                item->setVisible(visible);
+            }
         }
 
         storeCurrentFrameState();
-        qDebug() << "Layer" << layerIndex << "visibility set to:" << visible;
+        qDebug() << "Layer" << layerIndex << "UUID:" << layer->uuid << "visibility set to:" << visible;
     }
 }
 
@@ -210,13 +312,16 @@ void Canvas::setLayerLocked(int layerIndex, bool locked)
         LayerData* layer = static_cast<LayerData*>(m_layers[layerIndex]);
         layer->locked = locked;
 
-        // Update lock state of all items in this layer
-        for (QGraphicsItem* item : layer->items) {
-            item->setFlag(QGraphicsItem::ItemIsSelectable, !locked);
-            item->setFlag(QGraphicsItem::ItemIsMovable, !locked);
+        // ROBUST: Update lock state of items in current frame only
+        QList<QGraphicsItem*> currentFrameItems = layer->getFrameItems(m_currentFrame);
+        for (QGraphicsItem* item : currentFrameItems) {
+            if (item && m_scene->items().contains(item)) {
+                item->setFlag(QGraphicsItem::ItemIsSelectable, !locked);
+                item->setFlag(QGraphicsItem::ItemIsMovable, !locked);
+            }
         }
 
-        qDebug() << "Layer" << layerIndex << "locked state set to:" << locked;
+        qDebug() << "Layer" << layerIndex << "UUID:" << layer->uuid << "locked state set to:" << locked;
     }
 }
 
@@ -226,127 +331,140 @@ void Canvas::setLayerOpacity(int layerIndex, double opacity)
         LayerData* layer = static_cast<LayerData*>(m_layers[layerIndex]);
         layer->opacity = qBound(0.0, opacity, 1.0);
 
-        // FIXED: Update opacity of all items in this specific layer only
-        for (QGraphicsItem* item : layer->items) {
-            item->setOpacity(layer->opacity);
-        }
+        // ROBUST: Update opacity of items in current frame only, preserve individual opacity
+        QList<QGraphicsItem*> currentFrameItems = layer->getFrameItems(m_currentFrame);
+        for (QGraphicsItem* item : currentFrameItems) {
+            if (item && m_scene->items().contains(item)) {
+                // Get individual item opacity and combine with layer opacity
+                double individualOpacity = item->data(0).toDouble(); // Store individual opacity in data(0)
+                if (individualOpacity == 0.0) individualOpacity = 1.0; // Default if not set
 
-        storeCurrentFrameState();
-        qDebug() << "Layer" << layerIndex << "opacity set to:" << layer->opacity;
-    }
-}
-
-void Canvas::moveLayer(int fromIndex, int toIndex)
-{
-    if (fromIndex >= 0 && fromIndex < m_layers.size() &&
-        toIndex >= 0 && toIndex < m_layers.size() &&
-        fromIndex != toIndex) {
-
-        // Swap layer data
-        void* temp = m_layers[fromIndex];
-        m_layers[fromIndex] = m_layers[toIndex];
-        m_layers[toIndex] = temp;
-
-        // Update Z-values for proper rendering order
-        updateAllLayerZValues();
-
-        storeCurrentFrameState();
-        emit layerChanged(toIndex);
-    }
-}
-
-void Canvas::updateAllLayerZValues()
-{
-    // FIXED: Update Z-values to match layer order
-    for (int i = 0; i < m_layers.size(); ++i) {
-        LayerData* layer = static_cast<LayerData*>(m_layers[i]);
-        int baseZValue = i * 1000;
-
-        for (QGraphicsItem* item : layer->items) {
-            if (item != m_backgroundRect) {
-                item->setZValue(baseZValue + static_cast<int>(item->zValue()) % 1000);
+                item->setOpacity(individualOpacity * layer->opacity);
             }
         }
+
+        storeCurrentFrameState();
+        qDebug() << "Layer" << layerIndex << "UUID:" << layer->uuid << "opacity set to:" << layer->opacity;
     }
 }
 
 void Canvas::addItemToCurrentLayer(QGraphicsItem* item)
 {
-    if (item && m_currentLayerIndex >= 0 && m_currentLayerIndex < m_layers.size()) {
-        if (!item->scene()) {
-            m_scene->addItem(item);
-        }
-
-        LayerData* currentLayer = static_cast<LayerData*>(m_layers[m_currentLayerIndex]);
-
-        // Add item to current layer
-        currentLayer->items.append(item);
-
-        // Set properties based on layer state
-        item->setZValue(m_currentLayerIndex * 1000);
-        item->setFlag(QGraphicsItem::ItemIsSelectable, !currentLayer->locked);
-        item->setFlag(QGraphicsItem::ItemIsMovable, !currentLayer->locked);
-        item->setVisible(currentLayer->visible);
-        item->setOpacity(currentLayer->opacity);
-
-        storeCurrentFrameState();
-
-        qDebug() << "Added item to layer:" << m_currentLayerIndex
-            << "Opacity:" << currentLayer->opacity
-            << "Visible:" << currentLayer->visible;
+    if (!item || m_currentLayerIndex < 0 || m_currentLayerIndex >= m_layers.size()) {
+        qDebug() << "addItemToCurrentLayer: Invalid item or layer index";
+        return;
     }
+
+    // Add to scene first
+    if (!item->scene()) {
+        m_scene->addItem(item);
+    }
+
+    LayerData* currentLayer = static_cast<LayerData*>(m_layers[m_currentLayerIndex]);
+
+    // ROBUST: Check if item is already in another layer and remove it
+    for (int i = 0; i < m_layers.size(); ++i) {
+        if (i != m_currentLayerIndex) {
+            LayerData* otherLayer = static_cast<LayerData*>(m_layers[i]);
+            if (otherLayer->containsItem(item)) {
+                qDebug() << "Warning: Moving item from layer" << i << "to layer" << m_currentLayerIndex;
+                otherLayer->removeItem(item);
+            }
+        }
+    }
+
+    // Add item to current layer and frame
+    currentLayer->addItem(item, m_currentFrame);
+
+    // Set properties based on layer state
+    item->setZValue(m_currentLayerIndex * 1000);
+    item->setFlag(QGraphicsItem::ItemIsSelectable, !currentLayer->locked);
+    item->setFlag(QGraphicsItem::ItemIsMovable, !currentLayer->locked);
+    item->setVisible(currentLayer->visible);
+
+    // ROBUST: Store individual opacity before applying layer opacity
+    if (item->data(0).toDouble() == 0.0) {
+        item->setData(0, item->opacity()); // Store original individual opacity
+    }
+    double individualOpacity = item->data(0).toDouble();
+    item->setOpacity(individualOpacity * currentLayer->opacity);
+
+    storeCurrentFrameState();
+
+    qDebug() << "Added item to layer:" << m_currentLayerIndex
+        << "UUID:" << currentLayer->uuid
+        << "Frame:" << m_currentFrame
+        << "Individual opacity:" << individualOpacity
+        << "Final opacity:" << item->opacity();
 }
 
 void Canvas::saveFrameState(int frame)
 {
-    QList<QGraphicsItem*> frameItems;
+    // ROBUST: Save frame state per layer to prevent cross-contamination
+    QHash<int, QList<QGraphicsItem*>> layerFrameItems;
 
-    // FIXED: Collect items from all layers, preserving layer association
-    QList<QGraphicsItem*> allItems = m_scene->items();
-    for (QGraphicsItem* item : allItems) {
-        if (item != m_backgroundRect && item->isVisible()) {
-            frameItems.append(item);
+    for (int layerIndex = 0; layerIndex < m_layers.size(); ++layerIndex) {
+        LayerData* layer = static_cast<LayerData*>(m_layers[layerIndex]);
+        QList<QGraphicsItem*> visibleItems;
+
+        // Get items that are currently visible and belong to this layer
+        for (QGraphicsItem* item : layer->allTimeItems) {
+            if (item && item != m_backgroundRect && item->isVisible() &&
+                m_scene->items().contains(item)) {
+                visibleItems.append(item);
+            }
         }
+
+        layer->setFrameItems(frame, visibleItems);
+        layerFrameItems[layerIndex] = visibleItems;
     }
 
-    m_frameItems[frame] = frameItems;
-    qDebug() << "Saved frame state for frame:" << frame << "Items:" << frameItems.size();
+    // Also store in the main frame tracking (for compatibility)
+    QList<QGraphicsItem*> allFrameItems;
+    for (const auto& layerItems : layerFrameItems) {
+        allFrameItems.append(layerItems);
+    }
+    m_frameItems[frame] = allFrameItems;
+
+    qDebug() << "Saved frame state for frame:" << frame
+        << "Total items across all layers:" << allFrameItems.size();
+
+    // Debug layer state
+    for (int i = 0; i < m_layers.size(); ++i) {
+        LayerData* layer = static_cast<LayerData*>(m_layers[i]);
+        qDebug() << "  Layer" << i << "UUID:" << layer->uuid
+            << "Frame items:" << layerFrameItems[i].size();
+    }
 }
 
 void Canvas::loadFrameState(int frame)
 {
-    // Hide all items first 
+    qDebug() << "Loading frame state for frame:" << frame;
+
+    // ROBUST: Hide ALL items first, then show only frame-specific items
     clearFrameState();
 
-    auto frameIt = m_frameItems.find(frame);
-    if (frameIt != m_frameItems.end()) {
-        QList<QGraphicsItem*> frameItems = frameIt->second;
+    // Load items per layer to maintain proper layer association
+    for (int layerIndex = 0; layerIndex < m_layers.size(); ++layerIndex) {
+        LayerData* layer = static_cast<LayerData*>(m_layers[layerIndex]);
+        QList<QGraphicsItem*> frameItems = layer->getFrameItems(frame);
 
-        // FIXED: Restore items and their layer properties
-        QList<QGraphicsItem*> validItems;
         for (QGraphicsItem* item : frameItems) {
             if (item && m_scene->items().contains(item) && item != m_backgroundRect) {
-                item->setVisible(true);
+                item->setVisible(layer->visible);
 
-                // Restore layer-specific properties
-                int layerIndex = getItemLayerIndex(item);
-                if (layerIndex >= 0 && layerIndex < m_layers.size()) {
-                    LayerData* layer = static_cast<LayerData*>(m_layers[layerIndex]);
-                    item->setVisible(layer->visible);
-                    item->setOpacity(layer->opacity);
-                    item->setFlag(QGraphicsItem::ItemIsSelectable, !layer->locked);
-                    item->setFlag(QGraphicsItem::ItemIsMovable, !layer->locked);
-                }
+                // ROBUST: Restore proper opacity (individual × layer)
+                double individualOpacity = item->data(0).toDouble();
+                if (individualOpacity == 0.0) individualOpacity = 1.0;
+                item->setOpacity(individualOpacity * layer->opacity);
 
-                validItems.append(item);
+                item->setFlag(QGraphicsItem::ItemIsSelectable, !layer->locked);
+                item->setFlag(QGraphicsItem::ItemIsMovable, !layer->locked);
             }
         }
 
-        if (validItems.size() != frameItems.size()) {
-            m_frameItems[frame] = validItems;
-        }
-
-        qDebug() << "Loaded frame state for frame:" << frame << "Showing" << validItems.size() << "valid items";
+        qDebug() << "  Layer" << layerIndex << "UUID:" << layer->uuid
+            << "Loaded" << frameItems.size() << "items";
     }
 
     viewport()->update();
@@ -354,14 +472,33 @@ void Canvas::loadFrameState(int frame)
 
 int Canvas::getItemLayerIndex(QGraphicsItem* item)
 {
-    // FIXED: Find which layer an item belongs to
+    if (!item) return -1;
+
+    // ROBUST: Find which layer an item belongs to using UUID tracking
     for (int i = 0; i < m_layers.size(); ++i) {
         LayerData* layer = static_cast<LayerData*>(m_layers[i]);
-        if (layer->items.contains(item)) {
+        if (layer->containsItem(item)) {
             return i;
         }
     }
+
+    qDebug() << "Warning: Item not found in any layer!";
     return -1; // Item not found in any layer
+}
+
+void Canvas::updateAllLayerZValues()
+{
+    // ROBUST: Update Z-values to match layer order and prevent Z-fighting
+    for (int i = 0; i < m_layers.size(); ++i) {
+        LayerData* layer = static_cast<LayerData*>(m_layers[i]);
+        int baseZValue = i * 1000;
+
+        for (QGraphicsItem* item : layer->allTimeItems) {
+            if (item && item != m_backgroundRect && m_scene->items().contains(item)) {
+                item->setZValue(baseZValue + (static_cast<int>(item->zValue()) % 1000));
+            }
+        }
+    }
 }
 
 void Canvas::deleteSelected()
@@ -369,8 +506,11 @@ void Canvas::deleteSelected()
     if (!m_scene) return;
 
     QList<QGraphicsItem*> selectedItems = m_scene->selectedItems();
+    if (selectedItems.isEmpty()) return;
 
-    // FIXED: Remove deleted items from layer tracking AND frame states
+    qDebug() << "Deleting" << selectedItems.size() << "selected items";
+
+    // Remove deleted items from layer tracking AND frame states
     for (QGraphicsItem* item : selectedItems) {
         // Remove from layer
         int layerIndex = getItemLayerIndex(item);
@@ -384,19 +524,22 @@ void Canvas::deleteSelected()
             frameEntry.second.removeAll(item);
         }
 
-        // Then delete the item
+        // Remove from scene (let scene handle actual deletion)
         m_scene->removeItem(item);
-        delete item;
     }
 
     storeCurrentFrameState();
     emit selectionChanged();
+
+    qDebug() << "deleteSelected completed";
 }
 
-// FIXED: Override clear to properly handle layers
 void Canvas::clear()
 {
     if (m_scene) {
+        qDebug() << "Canvas::clear() called";
+
+        // FIXED: Clear data structures first before removing items
         m_frameItems.clear();
         m_keyframes.clear();
 
@@ -404,24 +547,33 @@ void Canvas::clear()
         for (int i = m_layers.size() - 1; i >= 0; --i) {
             LayerData* layer = static_cast<LayerData*>(m_layers[i]);
 
-            // Remove all items except background
-            QList<QGraphicsItem*> itemsToDelete;
+            // Remove all items except background from layer tracking
+            QList<QGraphicsItem*> itemsToRemove;
             for (QGraphicsItem* item : layer->items) {
                 if (item != m_backgroundRect) {
-                    itemsToDelete.append(item);
+                    itemsToRemove.append(item);
                 }
             }
 
-            for (QGraphicsItem* item : itemsToDelete) {
+            // Remove items from layer tracking first
+            for (QGraphicsItem* item : itemsToRemove) {
                 layer->items.removeAll(item);
-                m_scene->removeItem(item);
-                delete item;
             }
 
             // Delete layer data (except background layer)
             if (i > 0) {
                 delete layer;
                 m_layers.erase(m_layers.begin() + i);
+            }
+        }
+
+        // FIXED: Let the scene handle item deletion
+        // Get all items except background
+        QList<QGraphicsItem*> allItems = m_scene->items();
+        for (QGraphicsItem* item : allItems) {
+            if (item != m_backgroundRect) {
+                m_scene->removeItem(item);
+                // Let the scene delete the items automatically
             }
         }
 
@@ -434,10 +586,12 @@ void Canvas::clear()
         setCurrentLayer(1);
         createKeyframe(1);
         emit selectionChanged();
+
+        qDebug() << "Canvas::clear() completed";
     }
 }
 
-// ... [Include all other existing methods that weren't changed] ...
+// [All other Canvas methods remain the same as in the original...]
 
 void Canvas::setCanvasSize(const QSize& size)
 {
@@ -478,20 +632,24 @@ void Canvas::createKeyframe(int frame)
 
 void Canvas::createBlankKeyframe(int frame)
 {
+    // ROBUST: Create blank keyframe that properly clears current frame
+    for (int i = 0; i < m_layers.size(); ++i) {
+        LayerData* layer = static_cast<LayerData*>(m_layers[i]);
+        if (i == 0) {
+            // Background layer keeps background rect
+            layer->setFrameItems(frame, { m_backgroundRect });
+        }
+        else {
+            // Other layers are empty
+            layer->setFrameItems(frame, QList<QGraphicsItem*>());
+        }
+    }
+
     m_frameItems[frame] = QList<QGraphicsItem*>();
     m_keyframes.insert(frame);
     clearFrameState();
     emit keyframeCreated(frame);
     qDebug() << "Blank keyframe created at frame:" << frame;
-}
-
-void Canvas::clearCurrentFrameContent()
-{
-    if (m_currentFrame >= 1) {
-        m_frameItems[m_currentFrame] = QList<QGraphicsItem*>();
-        clearFrameState();
-    }
-    qDebug() << "Cleared current frame content";
 }
 
 bool Canvas::hasKeyframe(int frame) const
@@ -516,60 +674,10 @@ void Canvas::clearFrameState()
     }
 }
 
-QList<QGraphicsItem*> Canvas::getSelectedItems() const
-{
-    return m_scene ? m_scene->selectedItems() : QList<QGraphicsItem*>();
-}
+// [Include all other existing methods that weren't changed...]
 
-void Canvas::selectAll()
-{
-    if (m_scene) {
-        QList<QGraphicsItem*> allItems = m_scene->items();
-        for (QGraphicsItem* item : allItems) {
-            if (item != m_backgroundRect &&
-                (item->flags() & QGraphicsItem::ItemIsSelectable)) {
-                item->setSelected(true);
-            }
-        }
-        emit selectionChanged();
-    }
-}
+// [Mouse events, zoom methods, alignment methods, etc. remain the same...]
 
-void Canvas::clearSelection()
-{
-    if (m_scene) {
-        m_scene->clearSelection();
-        emit selectionChanged();
-    }
-}
-
-bool Canvas::hasSelection() const
-{
-    return m_scene && !m_scene->selectedItems().isEmpty();
-}
-
-int Canvas::getSelectionCount() const
-{
-    return m_scene ? m_scene->selectedItems().count() : 0;
-}
-
-void Canvas::setCurrentTool(Tool* tool)
-{
-    m_currentTool = tool;
-    updateCursor();
-    qDebug() << "Tool set to:" << tool;
-}
-
-Tool* Canvas::getCurrentTool() const { return m_currentTool; }
-
-void Canvas::setStrokeColor(const QColor& color) { m_strokeColor = color; }
-void Canvas::setFillColor(const QColor& color) { m_fillColor = color; }
-void Canvas::setStrokeWidth(double width) { m_strokeWidth = width; }
-QColor Canvas::getStrokeColor() const { return m_strokeColor; }
-QColor Canvas::getFillColor() const { return m_fillColor; }
-double Canvas::getStrokeWidth() const { return m_strokeWidth; }
-
-// [Include all mouse event handlers and other methods that remain unchanged]
 void Canvas::mousePressEvent(QMouseEvent* event)
 {
     if (!m_scene) {
@@ -676,7 +784,63 @@ void Canvas::mouseReleaseEvent(QMouseEvent* event)
     emit mousePositionChanged(scenePos);
 }
 
-// Include all remaining methods (zoom, alignment, drawing, etc.)
+// [Include all other methods like drawing, zoom, etc...]
+
+QList<QGraphicsItem*> Canvas::getSelectedItems() const
+{
+    return m_scene ? m_scene->selectedItems() : QList<QGraphicsItem*>();
+}
+
+void Canvas::selectAll()
+{
+    if (m_scene) {
+        QList<QGraphicsItem*> allItems = m_scene->items();
+        for (QGraphicsItem* item : allItems) {
+            if (item != m_backgroundRect &&
+                (item->flags() & QGraphicsItem::ItemIsSelectable)) {
+                item->setSelected(true);
+            }
+        }
+        emit selectionChanged();
+    }
+}
+
+void Canvas::clearSelection()
+{
+    if (m_scene) {
+        m_scene->clearSelection();
+        emit selectionChanged();
+    }
+}
+
+bool Canvas::hasSelection() const
+{
+    return m_scene && !m_scene->selectedItems().isEmpty();
+}
+
+int Canvas::getSelectionCount() const
+{
+    return m_scene ? m_scene->selectedItems().count() : 0;
+}
+
+void Canvas::setCurrentTool(Tool* tool)
+{
+    m_currentTool = tool;
+    updateCursor();
+    qDebug() << "Tool set to:" << tool;
+}
+
+Tool* Canvas::getCurrentTool() const { return m_currentTool; }
+
+void Canvas::setStrokeColor(const QColor& color) { m_strokeColor = color; }
+void Canvas::setFillColor(const QColor& color) { m_fillColor = color; }
+void Canvas::setStrokeWidth(double width) { m_strokeWidth = width; }
+QColor Canvas::getStrokeColor() const { return m_strokeColor; }
+QColor Canvas::getFillColor() const { return m_fillColor; }
+double Canvas::getStrokeWidth() const { return m_strokeWidth; }
+int Canvas::getCurrentLayer() const { return m_currentLayerIndex; }
+int Canvas::getLayerCount() const { return m_layers.size(); }
+
 void Canvas::drawBackground(QPainter* painter, const QRectF& rect)
 {
     QGraphicsView::drawBackground(painter, rect);
@@ -765,6 +929,78 @@ void Canvas::setRulersVisible(bool visible) { m_rulersVisible = visible; viewpor
 bool Canvas::isGridVisible() const { return m_gridVisible; }
 bool Canvas::isSnapToGrid() const { return m_snapToGrid; }
 bool Canvas::areRulersVisible() const { return m_rulersVisible; }
+
+QPointF Canvas::snapToGrid(const QPointF& point)
+{
+    if (!m_snapToGrid) return point;
+    double x = qRound(point.x() / m_gridSize) * m_gridSize;
+    double y = qRound(point.y() / m_gridSize) * m_gridSize;
+    return QPointF(x, y);
+}
+
+void Canvas::updateCursor()
+{
+    if (m_currentTool) {
+        setCursor(m_currentTool->getCursor());
+    }
+    else {
+        setCursor(Qt::ArrowCursor);
+    }
+}
+
+void Canvas::wheelEvent(QWheelEvent* event)
+{
+    if (event->modifiers() & Qt::ControlModifier) {
+        const double scaleFactor = 1.15;
+        if (event->angleDelta().y() > 0) {
+            scale(scaleFactor, scaleFactor);
+            m_zoomFactor *= scaleFactor;
+        }
+        else {
+            scale(1.0 / scaleFactor, 1.0 / scaleFactor);
+            m_zoomFactor /= scaleFactor;
+        }
+        emit zoomChanged(m_zoomFactor);
+    }
+    else {
+        bool wasInteractive = isInteractive();
+        setInteractive(false);
+        QGraphicsView::wheelEvent(event);
+        setInteractive(wasInteractive);
+    }
+}
+
+void Canvas::keyPressEvent(QKeyEvent* event)
+{
+    if (m_currentTool) {
+        m_currentTool->keyPressEvent(event);
+    }
+    QGraphicsView::keyPressEvent(event);
+}
+
+void Canvas::paintEvent(QPaintEvent* event) { QGraphicsView::paintEvent(event); }
+
+void Canvas::drawForeground(QPainter* painter, const QRectF& rect)
+{
+    QGraphicsView::drawForeground(painter, rect);
+    if (m_rulersVisible) {
+        drawRulers(painter);
+    }
+}
+
+void Canvas::drawRulers(QPainter* painter)
+{
+    painter->save();
+    QPen rulerPen(QColor(200, 200, 200));
+    painter->setPen(rulerPen);
+    painter->setFont(QFont("Arial", 8));
+    QRectF viewRect = mapToScene(viewport()->rect()).boundingRect();
+    painter->fillRect(0, 0, viewport()->width(), 20, QColor(80, 80, 80));
+    painter->fillRect(0, 20, 20, viewport()->height() - 20, QColor(80, 80, 80));
+    painter->restore();
+}
+
+// [Include all other alignment and object manipulation methods...]
 
 void Canvas::groupSelectedItems()
 {
@@ -904,74 +1140,4 @@ void Canvas::rotateSelected(double angle)
         item->setRotation(item->rotation() + angle);
     }
     storeCurrentFrameState();
-}
-
-QPointF Canvas::snapToGrid(const QPointF& point)
-{
-    if (!m_snapToGrid) return point;
-    double x = qRound(point.x() / m_gridSize) * m_gridSize;
-    double y = qRound(point.y() / m_gridSize) * m_gridSize;
-    return QPointF(x, y);
-}
-
-void Canvas::updateCursor()
-{
-    if (m_currentTool) {
-        setCursor(m_currentTool->getCursor());
-    }
-    else {
-        setCursor(Qt::ArrowCursor);
-    }
-}
-
-void Canvas::wheelEvent(QWheelEvent* event)
-{
-    if (event->modifiers() & Qt::ControlModifier) {
-        const double scaleFactor = 1.15;
-        if (event->angleDelta().y() > 0) {
-            scale(scaleFactor, scaleFactor);
-            m_zoomFactor *= scaleFactor;
-        }
-        else {
-            scale(1.0 / scaleFactor, 1.0 / scaleFactor);
-            m_zoomFactor /= scaleFactor;
-        }
-        emit zoomChanged(m_zoomFactor);
-    }
-    else {
-        bool wasInteractive = isInteractive();
-        setInteractive(false);
-        QGraphicsView::wheelEvent(event);
-        setInteractive(wasInteractive);
-    }
-}
-
-void Canvas::keyPressEvent(QKeyEvent* event)
-{
-    if (m_currentTool) {
-        m_currentTool->keyPressEvent(event);
-    }
-    QGraphicsView::keyPressEvent(event);
-}
-
-void Canvas::paintEvent(QPaintEvent* event) { QGraphicsView::paintEvent(event); }
-
-void Canvas::drawForeground(QPainter* painter, const QRectF& rect)
-{
-    QGraphicsView::drawForeground(painter, rect);
-    if (m_rulersVisible) {
-        drawRulers(painter);
-    }
-}
-
-void Canvas::drawRulers(QPainter* painter)
-{
-    painter->save();
-    QPen rulerPen(QColor(200, 200, 200));
-    painter->setPen(rulerPen);
-    painter->setFont(QFont("Arial", 8));
-    QRectF viewRect = mapToScene(viewport()->rect()).boundingRect();
-    painter->fillRect(0, 0, viewport()->width(), 20, QColor(80, 80, 80));
-    painter->fillRect(0, 20, 20, viewport()->height() - 20, QColor(80, 80, 80));
-    painter->restore();
 }

@@ -113,6 +113,7 @@
       <QtMocFileName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(Filename).moc</QtMocFileName>
     </ClCompile>
     <ClCompile Include="Tools\EllipseTool.cpp" />
+    <ClCompile Include="Tools\EraseTool.cpp" />
     <ClCompile Include="Tools\LineTool.cpp" />
     <ClCompile Include="Tools\RectangleTool.cpp" />
     <ClCompile Include="Tools\SelectionTool.cpp" />
@@ -153,6 +154,7 @@
     <QtMoc Include="BucketFillTool.h" />
     <ClInclude Include="Commands\UndoCommands.h" />
     <ClInclude Include="resource.h" />
+    <QtMoc Include="Tools\EraseTool.h" />
     <ClInclude Include="VectorGraphics\VectorGraphicsItem.h" />
     <QtMoc Include="Tools\Tool.h" />
     <QtMoc Include="Tools\TextTool.h" />

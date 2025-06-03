@@ -1,4 +1,4 @@
-// Commands/UndoCommands.h - Enhanced Header
+// Commands/UndoCommands.h - Enhanced Header with item validation
 #ifndef UNDOCOMMANDS_H
 #define UNDOCOMMANDS_H
 
@@ -24,6 +24,9 @@ public:
 
 protected:
     Canvas* m_canvas;
+
+    // FIXED: Add item validation helper
+    bool isItemValid(QGraphicsItem* item);
 };
 
 // Move command
@@ -144,7 +147,7 @@ private:
     bool m_ungrouped;
 };
 
-// NEW: Property change command for properties panel
+// Property change command for properties panel
 class PropertyChangeCommand : public GraphicsItemCommand
 {
 public:
@@ -164,7 +167,7 @@ private:
     QVariant m_newValue;
 };
 
-// NEW: Draw command for drawing operations
+// Draw command for drawing operations
 class DrawCommand : public GraphicsItemCommand
 {
 public:

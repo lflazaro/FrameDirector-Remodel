@@ -104,6 +104,9 @@
     <ClCompile Include="Tools\DrawingTool.cpp">
       <Filter>Tools</Filter>
     </ClCompile>
+    <ClCompile Include="Tools\EraseTool.cpp">
+      <Filter>Tools</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="Canvas.h">
@@ -155,6 +158,9 @@
       <Filter>Tools</Filter>
     </QtMoc>
     <QtMoc Include="BucketFillTool.h">
+      <Filter>Tools</Filter>
+    </QtMoc>
+    <QtMoc Include="Tools\EraseTool.h">
       <Filter>Tools</Filter>
     </QtMoc>
   </ItemGroup>
