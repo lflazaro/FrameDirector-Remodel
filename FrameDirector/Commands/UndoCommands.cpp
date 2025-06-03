@@ -58,17 +58,28 @@ void MoveCommand::redo()
     }
 }
 
+
 bool MoveCommand::mergeWith(const QUndoCommand* other)
 {
     const MoveCommand* moveCommand = static_cast<const MoveCommand*>(other);
 
-    if (moveCommand->m_items != m_items) {
+    // Only merge if moving the same items
+    if (moveCommand->m_items.size() != m_items.size()) {
         return false;
     }
 
+    // Check if all items match
+    for (int i = 0; i < m_items.size(); ++i) {
+        if (m_items[i] != moveCommand->m_items[i]) {
+            return false;
+        }
+    }
+
+    // Merge the deltas
     m_delta += moveCommand->m_delta;
     return true;
 }
+
 
 // AddItemCommand implementation
 AddItemCommand::AddItemCommand(Canvas* canvas, QGraphicsItem* item, QUndoCommand* parent)
@@ -86,21 +97,28 @@ AddItemCommand::~AddItemCommand()
     }
 }
 
-void AddItemCommand::undo()
-{
-    if (m_canvas && m_canvas->scene() && m_item) {
-        m_canvas->scene()->removeItem(m_item);
-        m_itemAdded = false;
-        m_canvas->storeCurrentFrameState();
-    }
-}
 
 void AddItemCommand::redo()
 {
+    if (m_canvas && m_item) {
+        // Only add if item is not already in scene
+        if (!m_item->scene()) {
+            m_canvas->addItemToCurrentLayer(m_item);
+            m_itemAdded = true;
+            m_canvas->storeCurrentFrameState();
+        }
+    }
+}
+
+void AddItemCommand::undo()
+{
     if (m_canvas && m_canvas->scene() && m_item) {
-        m_canvas->addItemToCurrentLayer(m_item);
-        m_itemAdded = true;
-        m_canvas->storeCurrentFrameState();
+        // Only remove if item is in scene
+        if (m_item->scene() == m_canvas->scene()) {
+            m_canvas->scene()->removeItem(m_item);
+            m_itemAdded = false;
+            m_canvas->storeCurrentFrameState();
+        }
     }
 }
 
@@ -117,7 +135,26 @@ RemoveItemCommand::RemoveItemCommand(Canvas* canvas, const QList<QGraphicsItem*>
 RemoveItemCommand::~RemoveItemCommand()
 {
     if (m_itemsRemoved) {
-        qDeleteAll(m_items);
+        // Only delete items if they were actually removed and won't be restored
+        for (QGraphicsItem* item : m_items) {
+            if (item) {
+                delete item;
+            }
+        }
+    }
+}
+
+void RemoveItemCommand::redo()
+{
+    if (m_canvas && m_canvas->scene()) {
+        // Remove items from all frame states first
+        for (QGraphicsItem* item : m_items) {
+            if (item && m_canvas->scene()->items().contains(item)) {
+                m_canvas->scene()->removeItem(item);
+            }
+        }
+        m_itemsRemoved = true;
+        m_canvas->storeCurrentFrameState();
     }
 }
 
@@ -134,18 +171,6 @@ void RemoveItemCommand::undo()
     }
 }
 
-void RemoveItemCommand::redo()
-{
-    if (m_canvas && m_canvas->scene()) {
-        for (QGraphicsItem* item : m_items) {
-            if (item) {
-                m_canvas->scene()->removeItem(item);
-            }
-        }
-        m_itemsRemoved = true;
-        m_canvas->storeCurrentFrameState();
-    }
-}
 
 // TransformCommand implementation
 TransformCommand::TransformCommand(Canvas* canvas, QGraphicsItem* item,
@@ -307,11 +332,21 @@ void GroupCommand::undo()
 void GroupCommand::redo()
 {
     if (m_canvas && m_canvas->scene() && !m_items.isEmpty()) {
-        m_group = m_canvas->scene()->createItemGroup(m_items);
-        m_group->setFlag(QGraphicsItem::ItemIsSelectable, true);
-        m_group->setFlag(QGraphicsItem::ItemIsMovable, true);
-        m_grouped = true;
-        m_canvas->storeCurrentFrameState();
+        // Validate all items still exist in scene
+        QList<QGraphicsItem*> validItems;
+        for (QGraphicsItem* item : m_items) {
+            if (item && m_canvas->scene()->items().contains(item)) {
+                validItems.append(item);
+            }
+        }
+
+        if (validItems.size() >= 2) {
+            m_group = m_canvas->scene()->createItemGroup(validItems);
+            m_group->setFlag(QGraphicsItem::ItemIsSelectable, true);
+            m_group->setFlag(QGraphicsItem::ItemIsMovable, true);
+            m_grouped = true;
+            m_canvas->storeCurrentFrameState();
+        }
     }
 }
 
@@ -344,9 +379,12 @@ void UngroupCommand::undo()
 void UngroupCommand::redo()
 {
     if (m_canvas && m_canvas->scene() && m_group) {
-        m_canvas->scene()->destroyItemGroup(m_group);
-        m_ungrouped = true;
-        m_canvas->storeCurrentFrameState();
+        // Validate group still exists
+        if (m_canvas->scene()->items().contains(m_group)) {
+            m_canvas->scene()->destroyItemGroup(m_group);
+            m_ungrouped = true;
+            m_canvas->storeCurrentFrameState();
+        }
     }
 }
 
@@ -383,6 +421,7 @@ void PropertyChangeCommand::redo()
     }
 }
 
+
 void PropertyChangeCommand::applyProperty(QGraphicsItem* item, const QString& property, const QVariant& value)
 {
     if (property == "position") {
@@ -400,6 +439,12 @@ void PropertyChangeCommand::applyProperty(QGraphicsItem* item, const QString& pr
     else if (property == "opacity") {
         item->setOpacity(value.toDouble());
     }
+    else if (property == "zValue") {
+        item->setZValue(value.toDouble());
+    }
+    else if (property == "visible") {
+        item->setVisible(value.toBool());
+    }
     else if (property == "size") {
         QSizeF size = value.toSizeF();
         if (auto rectItem = qgraphicsitem_cast<QGraphicsRectItem*>(item)) {
@@ -411,6 +456,77 @@ void PropertyChangeCommand::applyProperty(QGraphicsItem* item, const QString& pr
             QRectF rect = ellipseItem->rect();
             rect.setSize(size);
             ellipseItem->setRect(rect);
+        }
+    }
+    else if (property == "strokeColor") {
+        QColor color = value.value<QColor>();
+        if (auto rectItem = qgraphicsitem_cast<QGraphicsRectItem*>(item)) {
+            QPen pen = rectItem->pen();
+            pen.setColor(color);
+            rectItem->setPen(pen);
+        }
+        else if (auto ellipseItem = qgraphicsitem_cast<QGraphicsEllipseItem*>(item)) {
+            QPen pen = ellipseItem->pen();
+            pen.setColor(color);
+            ellipseItem->setPen(pen);
+        }
+        else if (auto lineItem = qgraphicsitem_cast<QGraphicsLineItem*>(item)) {
+            QPen pen = lineItem->pen();
+            pen.setColor(color);
+            lineItem->setPen(pen);
+        }
+        else if (auto pathItem = qgraphicsitem_cast<QGraphicsPathItem*>(item)) {
+            QPen pen = pathItem->pen();
+            pen.setColor(color);
+            pathItem->setPen(pen);
+        }
+        else if (auto textItem = qgraphicsitem_cast<QGraphicsTextItem*>(item)) {
+            textItem->setDefaultTextColor(color);
+        }
+    }
+    else if (property == "fillColor") {
+        QColor color = value.value<QColor>();
+        if (auto rectItem = qgraphicsitem_cast<QGraphicsRectItem*>(item)) {
+            rectItem->setBrush(QBrush(color));
+        }
+        else if (auto ellipseItem = qgraphicsitem_cast<QGraphicsEllipseItem*>(item)) {
+            ellipseItem->setBrush(QBrush(color));
+        }
+        else if (auto pathItem = qgraphicsitem_cast<QGraphicsPathItem*>(item)) {
+            pathItem->setBrush(QBrush(color));
+        }
+    }
+    else if (property == "strokeWidth") {
+        double width = value.toDouble();
+        if (auto rectItem = qgraphicsitem_cast<QGraphicsRectItem*>(item)) {
+            QPen pen = rectItem->pen();
+            pen.setWidthF(width);
+            rectItem->setPen(pen);
+        }
+        else if (auto ellipseItem = qgraphicsitem_cast<QGraphicsEllipseItem*>(item)) {
+            QPen pen = ellipseItem->pen();
+            pen.setWidthF(width);
+            ellipseItem->setPen(pen);
+        }
+        else if (auto lineItem = qgraphicsitem_cast<QGraphicsLineItem*>(item)) {
+            QPen pen = lineItem->pen();
+            pen.setWidthF(width);
+            lineItem->setPen(pen);
+        }
+        else if (auto pathItem = qgraphicsitem_cast<QGraphicsPathItem*>(item)) {
+            QPen pen = pathItem->pen();
+            pen.setWidthF(width);
+            pathItem->setPen(pen);
+        }
+    }
+    else if (property == "font") {
+        if (auto textItem = qgraphicsitem_cast<QGraphicsTextItem*>(item)) {
+            textItem->setFont(value.value<QFont>());
+        }
+    }
+    else if (property == "text") {
+        if (auto textItem = qgraphicsitem_cast<QGraphicsTextItem*>(item)) {
+            textItem->setPlainText(value.toString());
         }
     }
 }
@@ -448,3 +564,77 @@ void DrawCommand::redo()
         m_canvas->storeCurrentFrameState();
     }
 }
+
+
+class MultiToolCommand : public QUndoCommand
+{
+public:
+    MultiToolCommand(const QString& description, QUndoCommand* parent = nullptr)
+        : QUndoCommand(description, parent)
+    {
+    }
+
+    void addCommand(QUndoCommand* command)
+    {
+        m_commands.append(command);
+    }
+
+    void undo() override
+    {
+        // Undo in reverse order
+        for (int i = m_commands.size() - 1; i >= 0; --i) {
+            m_commands[i]->undo();
+        }
+    }
+
+    void redo() override
+    {
+        // Redo in forward order
+        for (QUndoCommand* command : m_commands) {
+            command->redo();
+        }
+    }
+
+private:
+    QList<QUndoCommand*> m_commands;
+};
+
+// Batch operations for performance
+class BatchCommand : public QUndoCommand
+{
+public:
+    BatchCommand(const QString& description, QUndoCommand* parent = nullptr)
+        : QUndoCommand(description, parent)
+        , m_executed(false)
+    {
+    }
+
+    void addOperation(std::function<void()> operation, std::function<void()> undoOperation)
+    {
+        m_operations.append(operation);
+        m_undoOperations.prepend(undoOperation); // Reverse order for undo
+    }
+
+    void undo() override
+    {
+        for (auto& undoOp : m_undoOperations) {
+            undoOp();
+        }
+        m_executed = false;
+    }
+
+    void redo() override
+    {
+        if (!m_executed) {
+            for (auto& operation : m_operations) {
+                operation();
+            }
+            m_executed = true;
+        }
+    }
+
+private:
+    QList<std::function<void()>> m_operations;
+    QList<std::function<void()>> m_undoOperations;
+    bool m_executed;
+};

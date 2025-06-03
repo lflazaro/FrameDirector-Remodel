@@ -106,7 +106,12 @@
     <ClCompile Include="Panels\PropertiesPanel.cpp" />
     <ClCompile Include="Panels\ToolsPanel.cpp" />
     <ClCompile Include="Timeline.cpp" />
-    <ClCompile Include="Tools\DrawingTool.cpp" />
+    <ClCompile Include="Tools\DrawingTool.cpp">
+      <DynamicSource Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">input</DynamicSource>
+      <QtMocFileName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(Filename).moc</QtMocFileName>
+      <DynamicSource Condition="'$(Configuration)|$(Platform)'=='Release|x64'">input</DynamicSource>
+      <QtMocFileName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(Filename).moc</QtMocFileName>
+    </ClCompile>
     <ClCompile Include="Tools\EllipseTool.cpp" />
     <ClCompile Include="Tools\LineTool.cpp" />
     <ClCompile Include="Tools\RectangleTool.cpp" />

@@ -77,9 +77,6 @@
     <ClCompile Include="Commands\UndoCommands.cpp">
       <Filter>Commands</Filter>
     </ClCompile>
-    <ClCompile Include="Tools\DrawingTool.cpp">
-      <Filter>Tools</Filter>
-    </ClCompile>
     <ClCompile Include="Tools\EllipseTool.cpp">
       <Filter>Tools</Filter>
     </ClCompile>
@@ -102,6 +99,9 @@
       <Filter>VectorGraphics</Filter>
     </ClCompile>
     <ClCompile Include="BucketFillTool.cpp">
+      <Filter>Tools</Filter>
+    </ClCompile>
+    <ClCompile Include="Tools\DrawingTool.cpp">
       <Filter>Tools</Filter>
     </ClCompile>
   </ItemGroup>

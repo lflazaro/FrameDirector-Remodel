@@ -1,10 +1,15 @@
-﻿#include "ToolsPanel.h"
+﻿// Panels/ToolsPanel.cpp - Enhanced with drawing tool settings
+#include "ToolsPanel.h"
+#include "../Tools/DrawingTool.h"
 #include <QButtonGroup>
 #include <QPushButton>
 #include <QVBoxLayout>
 #include <QGridLayout>
 #include <QLabel>
 #include <QIcon>
+#include <QMenu>
+#include <QContextMenuEvent>
+#include <QDebug>
 
 ToolsPanel::ToolsPanel(MainWindow* parent)
     : QWidget(parent)
@@ -75,7 +80,7 @@ void ToolsPanel::createToolButton(const QString& iconPath, const QString& toolti
     // Set icon instead of text
     QIcon icon(iconPath);
     button->setIcon(icon);
-    button->setIconSize(QSize(24, 24)); // Set appropriate icon size
+    button->setIconSize(QSize(24, 24));
 
     button->setToolTip(QString("%1 (%2)").arg(tooltip, shortcut));
     button->setCheckable(true);
@@ -115,7 +120,10 @@ void ToolsPanel::createToolButton(const QString& iconPath, const QString& toolti
     // Store button references
     switch (tool) {
     case MainWindow::SelectTool: m_selectButton = button; break;
-    case MainWindow::DrawTool: m_drawButton = button; break;
+    case MainWindow::DrawTool:
+        m_drawButton = button;
+        setupDrawToolContextMenu(button);
+        break;
     case MainWindow::LineTool: m_lineButton = button; break;
     case MainWindow::RectangleTool: m_rectangleButton = button; break;
     case MainWindow::EllipseTool: m_ellipseButton = button; break;
@@ -123,6 +131,141 @@ void ToolsPanel::createToolButton(const QString& iconPath, const QString& toolti
     case MainWindow::BucketFillTool: m_bucketFillButton = button; break;
     case MainWindow::EraseTool: m_eraseButton = button; break;
     }
+}
+
+void ToolsPanel::setupDrawToolContextMenu(QPushButton* drawButton)
+{
+    // Enable context menu for the draw tool button
+    drawButton->setContextMenuPolicy(Qt::CustomContextMenu);
+
+    connect(drawButton, &QPushButton::customContextMenuRequested,
+        this, &ToolsPanel::showDrawToolContextMenu);
+}
+
+void ToolsPanel::showDrawToolContextMenu(const QPoint& pos)
+{
+    QPushButton* button = qobject_cast<QPushButton*>(sender());
+    if (!button) return;
+
+    QMenu contextMenu(this);
+    contextMenu.setStyleSheet(
+        "QMenu {"
+        "    background-color: #3E3E42;"
+        "    color: #FFFFFF;"
+        "    border: 1px solid #5A5A5C;"
+        "    border-radius: 3px;"
+        "}"
+        "QMenu::item {"
+        "    padding: 8px 16px;"
+        "    border: none;"
+        "}"
+        "QMenu::item:selected {"
+        "    background-color: #4A4A4F;"
+        "}"
+        "QMenu::separator {"
+        "    height: 1px;"
+        "    background-color: #5A5A5C;"
+        "    margin: 4px 8px;"
+        "}"
+    );
+
+    // Add context menu actions
+    QAction* settingsAction = contextMenu.addAction("Drawing Tool Settings...");
+    settingsAction->setIcon(QIcon(":/icons/guides.png")); // Use guides icon for settings
+
+    contextMenu.addSeparator();
+
+    QAction* quickStrokeAction = contextMenu.addAction("Quick Stroke Width");
+    QMenu* strokeSubMenu = new QMenu("Stroke Width", &contextMenu);
+    strokeSubMenu->addAction("Thin (1px)");
+    strokeSubMenu->addAction("Normal (2px)");
+    strokeSubMenu->addAction("Thick (4px)");
+    strokeSubMenu->addAction("Very Thick (8px)");
+    quickStrokeAction->setMenu(strokeSubMenu);
+
+    QAction* quickColorAction = contextMenu.addAction("Quick Colors");
+    QMenu* colorSubMenu = new QMenu("Colors", &contextMenu);
+    colorSubMenu->addAction("Black");
+    colorSubMenu->addAction("White");
+    colorSubMenu->addAction("Red");
+    colorSubMenu->addAction("Blue");
+    colorSubMenu->addAction("Green");
+    quickColorAction->setMenu(colorSubMenu);
+
+    // Show context menu
+    QAction* selectedAction = contextMenu.exec(button->mapToGlobal(pos));
+
+    if (selectedAction) {
+        handleDrawToolMenuAction(selectedAction);
+    }
+}
+
+void ToolsPanel::handleDrawToolMenuAction(QAction* action)
+{
+    QString actionText = action->text();
+
+    if (actionText == "Drawing Tool Settings...") {
+        // Get the drawing tool from the main window and show its settings
+        if (m_mainWindow) {
+            // Find the drawing tool in the main window's tools
+            auto tools = m_mainWindow->findChildren<DrawingTool*>();
+            for (DrawingTool* tool : tools) {
+                tool->showSettingsDialog();
+                break;
+            }
+
+            // Alternative: Access through the main window's tool system
+            // This would require exposing the tools map or adding a method to MainWindow
+            // For now, we'll implement a direct approach
+            showDrawingToolSettings();
+        }
+    }
+    else if (actionText.contains("px)")) {
+        // Handle quick stroke width changes
+        handleQuickStrokeWidth(actionText);
+    }
+    else if (actionText == "Black" || actionText == "White" ||
+        actionText == "Red" || actionText == "Blue" || actionText == "Green") {
+        // Handle quick color changes
+        handleQuickColor(actionText);
+    }
+}
+
+void ToolsPanel::showDrawingToolSettings()
+{
+    // This is a placeholder implementation
+    // In a complete implementation, this would access the actual DrawingTool instance
+    // and call its showSettingsDialog() method
+
+    qDebug() << "Drawing tool settings requested - implement tool access";
+
+    // For now, emit a signal that the main window can catch
+    emit drawingToolSettingsRequested();
+}
+
+void ToolsPanel::handleQuickStrokeWidth(const QString& widthText)
+{
+    double width = 2.0; // default
+
+    if (widthText.contains("Thin (1px)")) width = 1.0;
+    else if (widthText.contains("Normal (2px)")) width = 2.0;
+    else if (widthText.contains("Thick (4px)")) width = 4.0;
+    else if (widthText.contains("Very Thick (8px)")) width = 8.0;
+
+    emit quickStrokeWidthChanged(width);
+}
+
+void ToolsPanel::handleQuickColor(const QString& colorName)
+{
+    QColor color = Qt::black; // default
+
+    if (colorName == "Black") color = Qt::black;
+    else if (colorName == "White") color = Qt::white;
+    else if (colorName == "Red") color = Qt::red;
+    else if (colorName == "Blue") color = Qt::blue;
+    else if (colorName == "Green") color = Qt::green;
+
+    emit quickColorChanged(color);
 }
 
 void ToolsPanel::setActiveTool(MainWindow::ToolType tool)

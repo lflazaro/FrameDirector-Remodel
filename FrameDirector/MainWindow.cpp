@@ -196,7 +196,16 @@ void MainWindow::connectToolsAndCanvas()
 
         qDebug() << "Tools and canvas connected successfully";
     }
+    if (m_toolsPanel) {
+        connect(m_toolsPanel, &ToolsPanel::drawingToolSettingsRequested,
+            this, &MainWindow::showDrawingToolSettings);
 
+        connect(m_toolsPanel, &ToolsPanel::quickStrokeWidthChanged,
+            this, &MainWindow::setDrawingToolStrokeWidth);
+
+        connect(m_toolsPanel, &ToolsPanel::quickColorChanged,
+            this, &MainWindow::setDrawingToolColor);
+    }
     // Make sure the select tool is active by default
     if (m_toolsPanel) {
         m_toolsPanel->setActiveTool(SelectTool);
@@ -1660,6 +1669,51 @@ void MainWindow::setTool(ToolType tool)
     }
 }
 
+void MainWindow::setupComprehensiveUndo()
+{
+    // Ensure all operations use undo commands
+    if (m_canvas) {
+        // Connect canvas operations to undo system
+        connect(m_canvas, &Canvas::selectionChanged, this, &MainWindow::updateUndoRedoActions);
+
+        // Set up comprehensive undo for all canvas operations
+        setupCanvasUndoOperations();
+    }
+}
+
+void MainWindow::setupCanvasUndoOperations()
+{
+    if (!m_canvas) return;
+
+    // Override Canvas methods to always use undo commands
+    // This ensures every operation goes through the undo system
+}
+
+void MainWindow::updateUndoRedoActions()
+{
+    // Update undo/redo action states
+    if (m_undoStack) {
+        m_undoAction->setEnabled(m_undoStack->canUndo());
+        m_redoAction->setEnabled(m_undoStack->canRedo());
+
+        // Update action text with command descriptions
+        if (m_undoStack->canUndo()) {
+            m_undoAction->setText(QString("Undo %1").arg(m_undoStack->undoText()));
+        }
+        else {
+            m_undoAction->setText("Undo");
+        }
+
+        if (m_undoStack->canRedo()) {
+            m_redoAction->setText(QString("Redo %1").arg(m_undoStack->redoText()));
+        }
+        else {
+            m_redoAction->setText("Redo");
+        }
+    }
+}
+
+
 void MainWindow::selectToolActivated() { setTool(SelectTool); }
 void MainWindow::drawToolActivated() { setTool(DrawTool); }
 void MainWindow::lineToolActivated() { setTool(LineTool); }
@@ -1672,65 +1726,267 @@ void MainWindow::eraseToolActivated() { setTool(EraseTool); }
 // Alignment operations
 void MainWindow::alignObjects(AlignmentType alignment)
 {
-    if (m_canvas) {
-        m_canvas->alignSelectedItems(alignment);
+    if (!m_canvas || !m_canvas->scene()) return;
+
+    QList<QGraphicsItem*> selectedItems = m_canvas->scene()->selectedItems();
+    if (selectedItems.size() < 2) return;
+
+    // Store original positions
+    QHash<QGraphicsItem*, QPointF> originalPositions;
+    for (QGraphicsItem* item : selectedItems) {
+        originalPositions[item] = item->pos();
+    }
+
+    // Perform alignment
+    m_canvas->alignSelectedItems(alignment);
+
+    // Calculate total movement and create compound undo command
+    if (m_undoStack) {
+        m_undoStack->beginMacro("Align Objects");
+
+        for (QGraphicsItem* item : selectedItems) {
+            QPointF delta = item->pos() - originalPositions[item];
+            if (delta.manhattanLength() > 0.1) { // Only if item actually moved
+                // Reset position and create move command
+                item->setPos(originalPositions[item]);
+                MoveCommand* moveCommand = new MoveCommand(m_canvas, { item }, delta);
+                m_undoStack->push(moveCommand);
+            }
+        }
+
+        m_undoStack->endMacro();
     }
 }
 
-// Transform operations
+// Enhanced transform operations with undo support
 void MainWindow::bringToFront()
 {
+    if (!m_canvas || !m_canvas->scene()) return;
+
+    QList<QGraphicsItem*> selectedItems = m_canvas->scene()->selectedItems();
+    if (selectedItems.isEmpty()) return;
+
+    // Store original Z-values
+    QHash<QGraphicsItem*, qreal> originalZValues;
+    for (QGraphicsItem* item : selectedItems) {
+        originalZValues[item] = item->zValue();
+    }
+
+    // Find max Z-value
+    qreal maxZ = 0;
+    for (QGraphicsItem* item : m_canvas->scene()->items()) {
+        if (item->zValue() > maxZ) maxZ = item->zValue();
+    }
+
+    // Create compound undo command for Z-value changes
+    if (m_undoStack) {
+        m_undoStack->beginMacro("Bring to Front");
+
+        for (QGraphicsItem* item : selectedItems) {
+            qreal newZ = maxZ + 1;
+            // Create property change command for Z-value
+            PropertyChangeCommand* zCommand = new PropertyChangeCommand(
+                m_canvas, item, "zValue", originalZValues[item], newZ);
+            m_undoStack->push(zCommand);
+            maxZ += 1;
+        }
+
+        m_undoStack->endMacro();
+    }
+
     if (m_canvas) {
-        m_canvas->bringSelectedToFront();
+        m_canvas->storeCurrentFrameState();
     }
 }
 
 void MainWindow::bringForward()
 {
+    if (!m_canvas || !m_canvas->scene()) return;
+
+    QList<QGraphicsItem*> selectedItems = m_canvas->scene()->selectedItems();
+    if (selectedItems.isEmpty()) return;
+
+    if (m_undoStack) {
+        m_undoStack->beginMacro("Bring Forward");
+
+        for (QGraphicsItem* item : selectedItems) {
+            qreal originalZ = item->zValue();
+            qreal newZ = originalZ + 1;
+
+            PropertyChangeCommand* zCommand = new PropertyChangeCommand(
+                m_canvas, item, "zValue", originalZ, newZ);
+            m_undoStack->push(zCommand);
+        }
+
+        m_undoStack->endMacro();
+    }
+
     if (m_canvas) {
-        m_canvas->bringSelectedForward();
+        m_canvas->storeCurrentFrameState();
     }
 }
 
 void MainWindow::sendBackward()
 {
+    if (!m_canvas || !m_canvas->scene()) return;
+
+    QList<QGraphicsItem*> selectedItems = m_canvas->scene()->selectedItems();
+    if (selectedItems.isEmpty()) return;
+
+    if (m_undoStack) {
+        m_undoStack->beginMacro("Send Backward");
+
+        for (QGraphicsItem* item : selectedItems) {
+            qreal originalZ = item->zValue();
+            qreal newZ = originalZ - 1;
+
+            PropertyChangeCommand* zCommand = new PropertyChangeCommand(
+                m_canvas, item, "zValue", originalZ, newZ);
+            m_undoStack->push(zCommand);
+        }
+
+        m_undoStack->endMacro();
+    }
+
     if (m_canvas) {
-        m_canvas->sendSelectedBackward();
+        m_canvas->storeCurrentFrameState();
     }
 }
 
 void MainWindow::sendToBack()
 {
+    if (!m_canvas || !m_canvas->scene()) return;
+
+    QList<QGraphicsItem*> selectedItems = m_canvas->scene()->selectedItems();
+    if (selectedItems.isEmpty()) return;
+
+    // Find min Z-value
+    qreal minZ = 0;
+    for (QGraphicsItem* item : m_canvas->scene()->items()) {
+        if (item->zValue() < minZ) minZ = item->zValue();
+    }
+
+    if (m_undoStack) {
+        m_undoStack->beginMacro("Send to Back");
+
+        for (QGraphicsItem* item : selectedItems) {
+            qreal originalZ = item->zValue();
+            qreal newZ = minZ - 1;
+
+            PropertyChangeCommand* zCommand = new PropertyChangeCommand(
+                m_canvas, item, "zValue", originalZ, newZ);
+            m_undoStack->push(zCommand);
+            minZ -= 1;
+        }
+
+        m_undoStack->endMacro();
+    }
+
     if (m_canvas) {
-        m_canvas->sendSelectedToBack();
+        m_canvas->storeCurrentFrameState();
     }
 }
 
+// Enhanced flip operations with undo support
 void MainWindow::flipHorizontal()
 {
+    if (!m_canvas || !m_canvas->scene()) return;
+
+    QList<QGraphicsItem*> selectedItems = m_canvas->scene()->selectedItems();
+    if (selectedItems.isEmpty()) return;
+
+    if (m_undoStack) {
+        m_undoStack->beginMacro("Flip Horizontal");
+
+        for (QGraphicsItem* item : selectedItems) {
+            QTransform originalTransform = item->transform();
+            QTransform newTransform = originalTransform;
+            newTransform.scale(-1, 1);
+
+            TransformCommand* transformCommand = new TransformCommand(
+                m_canvas, item, originalTransform, newTransform);
+            m_undoStack->push(transformCommand);
+        }
+
+        m_undoStack->endMacro();
+    }
+
     if (m_canvas) {
-        m_canvas->flipSelectedHorizontal();
+        m_canvas->storeCurrentFrameState();
     }
 }
 
 void MainWindow::flipVertical()
 {
+    if (!m_canvas || !m_canvas->scene()) return;
+
+    QList<QGraphicsItem*> selectedItems = m_canvas->scene()->selectedItems();
+    if (selectedItems.isEmpty()) return;
+
+    if (m_undoStack) {
+        m_undoStack->beginMacro("Flip Vertical");
+
+        for (QGraphicsItem* item : selectedItems) {
+            QTransform originalTransform = item->transform();
+            QTransform newTransform = originalTransform;
+            newTransform.scale(1, -1);
+
+            TransformCommand* transformCommand = new TransformCommand(
+                m_canvas, item, originalTransform, newTransform);
+            m_undoStack->push(transformCommand);
+        }
+
+        m_undoStack->endMacro();
+    }
+
     if (m_canvas) {
-        m_canvas->flipSelectedVertical();
+        m_canvas->storeCurrentFrameState();
     }
 }
 
 void MainWindow::rotateClockwise()
 {
-    if (m_canvas) {
-        m_canvas->rotateSelected(90);
-    }
+    rotateSelected(90);
 }
 
 void MainWindow::rotateCounterClockwise()
 {
+    rotateSelected(-90);
+}
+
+void MainWindow::rotateSelected(double angle)
+{
+    if (!m_canvas || !m_canvas->scene()) return;
+
+    QList<QGraphicsItem*> selectedItems = m_canvas->scene()->selectedItems();
+    if (selectedItems.isEmpty()) return;
+
+    if (m_undoStack) {
+        m_undoStack->beginMacro(QString("Rotate %1°").arg(angle));
+
+        for (QGraphicsItem* item : selectedItems) {
+            QTransform originalTransform = item->transform();
+
+            // Set rotation origin to item center
+            QPointF center = item->boundingRect().center();
+            item->setTransformOriginPoint(center);
+
+            // Create new transform with rotation
+            QTransform newTransform = originalTransform;
+            newTransform.translate(center.x(), center.y());
+            newTransform.rotate(angle);
+            newTransform.translate(-center.x(), -center.y());
+
+            TransformCommand* transformCommand = new TransformCommand(
+                m_canvas, item, originalTransform, newTransform);
+            m_undoStack->push(transformCommand);
+        }
+
+        m_undoStack->endMacro();
+    }
+
     if (m_canvas) {
-        m_canvas->rotateSelected(-90);
+        m_canvas->storeCurrentFrameState();
     }
 }
 
@@ -1783,6 +2039,43 @@ void MainWindow::toggleLayerVisibility()
 void MainWindow::toggleLayerLock()
 {
     // Implementation for toggling layer lock
+}
+
+
+void MainWindow::showDrawingToolSettings()
+{
+    // Find and show the drawing tool settings dialog
+    auto it = m_tools.find(DrawTool);
+    if (it != m_tools.end()) {
+        DrawingTool* drawingTool = dynamic_cast<DrawingTool*>(it->second.get());
+        if (drawingTool) {
+            drawingTool->showSettingsDialog();
+        }
+    }
+}
+
+void MainWindow::setDrawingToolStrokeWidth(double width)
+{
+    auto it = m_tools.find(DrawTool);
+    if (it != m_tools.end()) {
+        DrawingTool* drawingTool = dynamic_cast<DrawingTool*>(it->second.get());
+        if (drawingTool) {
+            drawingTool->setStrokeWidth(width);
+            m_statusLabel->setText(QString("Drawing tool stroke width set to %1px").arg(width));
+        }
+    }
+}
+
+void MainWindow::setDrawingToolColor(const QColor& color)
+{
+    auto it = m_tools.find(DrawTool);
+    if (it != m_tools.end()) {
+        DrawingTool* drawingTool = dynamic_cast<DrawingTool*>(it->second.get());
+        if (drawingTool) {
+            drawingTool->setStrokeColor(color);
+            m_statusLabel->setText(QString("Drawing tool color set to %1").arg(color.name()));
+        }
+    }
 }
 
 // Color and style

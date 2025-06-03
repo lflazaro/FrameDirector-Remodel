@@ -1,9 +1,12 @@
+// Tools/TextTool.cpp - Enhanced with undo support
 #include "TextTool.h"
 #include "../MainWindow.h"
 #include "../Canvas.h"
+#include "../Commands/UndoCommands.h"
 #include <QGraphicsScene>
 #include <QInputDialog>
 #include <QFontDialog>
+#include <QUndoStack>
 
 TextTool::TextTool(MainWindow* mainWindow, QObject* parent)
     : Tool(mainWindow, parent)
@@ -32,7 +35,15 @@ void TextTool::mousePressEvent(QMouseEvent* event, const QPointF& scenePos)
                 QGraphicsItem::ItemIsFocusable);
             m_currentText->setTextInteractionFlags(Qt::TextEditorInteraction);
 
-            addItemToCanvas(m_currentText);
+            // Add through undo system
+            if (m_mainWindow && m_mainWindow->m_undoStack) {
+                DrawCommand* command = new DrawCommand(m_canvas, m_currentText);
+                m_mainWindow->m_undoStack->push(command);
+            }
+            else {
+                // Fallback: add directly
+                addItemToCanvas(m_currentText);
+            }
             m_currentText = nullptr;
         }
     }

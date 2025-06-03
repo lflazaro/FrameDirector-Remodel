@@ -1,9 +1,12 @@
+// Tools/EllipseTool.cpp - Enhanced with undo support
 #include "EllipseTool.h"
 #include "../MainWindow.h"
 #include "../Canvas.h"
+#include "../Commands/UndoCommands.h"
 #include <QGraphicsScene>
 #include <QPen>
 #include <QBrush>
+#include <QUndoStack>
 
 EllipseTool::EllipseTool(MainWindow* mainWindow, QObject* parent)
     : Tool(mainWindow, parent)
@@ -51,9 +54,18 @@ void EllipseTool::mouseReleaseEvent(QMouseEvent* event, const QPointF& scenePos)
         if (m_currentEllipse) {
             QRectF rect = m_currentEllipse->rect();
             if (rect.width() > 1 && rect.height() > 1) {
-                // Remove from scene (addItemToCanvas will handle adding to layer)
+                // Remove from scene temporarily
                 m_canvas->scene()->removeItem(m_currentEllipse);
-                addItemToCanvas(m_currentEllipse);
+
+                // Add through undo system
+                if (m_mainWindow && m_mainWindow->m_undoStack) {
+                    DrawCommand* command = new DrawCommand(m_canvas, m_currentEllipse);
+                    m_mainWindow->m_undoStack->push(command);
+                }
+                else {
+                    // Fallback: add directly
+                    addItemToCanvas(m_currentEllipse);
+                }
             }
             else {
                 m_canvas->scene()->removeItem(m_currentEllipse);

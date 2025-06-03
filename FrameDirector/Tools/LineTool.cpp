@@ -1,8 +1,12 @@
+
+// Tools/LineTool.cpp - Enhanced with undo support
 #include "LineTool.h"
 #include "../MainWindow.h"
 #include "../Canvas.h"
+#include "../Commands/UndoCommands.h"
 #include <QGraphicsScene>
 #include <QPen>
+#include <QUndoStack>
 
 LineTool::LineTool(MainWindow* mainWindow, QObject* parent)
     : Tool(mainWindow, parent)
@@ -46,9 +50,18 @@ void LineTool::mouseReleaseEvent(QMouseEvent* event, const QPointF& scenePos)
         m_drawing = false;
 
         if (m_currentLine) {
-            // Remove from scene (addItemToCanvas will handle adding to layer)
+            // Remove from scene temporarily
             m_canvas->scene()->removeItem(m_currentLine);
-            addItemToCanvas(m_currentLine);
+
+            // Add through undo system
+            if (m_mainWindow && m_mainWindow->m_undoStack) {
+                DrawCommand* command = new DrawCommand(m_canvas, m_currentLine);
+                m_mainWindow->m_undoStack->push(command);
+            }
+            else {
+                // Fallback: add directly
+                addItemToCanvas(m_currentLine);
+            }
             m_currentLine = nullptr;
         }
     }

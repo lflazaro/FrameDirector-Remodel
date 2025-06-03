@@ -16,6 +16,9 @@
 #include <QToolBar>
 #include <QMenuBar>
 #include <QAction>
+#include <QUndoStack>
+#include <QHash>
+#include <QColor>
 #include <QActionGroup>
 #include <QLabel>
 #include <QPushButton>
@@ -28,7 +31,6 @@
 #include <QTimer>
 #include <QPropertyAnimation>
 #include <QGraphicsEffect>
-#include <QUndoStack>
 #include <QUndoCommand>
 #include <QProgressDialog>  // Add this include
 #include <QFileDialog>      // Add this include
@@ -62,6 +64,7 @@ class AnimationKeyframe;
 class AnimationLayer;
 class AddItemCommand;  // Add this forward declaration
 class DrawCommand;     // Add this forward declaration
+class UndoCommands;
 
 class MainWindow : public QMainWindow
 {
@@ -208,6 +211,13 @@ private slots:
     // Playback
     void updatePlayback();
     void onPlaybackTimer();
+    // Drawing tool integration
+    void showDrawingToolSettings();
+    void setDrawingToolStrokeWidth(double width);
+    void setDrawingToolColor(const QColor& color);
+
+    // Enhanced undo/redo support
+    void updateUndoRedoActions();
 
 private:
     void createActions();
@@ -244,6 +254,12 @@ private:
     void createKeyframeAtCurrentFrame();
     void interpolateFrames();
     void updateTimelineDisplay();
+    // Enhanced undo system
+    void setupComprehensiveUndo();
+    void setupCanvasUndoOperations();
+
+    // Enhanced transform operations (update existing declarations)
+    void rotateSelected(double angle);  // Add this new method
 
     // Central widgets and panels
     QSplitter* m_mainSplitter;

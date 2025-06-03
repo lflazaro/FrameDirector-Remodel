@@ -1,3 +1,4 @@
+// Panels/ToolsPanel.h - Enhanced with drawing tool settings
 #ifndef TOOLSPANEL_H
 #define TOOLSPANEL_H
 
@@ -8,6 +9,9 @@
 #include <QPushButton>
 #include <QButtonGroup>
 #include <QLabel>
+#include <QMenu>
+#include <QAction>
+#include <QColor>
 #include "../MainWindow.h"
 
 class ToolsPanel : public QWidget
@@ -22,14 +26,23 @@ public:
 
 signals:
     void toolSelected(MainWindow::ToolType tool);
+    void drawingToolSettingsRequested();
+    void quickStrokeWidthChanged(double width);
+    void quickColorChanged(const QColor& color);
 
 private slots:
     void onToolButtonClicked();
+    void showDrawToolContextMenu(const QPoint& pos);
 
 private:
     void setupUI();
     void createToolButton(const QString& iconPath, const QString& tooltip,
         MainWindow::ToolType tool, const QString& shortcut);
+    void setupDrawToolContextMenu(QPushButton* drawButton);
+    void handleDrawToolMenuAction(QAction* action);
+    void showDrawingToolSettings();
+    void handleQuickStrokeWidth(const QString& widthText);
+    void handleQuickColor(const QString& colorName);
 
     MainWindow* m_mainWindow;
     QVBoxLayout* m_mainLayout;

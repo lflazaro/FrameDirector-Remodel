@@ -1,9 +1,12 @@
+// Tools/RectangleTool.cpp - Enhanced with undo support
 #include "RectangleTool.h"
 #include "../MainWindow.h"
 #include "../Canvas.h"
+#include "../Commands/UndoCommands.h"
 #include <QGraphicsScene>
 #include <QPen>
 #include <QBrush>
+#include <QUndoStack>
 
 RectangleTool::RectangleTool(MainWindow* mainWindow, QObject* parent)
     : Tool(mainWindow, parent)
@@ -51,9 +54,18 @@ void RectangleTool::mouseReleaseEvent(QMouseEvent* event, const QPointF& scenePo
         if (m_currentRect) {
             QRectF rect = m_currentRect->rect();
             if (rect.width() > 1 && rect.height() > 1) {
-                // Remove from scene (addItemToCanvas will handle adding to layer)
+                // Remove from scene temporarily
                 m_canvas->scene()->removeItem(m_currentRect);
-                addItemToCanvas(m_currentRect);
+
+                // Add through undo system
+                if (m_mainWindow && m_mainWindow->m_undoStack) {
+                    DrawCommand* command = new DrawCommand(m_canvas, m_currentRect);
+                    m_mainWindow->m_undoStack->push(command);
+                }
+                else {
+                    // Fallback: add directly
+                    addItemToCanvas(m_currentRect);
+                }
             }
             else {
                 m_canvas->scene()->removeItem(m_currentRect);
