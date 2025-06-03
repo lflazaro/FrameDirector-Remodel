@@ -1104,6 +1104,7 @@ void Canvas::updateCursor()
 void Canvas::wheelEvent(QWheelEvent* event)
 {
     if (event->modifiers() & Qt::ControlModifier) {
+        // Zoom functionality
         const double scaleFactor = 1.15;
         if (event->angleDelta().y() > 0) {
             scale(scaleFactor, scaleFactor);
@@ -1116,7 +1117,16 @@ void Canvas::wheelEvent(QWheelEvent* event)
         emit zoomChanged(m_zoomFactor);
     }
     else {
+        // FIXED: Prevent mouse events from propagating to scene items during scroll
+        // Store current scene interaction state
+        bool wasInteractive = isInteractive();
+        setInteractive(false);
+
+        // Perform the scroll
         QGraphicsView::wheelEvent(event);
+
+        // Restore interaction state
+        setInteractive(wasInteractive);
     }
 }
 
