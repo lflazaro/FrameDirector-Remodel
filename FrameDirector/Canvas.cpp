@@ -301,7 +301,6 @@ void Canvas::setLayerVisible(int layerIndex, bool visible)
             }
         }
 
-        storeCurrentFrameState();
         qDebug() << "Layer" << layerIndex << "UUID:" << layer->uuid << "visibility set to:" << visible;
     }
 }
