@@ -406,16 +406,46 @@ void LayerManager::updateLayers()
     Canvas* canvas = m_mainWindow->findChild<Canvas*>();
     if (!canvas) return;
 
+    // FIXED: Store current layer states before clearing
+    QHash<int, LayerState> savedStates;
+    for (int i = 0; i < m_layerList->count(); ++i) {
+        LayerItem* item = static_cast<LayerItem*>(m_layerList->item(i));
+        if (item) {
+            LayerState state;
+            state.visible = item->isVisible();
+            state.locked = item->isLocked();
+            state.opacity = item->getOpacity();
+            savedStates[i] = state;
+        }
+    }
+
     // Clear current list
     m_layerList->clear();
 
-    // Populate with default layer names since we don't have LayerGraphicsGroup anymore
+    // Populate with layer names, preserving states
     for (int i = 0; i < canvas->getLayerCount(); ++i) {
         QString layerName = (i == 0) ? "Background" : QString("Layer %1").arg(i);
         LayerItem* item = new LayerItem(layerName, i);
-        item->setVisible(true);      // Default to visible
-        item->setLocked(false);      // Default to unlocked  
-        item->setOpacity(100);       // Default to full opacity
+
+        // FIXED: Restore saved states if they exist
+        if (savedStates.contains(i)) {
+            const LayerState& state = savedStates[i];
+            item->setVisible(state.visible);
+            item->setLocked(state.locked);
+            item->setOpacity(state.opacity);
+
+            // Apply the preserved state to the canvas
+            canvas->setLayerVisible(i, state.visible);
+            canvas->setLayerLocked(i, state.locked);
+            canvas->setLayerOpacity(i, state.opacity / 100.0);
+        }
+        else {
+            // Default values for new layers
+            item->setVisible(true);
+            item->setLocked(false);
+            item->setOpacity(100);
+        }
+
         m_layerList->addItem(item);
     }
 
@@ -426,6 +456,7 @@ void LayerManager::updateLayers()
     }
 
     updateLayerControls();
+    qDebug() << "Updated layers with preserved states";
 }
 
 void LayerManager::setCurrentLayer(int index)
@@ -539,20 +570,32 @@ void LayerManager::moveLayerDown(int index)
     }
 }
 
+
 void LayerManager::onAddLayerClicked()
 {
     Canvas* canvas = m_mainWindow->findChild<Canvas*>();
     if (canvas) {
         QString layerName = QString("Layer %1").arg(canvas->getLayerCount() + 1);
-        canvas->addLayer(layerName);
-        updateLayers();
+
+        // FIXED: Add layer without clearing existing states
+        int newIndex = canvas->addLayer(layerName);
+
+        // Add the new layer item to the list without calling updateLayers()
+        LayerItem* newItem = new LayerItem(layerName, newIndex);
+        newItem->setVisible(true);      // Default visible
+        newItem->setLocked(false);      // Default unlocked  
+        newItem->setOpacity(100);       // Default full opacity
+        m_layerList->addItem(newItem);
 
         // Select the new layer
-        m_currentLayer = canvas->getLayerCount() - 1;
+        m_currentLayer = newIndex;
         m_layerList->setCurrentRow(m_currentLayer);
         canvas->setCurrentLayer(m_currentLayer);
 
+        updateLayerControls();
         emit layerAdded();
+
+        qDebug() << "Added layer without resetting existing layer properties";
     }
 }
 
@@ -561,9 +604,34 @@ void LayerManager::onRemoveLayerClicked()
 {
     Canvas* canvas = m_mainWindow->findChild<Canvas*>();
     if (canvas && m_currentLayer >= 0 && canvas->getLayerCount() > 1) {
+
+        // Remove the layer from canvas
         canvas->removeLayer(m_currentLayer);
-        updateLayers();
+
+        // FIXED: Remove just the specific layer item from the list
+        delete m_layerList->takeItem(m_currentLayer);
+
+        // Update indices for remaining items
+        for (int i = m_currentLayer; i < m_layerList->count(); ++i) {
+            LayerItem* item = static_cast<LayerItem*>(m_layerList->item(i));
+            if (item) {
+                item->m_layerIndex = i;
+            }
+        }
+
+        // Adjust current layer selection
+        if (m_currentLayer >= m_layerList->count()) {
+            m_currentLayer = m_layerList->count() - 1;
+        }
+        if (m_currentLayer >= 0) {
+            m_layerList->setCurrentRow(m_currentLayer);
+            canvas->setCurrentLayer(m_currentLayer);
+        }
+
+        updateLayerControls();
         emit layerRemoved(m_currentLayer);
+
+        qDebug() << "Removed layer without affecting other layer properties";
     }
     else {
         QMessageBox::information(this, "Cannot Delete",
@@ -572,21 +640,42 @@ void LayerManager::onRemoveLayerClicked()
 }
 
 
+
 void LayerManager::onDuplicateLayerClicked()
 {
     Canvas* canvas = m_mainWindow->findChild<Canvas*>();
     if (canvas && m_currentLayer >= 0) {
-        QString currentLayerName = (m_currentLayer == 0) ? "Background" : QString("Layer %1").arg(m_currentLayer);
+        LayerItem* currentItem = static_cast<LayerItem*>(m_layerList->item(m_currentLayer));
+        if (!currentItem) return;
+
+        QString currentLayerName = currentItem->text();
         QString newName = currentLayerName + " Copy";
+
+        // Add new layer to canvas
         int newIndex = canvas->addLayer(newName);
-        updateLayers();
+
+        // FIXED: Create duplicate with same properties as original
+        LayerItem* newItem = new LayerItem(newName, newIndex);
+        newItem->setVisible(currentItem->isVisible());
+        newItem->setLocked(currentItem->isLocked());
+        newItem->setOpacity(currentItem->getOpacity());
+
+        // Apply properties to canvas layer
+        canvas->setLayerVisible(newIndex, currentItem->isVisible());
+        canvas->setLayerLocked(newIndex, currentItem->isLocked());
+        canvas->setLayerOpacity(newIndex, currentItem->getOpacity() / 100.0);
+
+        m_layerList->addItem(newItem);
 
         // Select the new layer
         m_currentLayer = newIndex;
         m_layerList->setCurrentRow(m_currentLayer);
         canvas->setCurrentLayer(m_currentLayer);
 
+        updateLayerControls();
         emit layerDuplicated(m_currentLayer);
+
+        qDebug() << "Duplicated layer with preserved properties";
     }
 }
 
@@ -621,14 +710,17 @@ void LayerManager::onLayerContextMenu(const QPoint& pos)
     }
 }
 
+
 void LayerManager::onVisibilityToggled(bool visible)
 {
     Canvas* canvas = m_mainWindow->findChild<Canvas*>();
     if (canvas && m_currentLayer >= 0) {
         canvas->setLayerVisible(m_currentLayer, visible);
+
         LayerItem* item = static_cast<LayerItem*>(m_layerList->currentItem());
         if (item) {
             item->setVisible(visible);
+            qDebug() << "Layer" << m_currentLayer << "visibility changed to:" << visible;
         }
         emit layerVisibilityChanged(m_currentLayer, visible);
     }
@@ -639,22 +731,27 @@ void LayerManager::onLockToggled(bool locked)
     Canvas* canvas = m_mainWindow->findChild<Canvas*>();
     if (canvas && m_currentLayer >= 0) {
         canvas->setLayerLocked(m_currentLayer, locked);
+
         LayerItem* item = static_cast<LayerItem*>(m_layerList->currentItem());
         if (item) {
             item->setLocked(locked);
+            qDebug() << "Layer" << m_currentLayer << "lock state changed to:" << locked;
         }
         emit layerLockChanged(m_currentLayer, locked);
     }
 }
 
+// FIXED: Enhanced opacity change handling
 void LayerManager::onOpacityChanged(int opacity)
 {
     Canvas* canvas = m_mainWindow->findChild<Canvas*>();
     if (canvas && m_currentLayer >= 0) {
         canvas->setLayerOpacity(m_currentLayer, opacity / 100.0);
+
         LayerItem* item = static_cast<LayerItem*>(m_layerList->currentItem());
         if (item) {
             item->setOpacity(opacity);
+            qDebug() << "Layer" << m_currentLayer << "opacity changed to:" << opacity << "%";
         }
         emit layerOpacityChanged(m_currentLayer, opacity);
     }

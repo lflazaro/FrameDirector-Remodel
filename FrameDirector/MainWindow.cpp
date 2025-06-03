@@ -170,6 +170,7 @@ MainWindow::~MainWindow()
 {
 }
 
+
 void MainWindow::connectToolsAndCanvas()
 {
     // Make sure canvas has the right colors and settings
@@ -184,7 +185,6 @@ void MainWindow::connectToolsAndCanvas()
             if (tool) {
                 connect(tool, &Tool::itemCreated, [this](QGraphicsItem* item) {
                     if (item && m_canvas && m_canvas->scene()) {
-                        // Item is already added to scene by the tool, just emit signal
                         onSelectionChanged();
                         m_statusLabel->setText("Item created");
                         m_isModified = true;
@@ -196,6 +196,8 @@ void MainWindow::connectToolsAndCanvas()
 
         qDebug() << "Tools and canvas connected successfully";
     }
+
+    // FIXED: Connect tools panel for bucket fill tool
     if (m_toolsPanel) {
         connect(m_toolsPanel, &ToolsPanel::drawingToolSettingsRequested,
             this, &MainWindow::showDrawingToolSettings);
@@ -206,6 +208,7 @@ void MainWindow::connectToolsAndCanvas()
         connect(m_toolsPanel, &ToolsPanel::quickColorChanged,
             this, &MainWindow::setDrawingToolColor);
     }
+
     // Make sure the select tool is active by default
     if (m_toolsPanel) {
         m_toolsPanel->setActiveTool(SelectTool);
@@ -218,11 +221,9 @@ void MainWindow::connectToolsAndCanvas()
     }
 
     if (m_propertiesPanel && m_canvas) {
-        // Connect canvas selection changes to properties panel
         connect(m_canvas, &Canvas::selectionChanged,
             m_propertiesPanel, &PropertiesPanel::onSelectionChanged);
 
-        // Connect properties panel changes back to canvas
         connect(m_propertiesPanel, &PropertiesPanel::propertyChanged, [this]() {
             if (m_canvas) {
                 m_canvas->storeCurrentFrameState();
@@ -240,7 +241,6 @@ void MainWindow::connectToolsAndCanvas()
     for (auto& toolPair : m_tools) {
         Tool* tool = toolPair.second.get();
         if (tool) {
-            // Tools can access undo stack through m_mainWindow->m_undoStack
             qDebug() << "Tool" << static_cast<int>(toolPair.first) << "has access to undo stack";
         }
     }
@@ -252,15 +252,17 @@ void MainWindow::setupColorConnections()
         m_colorPanel->setStrokeColor(m_currentStrokeColor);
         m_colorPanel->setFillColor(m_currentFillColor);
 
-        // Connect color changes to canvas AND selected items
+        // Connect color changes to canvas AND all tools
         connect(m_colorPanel, &ColorPanel::strokeColorChanged, [this](const QColor& color) {
             m_currentStrokeColor = color;
             if (m_canvas) {
                 m_canvas->setStrokeColor(color);
-
-                // Update selected items
                 updateSelectedItemsStroke(color);
             }
+
+            // FIXED: Update drawing tool color
+            updateDrawingToolColor(color);
+
             m_statusLabel->setText("Stroke color changed");
             });
 
@@ -268,16 +270,43 @@ void MainWindow::setupColorConnections()
             m_currentFillColor = color;
             if (m_canvas) {
                 m_canvas->setFillColor(color);
-
-                // Update selected items
                 updateSelectedItemsFill(color);
             }
+
+            // FIXED: Update bucket fill tool color
+            updateBucketFillToolColor(color);
+
             m_statusLabel->setText("Fill color changed");
             });
 
         qDebug() << "Color connections established";
     }
 }
+
+void MainWindow::updateDrawingToolColor(const QColor& color)
+{
+    auto it = m_tools.find(DrawTool);
+    if (it != m_tools.end()) {
+        DrawingTool* drawingTool = dynamic_cast<DrawingTool*>(it->second.get());
+        if (drawingTool) {
+            drawingTool->setStrokeColor(color);
+        }
+    }
+}
+
+void MainWindow::updateBucketFillToolColor(const QColor& color)
+{
+    auto it = m_tools.find(BucketFillTool);
+    if (it != m_tools.end()) {
+        ::BucketFillTool* bucketTool = dynamic_cast<::BucketFillTool*>(it->second.get());
+        if (bucketTool) {
+            bucketTool->setFillColor(color);
+            qDebug() << "Updated bucket fill tool color to:" << color.name();
+        }
+    }
+}
+
+
 
 // Add these new methods to update selected items
 void MainWindow::updateSelectedItemsStroke(const QColor& color)
@@ -861,6 +890,7 @@ void MainWindow::createStatusBar()
 }
 
 
+
 void MainWindow::setupTools()
 {
     qDebug() << "Setting up tools...";
@@ -884,16 +914,29 @@ void MainWindow::setupTools()
         m_tools[TextTool] = std::make_unique<::TextTool>(this);
         qDebug() << "Created TextTool:" << m_tools[TextTool].get();
 
+        // FIXED: Create bucket fill tool
         m_tools[BucketFillTool] = std::make_unique<::BucketFillTool>(this);
-        qDebug() << "Created BucketFillTool:" << m_tools[TextTool].get();
-
+        qDebug() << "Created BucketFillTool:" << m_tools[BucketFillTool].get();
 
         qDebug() << "All tools created successfully. Total tools:" << m_tools.size();
+
+        // FIXED: Initialize tool colors after creation
+        initializeToolColors();
     }
     catch (const std::exception& e) {
         qDebug() << "Error creating tools:" << e.what();
     }
 }
+
+void MainWindow::initializeToolColors()
+{
+    // Set initial colors for all tools
+    updateDrawingToolColor(m_currentStrokeColor);
+    updateBucketFillToolColor(m_currentFillColor);
+
+    qDebug() << "Tool colors initialized";
+}
+
 
 void MainWindow::setupAnimationSystem()
 {
@@ -1002,37 +1045,44 @@ void MainWindow::connectLayerManager()
     if (m_layerManager && m_canvas) {
         // Connect layer manager signals to canvas
         connect(m_layerManager, &LayerManager::layerAdded, [this]() {
-            // Layer was added through layer manager, update timeline
+            // FIXED: Preserve existing layer properties when adding new layers
             if (m_timeline) {
                 m_timeline->updateLayersFromCanvas();
             }
+            qDebug() << "Layer added, timeline updated";
             });
 
         connect(m_layerManager, &LayerManager::layerRemoved, [this](int index) {
-            // Layer was removed through layer manager
             if (m_timeline) {
                 m_timeline->updateLayersFromCanvas();
             }
+            qDebug() << "Layer removed, timeline updated";
             });
 
         connect(m_layerManager, &LayerManager::currentLayerChanged, [this](int index) {
             m_canvas->setCurrentLayer(index);
+            qDebug() << "Current layer changed to:" << index;
             });
 
         connect(m_layerManager, &LayerManager::layerVisibilityChanged, [this](int index, bool visible) {
             m_canvas->setLayerVisible(index, visible);
+            qDebug() << "Layer" << index << "visibility changed to:" << visible;
             });
 
         connect(m_layerManager, &LayerManager::layerLockChanged, [this](int index, bool locked) {
             m_canvas->setLayerLocked(index, locked);
+            qDebug() << "Layer" << index << "locked state changed to:" << locked;
             });
 
         connect(m_layerManager, &LayerManager::layerOpacityChanged, [this](int index, int opacity) {
             m_canvas->setLayerOpacity(index, opacity / 100.0);
+            qDebug() << "Layer" << index << "opacity changed to:" << opacity << "%";
             });
 
         // Connect canvas signals to layer manager
         connect(m_canvas, &Canvas::layerChanged, m_layerManager, &LayerManager::setCurrentLayer);
+
+        qDebug() << "Layer manager connections established";
     }
 }
 

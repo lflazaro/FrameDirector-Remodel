@@ -1,4 +1,4 @@
-// Canvas.h
+// Canvas.h - Updated header with proper layer management
 #ifndef CANVAS_H
 #define CANVAS_H
 
@@ -24,37 +24,15 @@
 #include <memory>
 #include <vector>
 #include <map>
+#include <set>
 
 class Tool;
 class VectorGraphicsItem;
 class MainWindow;
 class AnimationLayer;
 
-// Custom layer item that holds all graphics for a layer
-class LayerGraphicsGroup : public QGraphicsItemGroup
-{
-public:
-    LayerGraphicsGroup(int layerIndex, const QString& name);
-
-    int m_layerIndex;
-    QString m_layerName;
-    void setLayerVisible(bool visible);
-    void setLayerLocked(bool locked);
-    void setLayerOpacity(double opacity);
-
-    bool isLayerVisible() const { return m_visible; }
-    bool isLayerLocked() const { return m_locked; }
-    double getLayerOpacity() const { return m_opacity; }
-    int getLayerIndex() const { return m_layerIndex; }
-    QString getLayerName() const { return m_layerName; }
-
-    void setLayerName(const QString& name) { m_layerName = name; }
-
-private:
-    bool m_visible;
-    bool m_locked;
-    double m_opacity;
-};
+// Forward declaration for layer data
+struct LayerData;
 
 class Canvas : public QGraphicsView
 {
@@ -173,6 +151,10 @@ private:
     QPointF snapToGrid(const QPointF& point);
     void updateCursor();
 
+    // FIXED: Layer management helpers
+    void updateAllLayerZValues();
+    int getItemLayerIndex(QGraphicsItem* item);
+
     MainWindow* m_mainWindow;
     QGraphicsScene* m_scene;
     Tool* m_currentTool;
@@ -182,13 +164,13 @@ private:
     QRectF m_canvasRect;
     QGraphicsRectItem* m_backgroundRect;
 
-    // Layer management
-    std::vector<void*> m_layers;  // Placeholder vector for layer count
+    // FIXED: Proper layer management using LayerData structures
+    std::vector<void*> m_layers;  // Contains LayerData* pointers
     int m_currentLayerIndex;
 
     // Frame and keyframe management
     int m_currentFrame;
-    std::map<int, QList<QGraphicsItem*>> m_frameItems;  // CHANGED: Direct item tracking per frame
+    std::map<int, QList<QGraphicsItem*>> m_frameItems;
     std::set<int> m_keyframes;
 
     // View properties
@@ -209,4 +191,5 @@ private:
     QRubberBand* m_rubberBand;
     QPoint m_rubberBandOrigin;
 };
-#endif
+
+#endif // CANVAS_H

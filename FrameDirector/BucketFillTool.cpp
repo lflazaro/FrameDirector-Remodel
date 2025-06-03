@@ -4,90 +4,148 @@
 #include "Commands/UndoCommands.h"
 #include <QGraphicsScene>
 #include <QGraphicsPathItem>
-#include <QGraphicsPixmapItem>
+#include <QGraphicsRectItem>
+#include <QGraphicsEllipseItem>
+#include <QGraphicsLineItem>
 #include <QPainter>
 #include <QPainterPath>
 #include <QApplication>
 #include <QDebug>
 #include <QElapsedTimer>
 #include <QtMath>
+#include <QQueue>
+#include <QSet>
+#include <QTimer>
+
+// Direction vectors for 8-connected neighbors (Moore neighborhood)
+const QPoint BucketFillTool::DIRECTIONS[8] = {
+    QPoint(1, 0),   // 0: East
+    QPoint(1, 1),   // 1: Southeast  
+    QPoint(0, 1),   // 2: South
+    QPoint(-1, 1),  // 3: Southwest
+    QPoint(-1, 0),  // 4: West
+    QPoint(-1, -1), // 5: Northwest
+    QPoint(0, -1),  // 6: North
+    QPoint(1, -1)   // 7: Northeast
+};
 
 BucketFillTool::BucketFillTool(MainWindow* mainWindow, QObject* parent)
     : Tool(mainWindow, parent)
     , m_fillColor(Qt::red)
     , m_tolerance(10)
-    , m_fillMode(0) // Vector fill by default
+    , m_fillMode(0)
     , m_searchRadius(100.0)
     , m_connectionTolerance(5.0)
+    , m_debugMode(false)
     , m_cacheValid(false)
     , m_previewItem(nullptr)
-    , m_debugMode(false)
 {
+    // Get initial fill color from canvas
+    if (m_canvas) {
+        m_fillColor = m_canvas->getFillColor();
+    }
+
+    qDebug() << "BucketFillTool created with color:" << m_fillColor.name();
 }
 
 void BucketFillTool::mousePressEvent(QMouseEvent* event, const QPointF& scenePos)
 {
-    if (!m_canvas || event->button() != Qt::LeftButton) return;
+    if (!m_canvas || !m_canvas->scene()) return;
 
-    QElapsedTimer timer;
-    timer.start();
+    if (event->button() == Qt::LeftButton) {
+        // Get current fill color from canvas
+        m_fillColor = m_canvas->getFillColor();
 
-    qDebug() << "BucketFill: Starting fill operation at" << scenePos;
+        QElapsedTimer timer;
+        timer.start();
 
-    // Hide any existing preview
-    hideFillPreview();
+        qDebug() << "BucketFill: Starting fill at" << scenePos << "with color" << m_fillColor.name();
 
-    try {
-        if (m_fillMode == 0) {
-            // Vector-based filling (preferred method)
-            ClosedRegion region = findEnclosedRegion(scenePos);
+        hideFillPreview();
 
-            if (region.isValid && !region.outerBoundary.isEmpty()) {
-                // Create fill item
-                QGraphicsPathItem* fillItem = createFillItem(region.outerBoundary, m_fillColor);
-                if (fillItem) {
-                    auto itemsAtPoint = m_canvas->scene()->items(scenePos);
-                    for (QGraphicsItem* it : itemsAtPoint) {
-                        qDebug() << "  Item" << it << "Z =" << it->zValue()
-                            << "type =" << it->type()
-                            << "brush =" << (it->data(0).toString());
-                        // (you can store e.g. “BrushStroke” in data(0) when you create strokes)
+        // Check if we're clicking on canvas background
+        QRectF canvasRect = m_canvas->getCanvasRect();
+        if (!canvasRect.contains(scenePos)) {
+            qDebug() << "BucketFill: Click outside canvas bounds, ignoring";
+            return;
+        }
+
+        try {
+            if (m_fillMode == 0) {
+                // Vector-based filling (preferred method)
+                ClosedRegion region = findEnclosedRegion(scenePos);
+
+                if (region.isValid && !region.outerBoundary.isEmpty()) {
+                    // Validate region size to prevent filling entire canvas
+                    QRectF regionBounds = region.outerBoundary.boundingRect();
+                    QRectF canvasBounds = m_canvas->getCanvasRect();
+
+                    // Don't fill if region covers more than 80% of canvas
+                    double regionArea = regionBounds.width() * regionBounds.height();
+                    double canvasArea = canvasBounds.width() * canvasBounds.height();
+
+                    if (regionArea > canvasArea * 0.8) {
+                        qDebug() << "BucketFill: Region too large, probably canvas background. Skipping.";
+                        return;
                     }
-                    addFillToCanvas(fillItem);
-                    qDebug() << "BucketFill: Vector fill completed in" << timer.elapsed() << "ms";
+
+                    QGraphicsPathItem* fillItem = createFillItem(region.outerBoundary, m_fillColor);
+                    if (fillItem) {
+                        addFillToCanvas(fillItem);
+                        qDebug() << "BucketFill: Vector fill completed in" << timer.elapsed() << "ms";
+                    }
+                    else {
+                        qDebug() << "BucketFill: Failed to create vector fill item";
+                    }
                 }
                 else {
-                    qDebug() << "BucketFill: Failed to create fill item";
+                    qDebug() << "BucketFill: No enclosed region found, using raster fill";
+                    performRasterFill(scenePos);
+                    qDebug() << "BucketFill: Fallback raster fill completed in" << timer.elapsed() << "ms";
                 }
             }
             else {
-                qDebug() << "BucketFill: No enclosed region found, falling back to raster fill";
-                // Fall back to raster filling
+                // Raster-based filling
                 performRasterFill(scenePos);
+                qDebug() << "BucketFill: Raster fill completed in" << timer.elapsed() << "ms";
             }
         }
-        else {
-            // Raster-based filling
-            performRasterFill(scenePos);
-            qDebug() << "BucketFill: Raster fill completed in" << timer.elapsed() << "ms";
+        catch (const std::exception& e) {
+            qDebug() << "BucketFill: Exception occurred:" << e.what();
         }
-    }
-    catch (const std::exception& e) {
-        qDebug() << "BucketFill: Exception occurred:" << e.what();
     }
 }
 
 void BucketFillTool::mouseMoveEvent(QMouseEvent* event, const QPointF& scenePos)
 {
-    // Show preview of what would be filled
+    // Show preview only when not dragging and within canvas bounds
     if (event->buttons() == Qt::NoButton) {
+        QRectF canvasRect = m_canvas ? m_canvas->getCanvasRect() : QRectF();
+        if (!canvasRect.contains(scenePos)) {
+            hideFillPreview();
+            return;
+        }
+
         try {
-            ClosedRegion region = findEnclosedRegion(scenePos);
-            if (region.isValid && !region.outerBoundary.isEmpty()) {
-                showFillPreview(region.outerBoundary);
-            }
-            else {
-                hideFillPreview();
+            if (m_fillMode == 0) {
+                ClosedRegion region = findEnclosedRegion(scenePos);
+                if (region.isValid && !region.outerBoundary.isEmpty()) {
+                    // FIXED: Only show preview for reasonable-sized regions
+                    QRectF regionBounds = region.outerBoundary.boundingRect();
+                    QRectF canvasBounds = m_canvas->getCanvasRect();
+                    double regionArea = regionBounds.width() * regionBounds.height();
+                    double canvasArea = canvasBounds.width() * canvasBounds.height();
+
+                    if (regionArea <= canvasArea * 0.8) {
+                        showFillPreview(region.outerBoundary);
+                    }
+                    else {
+                        hideFillPreview();
+                    }
+                }
+                else {
+                    hideFillPreview();
+                }
             }
         }
         catch (...) {
@@ -103,8 +161,7 @@ void BucketFillTool::mouseReleaseEvent(QMouseEvent* event, const QPointF& sceneP
 
 QCursor BucketFillTool::getCursor() const
 {
-    // Return a bucket cursor or crosshair
-    return Qt::CrossCursor;
+    return QCursor(Qt::PointingHandCursor);
 }
 
 BucketFillTool::ClosedRegion BucketFillTool::findEnclosedRegion(const QPointF& point)
@@ -112,7 +169,12 @@ BucketFillTool::ClosedRegion BucketFillTool::findEnclosedRegion(const QPointF& p
     ClosedRegion region;
     region.isValid = false;
 
-    // Step 1: Collect nearby path items
+    // Check if point is in canvas bounds
+    if (m_canvas && !m_canvas->getCanvasRect().contains(point)) {
+        return region;
+    }
+
+    // Collect nearby path segments
     QList<PathSegment> nearbyPaths = collectNearbyPaths(point, m_searchRadius);
 
     if (nearbyPaths.isEmpty()) {
@@ -122,40 +184,28 @@ BucketFillTool::ClosedRegion BucketFillTool::findEnclosedRegion(const QPointF& p
 
     qDebug() << "BucketFill: Found" << nearbyPaths.size() << "nearby path segments";
 
-    // Step 2: Check if point is already inside a closed path
+    // Check if point is inside a closed path
     for (const PathSegment& segment : nearbyPaths) {
         if (isPathClosed(segment.path) && segment.path.contains(point)) {
             region.outerBoundary = segment.path;
             region.bounds = segment.bounds;
             region.isValid = true;
-            qDebug() << "BucketFill: Point is inside an existing closed path";
+            qDebug() << "BucketFill: Point is inside existing closed path";
             return region;
         }
     }
 
-    // Step 3: Try to create a closed path from multiple segments
+    // Try to create a closed path from multiple segments
     QPainterPath closedPath = createClosedPath(nearbyPaths, point);
 
     if (!closedPath.isEmpty() && closedPath.contains(point)) {
         region.outerBoundary = closedPath;
         region.bounds = closedPath.boundingRect();
         region.isValid = true;
-        qDebug() << "BucketFill: Created closed path from multiple segments";
+        qDebug() << "BucketFill: Created closed path from segments";
         return region;
     }
 
-    // Step 4: Try connecting paths by proximity
-    QPainterPath connectedPath = connectPathsByProximity(nearbyPaths, m_connectionTolerance);
-
-    if (!connectedPath.isEmpty() && connectedPath.contains(point)) {
-        region.outerBoundary = connectedPath;
-        region.bounds = connectedPath.boundingRect();
-        region.isValid = true;
-        qDebug() << "BucketFill: Created path by connecting nearby segments";
-        return region;
-    }
-
-    qDebug() << "BucketFill: Could not find or create enclosed region";
     return region;
 }
 
@@ -165,30 +215,57 @@ QList<BucketFillTool::PathSegment> BucketFillTool::collectNearbyPaths(const QPoi
 
     if (!m_canvas || !m_canvas->scene()) return segments;
 
-    // Define search area
+    // FIXED: Limit search area to reasonable bounds
+    QRectF canvasRect = m_canvas->getCanvasRect();
     QRectF searchRect(center.x() - searchRadius, center.y() - searchRadius,
         searchRadius * 2, searchRadius * 2);
 
-    // Get all items in the search area
+    // Intersect with canvas bounds to prevent searching outside canvas
+    searchRect = searchRect.intersected(canvasRect);
+
+    // Get items in the search area, excluding background
     QList<QGraphicsItem*> items = m_canvas->scene()->items(searchRect, Qt::IntersectsItemBoundingRect);
 
     for (QGraphicsItem* item : items) {
-        if (auto pathItem = qgraphicsitem_cast<QGraphicsPathItem*>(item)) {
-            PathSegment segment;
-            segment.path = pathItem->path();
-            segment.item = pathItem;
-            segment.bounds = pathItem->boundingRect();
+        // FIXED: Skip the background rectangle (it has zValue -1000)
+        if (item->zValue() <= -999) {
+            continue;
+        }
 
+        PathSegment segment;
+        segment.item = item;
+
+        // Convert different item types to paths
+        if (auto pathItem = qgraphicsitem_cast<QGraphicsPathItem*>(item)) {
+            segment.path = pathItem->path();
+            segment.bounds = pathItem->boundingRect();
+        }
+        else if (auto rectItem = qgraphicsitem_cast<QGraphicsRectItem*>(item)) {
+            segment.path.addRect(rectItem->rect());
+            segment.bounds = rectItem->boundingRect();
+        }
+        else if (auto ellipseItem = qgraphicsitem_cast<QGraphicsEllipseItem*>(item)) {
+            segment.path.addEllipse(ellipseItem->rect());
+            segment.bounds = ellipseItem->boundingRect();
+        }
+        else if (auto lineItem = qgraphicsitem_cast<QGraphicsLineItem*>(item)) {
+            QLineF line = lineItem->line();
+            segment.path.moveTo(line.p1());
+            segment.path.lineTo(line.p2());
+            segment.bounds = lineItem->boundingRect();
+        }
+
+        if (!segment.path.isEmpty()) {
             // Transform path to scene coordinates
-            if (!pathItem->transform().isIdentity()) {
-                segment.path = pathItem->transform().map(segment.path);
-            }
-            segment.path.translate(pathItem->pos());
+            QTransform transform = item->sceneTransform();
+            segment.path = transform.map(segment.path);
+            segment.bounds = transform.mapRect(segment.bounds);
 
             segments.append(segment);
         }
     }
 
+    qDebug() << "BucketFill: Collected" << segments.size() << "path segments";
     return segments;
 }
 
@@ -196,20 +273,13 @@ QPainterPath BucketFillTool::createClosedPath(const QList<PathSegment>& segments
 {
     if (segments.isEmpty()) return QPainterPath();
 
-    // Try to find segments that can form a closed shape
-    QList<QPainterPath> candidatePaths;
-
-    for (const PathSegment& segment : segments) {
-        candidatePaths.append(segment.path);
-    }
-
-    // Start with the path closest to the seed point
+    // Start with the segment closest to the seed point
     QPainterPath result;
     qreal minDistance = std::numeric_limits<qreal>::max();
     int startIndex = -1;
 
-    for (int i = 0; i < candidatePaths.size(); ++i) {
-        QPointF closestPoint = candidatePaths[i].pointAtPercent(0.5); // Middle of path
+    for (int i = 0; i < segments.size(); ++i) {
+        QPointF closestPoint = segments[i].path.pointAtPercent(0.5);
         qreal distance = QLineF(seedPoint, closestPoint).length();
         if (distance < minDistance) {
             minDistance = distance;
@@ -219,12 +289,17 @@ QPainterPath BucketFillTool::createClosedPath(const QList<PathSegment>& segments
 
     if (startIndex == -1) return QPainterPath();
 
-    result = candidatePaths[startIndex];
-    QList<QPainterPath> remainingPaths = candidatePaths;
-    remainingPaths.removeAt(startIndex);
+    result = segments[startIndex].path;
+    QList<QPainterPath> remainingPaths;
 
-    // Try to connect other paths to form a closed shape
-    const qreal connectionTolerance = m_connectionTolerance * 2; // Be more generous
+    for (int i = 0; i < segments.size(); ++i) {
+        if (i != startIndex) {
+            remainingPaths.append(segments[i].path);
+        }
+    }
+
+    // Try to connect other paths
+    const qreal connectionTolerance = m_connectionTolerance * 2;
     bool foundConnection = true;
 
     while (foundConnection && !remainingPaths.isEmpty()) {
@@ -236,14 +311,12 @@ QPainterPath BucketFillTool::createClosedPath(const QList<PathSegment>& segments
             QPointF pathStart = path.pointAtPercent(0.0);
             QPointF pathEnd = path.pointAtPercent(1.0);
 
-            // Check if we can connect to the start of this path
             if (QLineF(resultEnd, pathStart).length() <= connectionTolerance) {
                 result.connectPath(path);
                 remainingPaths.removeAt(i);
                 foundConnection = true;
                 break;
             }
-            // Check if we can connect to the end of this path (reversed)
             else if (QLineF(resultEnd, pathEnd).length() <= connectionTolerance) {
                 QPainterPath reversedPath = path.toReversed();
                 result.connectPath(reversedPath);
@@ -254,15 +327,9 @@ QPainterPath BucketFillTool::createClosedPath(const QList<PathSegment>& segments
         }
     }
 
-    // Check if we have a closed path or if we can close it
-    if (isPathClosed(result)) {
-        return result;
-    }
-    else {
-        QPainterPath closedResult = closeOpenPath(result, connectionTolerance);
-        if (isPathClosed(closedResult) && closedResult.contains(seedPoint)) {
-            return closedResult;
-        }
+    QPainterPath closedResult = closeOpenPath(result, connectionTolerance);
+    if (isPathClosed(closedResult) && closedResult.contains(seedPoint)) {
+        return closedResult;
     }
 
     return QPainterPath();
@@ -286,8 +353,8 @@ QPainterPath BucketFillTool::closeOpenPath(const QPainterPath& path, qreal toler
     QPointF start = path.pointAtPercent(0.0);
     QPointF end = path.pointAtPercent(1.0);
 
-    if (QLineF(start, end).length() <= tolerance * 3) { // Allow slightly larger gap for closing
-        closedPath.lineTo(start); // Close the path
+    if (QLineF(start, end).length() <= tolerance * 3) {
+        closedPath.lineTo(start);
         closedPath.closeSubpath();
     }
 
@@ -307,11 +374,9 @@ QPainterPath BucketFillTool::connectPathsByProximity(const QList<PathSegment>& s
 
     if (paths.isEmpty()) return result;
 
-    // Start with the first path
     result = paths.first();
     QList<QPainterPath> remaining = paths.mid(1);
 
-    // Keep connecting paths until no more connections can be made
     bool madeConnection = true;
     while (madeConnection && !remaining.isEmpty()) {
         madeConnection = false;
@@ -319,23 +384,16 @@ QPainterPath BucketFillTool::connectPathsByProximity(const QList<PathSegment>& s
         for (int i = 0; i < remaining.size(); ++i) {
             QPainterPath& candidatePath = remaining[i];
 
-            // Check various connection points
             QList<QPair<QPointF, QPointF>> connectionPairs;
-
-            // End of result to start of candidate
             connectionPairs.append({ result.pointAtPercent(1.0), candidatePath.pointAtPercent(0.0) });
-            // End of result to end of candidate (reversed)
             connectionPairs.append({ result.pointAtPercent(1.0), candidatePath.pointAtPercent(1.0) });
 
             for (const auto& pair : connectionPairs) {
                 if (QLineF(pair.first, pair.second).length() <= maxDistance) {
-                    // Make the connection
                     if (pair.second == candidatePath.pointAtPercent(1.0)) {
-                        // Connect to end, so reverse the candidate path
                         candidatePath = candidatePath.toReversed();
                     }
 
-                    // Add a connecting line if there's a gap
                     qreal gap = QLineF(pair.first, pair.second).length();
                     if (gap > 0.1) {
                         result.lineTo(pair.second);
@@ -352,7 +410,6 @@ QPainterPath BucketFillTool::connectPathsByProximity(const QList<PathSegment>& s
         }
     }
 
-    // Try to close the final path
     return closeOpenPath(result, maxDistance);
 }
 
@@ -360,54 +417,92 @@ void BucketFillTool::performRasterFill(const QPointF& point)
 {
     if (!m_canvas || !m_canvas->scene()) return;
 
-    // Define a reasonable area around the click point for raster filling
-    qreal size = 200; // 200x200 pixel area
+    // Reasonable fill area
+    qreal size = 200;
     QRectF fillArea(point.x() - size / 2, point.y() - size / 2, size, size);
 
-    // Render the scene area to an image
-    QImage sceneImage = renderSceneToImage(fillArea, 2.0); // 2x scale for better quality
+    // Make sure fill area is within canvas bounds
+    QRectF canvasRect = m_canvas->getCanvasRect();
+    fillArea = fillArea.intersected(canvasRect);
+
+    if (fillArea.isEmpty()) {
+        qDebug() << "BucketFill: Fill area outside canvas bounds";
+        return;
+    }
+
+    // Render scene to image with proper resolution
+    QImage sceneImage = renderSceneToImage(fillArea, 2.0);
 
     if (sceneImage.isNull()) {
         qDebug() << "BucketFill: Failed to render scene to image";
         return;
     }
 
-    // Convert the scene point to image coordinates
+    // Convert scene point to image coordinates
     QPointF relativePoint = point - fillArea.topLeft();
-    QPoint imagePoint(relativePoint.x() * 2, relativePoint.y() * 2); // Account for 2x scale
+    QPoint imagePoint(relativePoint.x() * 2, relativePoint.y() * 2);
 
     if (!sceneImage.rect().contains(imagePoint)) {
-        qDebug() << "BucketFill: Click point is outside rendered area";
+        qDebug() << "BucketFill: Click point outside rendered area";
         return;
     }
 
-    // Get the target color at the click point
+    // Get target color at click point
     QColor targetColor = getPixelColor(sceneImage, imagePoint);
+    qDebug() << "BucketFill: Target color:" << targetColor.name() << "Fill color:" << m_fillColor.name();
 
-    // Don't fill if target color is the same as fill color
-    if (targetColor == m_fillColor) {
-        qDebug() << "BucketFill: Target color same as fill color, no action needed";
+    // Check if colors are different enough
+    if (qAbs(targetColor.red() - m_fillColor.red()) <= m_tolerance / 2 &&
+        qAbs(targetColor.green() - m_fillColor.green()) <= m_tolerance / 2 &&
+        qAbs(targetColor.blue() - m_fillColor.blue()) <= m_tolerance / 2) {
+        qDebug() << "BucketFill: Target color too similar to fill color";
         return;
     }
 
-    // Perform flood fill on the image
-    floodFillImage(sceneImage, imagePoint, targetColor, m_fillColor);
+    // Check if we're trying to fill transparent background
+    if (targetColor.alpha() < 50) {
+        qDebug() << "BucketFill: Not filling transparent background";
+        return;
+    }
 
-    // Trace the filled region back to a vector path
-    QPainterPath filledPath = traceFilledRegion(sceneImage, m_fillColor);
+    // Create a copy for flood fill
+    QImage fillImage = sceneImage.copy();
+
+    // Perform flood fill with size limit
+    int filledPixels = floodFillImageLimited(fillImage, imagePoint, targetColor, m_fillColor, 8000);
+
+    qDebug() << "BucketFill: Filled" << filledPixels << "pixels";
+
+    if (filledPixels == 0) {
+        qDebug() << "BucketFill: No pixels were filled";
+        return;
+    }
+
+    if (filledPixels > 6000) {
+        qDebug() << "BucketFill: Fill area too large (" << filledPixels << " pixels), aborting";
+        return;
+    }
+
+    // RESTORED: Trace the filled region with proper contour tracing
+    QPainterPath filledPath = traceFilledRegion(fillImage, m_fillColor);
 
     if (!filledPath.isEmpty()) {
-        // Transform the path back to scene coordinates
+        // Transform path back to scene coordinates
         QTransform transform;
         transform.translate(fillArea.x(), fillArea.y());
-        transform.scale(0.5, 0.5); // Scale back down from 2x
+        transform.scale(0.5, 0.5); // Scale back from 2x
         filledPath = transform.map(filledPath);
 
-        // Create and add the fill item
+        // Smooth the contour and create fill item
+        filledPath = smoothContour(filledPath, 1.5);
         QGraphicsPathItem* fillItem = createFillItem(filledPath, m_fillColor);
         if (fillItem) {
             addFillToCanvas(fillItem);
+            qDebug() << "BucketFill: Successfully added contour-traced fill to canvas";
         }
+    }
+    else {
+        qDebug() << "BucketFill: Failed to trace filled region";
     }
 }
 
@@ -420,13 +515,14 @@ QImage BucketFillTool::renderSceneToImage(const QRectF& region, qreal scale)
     image.fill(Qt::transparent);
 
     QPainter painter(&image);
-    painter.setRenderHint(QPainter::Antialiasing, true);
+    painter.setRenderHint(QPainter::Antialiasing, false); // Sharp edges for flood fill
     painter.scale(scale, scale);
     painter.translate(-region.topLeft());
 
+    // FIXED: Use scene's built-in render method - much safer
     m_canvas->scene()->render(&painter, QRectF(0, 0, region.width(), region.height()), region);
-    painter.end();
 
+    painter.end();
     return image;
 }
 
@@ -439,17 +535,19 @@ QColor BucketFillTool::getPixelColor(const QImage& image, const QPoint& point)
     return QColor();
 }
 
-void BucketFillTool::floodFillImage(QImage& image, const QPoint& startPoint, const QColor& targetColor, const QColor& fillColor)
+int BucketFillTool::floodFillImageLimited(QImage& image, const QPoint& startPoint,
+    const QColor& targetColor, const QColor& fillColor, int maxPixels)
 {
-    if (targetColor == fillColor) return;
-    if (!image.rect().contains(startPoint)) return;
+    if (targetColor == fillColor) return 0;
+    if (!image.rect().contains(startPoint)) return 0;
 
     QQueue<QPoint> pointQueue;
     QSet<QPoint> visited;
+    int filledCount = 0;
 
     pointQueue.enqueue(startPoint);
 
-    while (!pointQueue.isEmpty()) {
+    while (!pointQueue.isEmpty() && filledCount < maxPixels) {
         QPoint current = pointQueue.dequeue();
 
         if (visited.contains(current)) continue;
@@ -457,19 +555,20 @@ void BucketFillTool::floodFillImage(QImage& image, const QPoint& startPoint, con
 
         QColor currentColor = getPixelColor(image, current);
 
-        // Check if color matches target within tolerance
+        // FIXED: Stricter color matching
         int colorDiff = qAbs(currentColor.red() - targetColor.red()) +
             qAbs(currentColor.green() - targetColor.green()) +
             qAbs(currentColor.blue() - targetColor.blue()) +
             qAbs(currentColor.alpha() - targetColor.alpha());
 
-        if (colorDiff > m_tolerance * 4) continue; // 4 channels
+        if (colorDiff > m_tolerance * 2) continue; // Stricter tolerance
 
         // Fill this pixel
         image.setPixel(current, fillColor.rgba());
         visited.insert(current);
+        filledCount++;
 
-        // Add neighboring pixels to queue
+        // Add 4-connected neighbors only
         QList<QPoint> neighbors = {
             QPoint(current.x() + 1, current.y()),
             QPoint(current.x() - 1, current.y()),
@@ -483,43 +582,124 @@ void BucketFillTool::floodFillImage(QImage& image, const QPoint& startPoint, con
             }
         }
     }
+
+    return filledCount;
+}
+
+// Keep the standard flood fill for backwards compatibility
+void BucketFillTool::floodFillImage(QImage& image, const QPoint& startPoint,
+    const QColor& targetColor, const QColor& fillColor)
+{
+    floodFillImageLimited(image, startPoint, targetColor, fillColor, 50000);
 }
 
 QPainterPath BucketFillTool::traceFilledRegion(const QImage& image, const QColor& fillColor)
 {
-    // This is a simplified contour tracing algorithm
-    // For production use, consider implementing Moore neighborhood tracing
+    QPoint startPoint = findStartPoint(image, fillColor);
+    if (startPoint.x() == -1) {
+        return QPainterPath();
+    }
 
-    QPainterPath path;
+    return traceContour(image, startPoint, fillColor);
+}
 
-    // Find the first filled pixel
-    QPoint startPoint(-1, -1);
+QPoint BucketFillTool::findStartPoint(const QImage& image, const QColor& fillColor)
+{
+    // Find the topmost, leftmost filled pixel
     for (int y = 0; y < image.height(); ++y) {
         for (int x = 0; x < image.width(); ++x) {
             if (getPixelColor(image, QPoint(x, y)) == fillColor) {
-                startPoint = QPoint(x, y);
+                return QPoint(x, y);
+            }
+        }
+    }
+    return QPoint(-1, -1);
+}
+
+QPainterPath BucketFillTool::traceContour(const QImage& image, const QPoint& startPoint, const QColor& fillColor)
+{
+    QList<QPoint> contourPoints;
+    QPoint current = startPoint;
+    QPoint first = startPoint;
+    int direction = 0;
+
+    int maxPoints = qMin(1000, image.width() + image.height()); // Reasonable limit
+
+    do {
+        contourPoints.append(current);
+
+        bool foundNext = false;
+        int searchDir = (direction + 6) % 8;
+
+        for (int i = 0; i < 8; ++i) {
+            QPoint neighbor = current + DIRECTIONS[searchDir];
+
+            if (image.rect().contains(neighbor) &&
+                getPixelColor(image, neighbor) == fillColor) {
+                current = neighbor;
+                direction = searchDir;
+                foundNext = true;
                 break;
             }
+
+            searchDir = (searchDir + 1) % 8;
         }
-        if (startPoint.x() != -1) break;
+
+        if (!foundNext || contourPoints.size() >= maxPoints) {
+            break;
+        }
+
+    } while (current != first || contourPoints.size() < 3);
+
+    return pointsToPath(contourPoints);
+}
+
+QPainterPath BucketFillTool::pointsToPath(const QList<QPoint>& points)
+{
+    QPainterPath path;
+
+    if (points.isEmpty()) return path;
+
+    path.moveTo(points.first());
+
+    for (int i = 1; i < points.size(); ++i) {
+        path.lineTo(points[i]);
     }
 
-    if (startPoint.x() == -1) return path; // No filled pixels found
-
-    // Create a simple rectangular approximation for now
-    // In a full implementation, you'd want to trace the actual contour
-    QRect boundingRect(startPoint, startPoint);
-
-    for (int y = 0; y < image.height(); ++y) {
-        for (int x = 0; x < image.width(); ++x) {
-            if (getPixelColor(image, QPoint(x, y)) == fillColor) {
-                boundingRect = boundingRect.united(QRect(x, y, 1, 1));
-            }
-        }
-    }
-
-    path.addRect(boundingRect);
+    path.closeSubpath();
     return path;
+}
+
+QPainterPath BucketFillTool::smoothContour(const QPainterPath& roughPath, qreal smoothing)
+{
+    if (roughPath.elementCount() < 4) return roughPath;
+
+    QPainterPath smoothPath;
+    QList<QPointF> points;
+
+    for (int i = 0; i < roughPath.elementCount(); ++i) {
+        QPainterPath::Element elem = roughPath.elementAt(i);
+        points.append(QPointF(elem.x, elem.y));
+    }
+
+    if (points.size() < 4) return roughPath;
+
+    smoothPath.moveTo(points.first());
+
+    for (int i = 1; i < points.size() - 2; ++i) {
+        QPointF p0 = points[i - 1];
+        QPointF p1 = points[i];
+        QPointF p2 = points[i + 1];
+        QPointF p3 = (i + 2 < points.size()) ? points[i + 2] : points.first();
+
+        QPointF cp1 = p1 + (p2 - p0) / (6.0 * smoothing);
+        QPointF cp2 = p2 - (p3 - p1) / (6.0 * smoothing);
+
+        smoothPath.cubicTo(cp1, cp2, p2);
+    }
+
+    smoothPath.closeSubpath();
+    return smoothPath;
 }
 
 QGraphicsPathItem* BucketFillTool::createFillItem(const QPainterPath& fillPath, const QColor& color)
@@ -528,9 +708,11 @@ QGraphicsPathItem* BucketFillTool::createFillItem(const QPainterPath& fillPath, 
 
     QGraphicsPathItem* fillItem = new QGraphicsPathItem(fillPath);
     fillItem->setBrush(QBrush(color));
-    fillItem->setPen(QPen(Qt::NoPen)); // No outline
+    fillItem->setPen(QPen(Qt::NoPen));
     fillItem->setFlag(QGraphicsItem::ItemIsSelectable, true);
     fillItem->setFlag(QGraphicsItem::ItemIsMovable, true);
+
+    qDebug() << "BucketFill: Created fill item with color" << color.name();
     return fillItem;
 }
 
@@ -538,12 +720,21 @@ void BucketFillTool::addFillToCanvas(QGraphicsPathItem* fillItem)
 {
     if (!fillItem || !m_canvas) return;
 
-    // Add with undo command
-    DrawCommand* command = new DrawCommand(m_canvas, fillItem);
-    m_mainWindow->m_undoStack->push(command);
-    QTimer::singleShot(0, [fillItem]() {
-        fillItem->setZValue(-1000);
-        });
+    if (m_mainWindow && m_mainWindow->m_undoStack) {
+        DrawCommand* command = new DrawCommand(m_canvas, fillItem);
+        m_mainWindow->m_undoStack->push(command);
+
+        QTimer::singleShot(0, [fillItem]() {
+            fillItem->setZValue(-100);
+            });
+
+        qDebug() << "BucketFill: Added fill to canvas with undo support";
+    }
+    else {
+        addItemToCanvas(fillItem);
+        fillItem->setZValue(-100);
+        qDebug() << "BucketFill: Added fill directly to canvas";
+    }
 }
 
 void BucketFillTool::showFillPreview(const QPainterPath& path)
@@ -554,11 +745,12 @@ void BucketFillTool::showFillPreview(const QPainterPath& path)
 
     m_previewItem = new QGraphicsPathItem(path);
     QColor previewColor = m_fillColor;
-    previewColor.setAlpha(128); // Semi-transparent
+    previewColor.setAlpha(100);
     m_previewItem->setBrush(QBrush(previewColor));
     m_previewItem->setPen(QPen(m_fillColor, 1, Qt::DashLine));
     m_previewItem->setFlag(QGraphicsItem::ItemIsSelectable, false);
     m_previewItem->setFlag(QGraphicsItem::ItemIsMovable, false);
+    m_previewItem->setZValue(1000);
 
     m_canvas->scene()->addItem(m_previewItem);
 }
@@ -572,17 +764,135 @@ void BucketFillTool::hideFillPreview()
     }
 }
 
+// Settings methods
 void BucketFillTool::setFillColor(const QColor& color)
 {
     m_fillColor = color;
+    qDebug() << "BucketFill: Fill color set to" << color.name();
 }
 
 void BucketFillTool::setTolerance(int tolerance)
 {
-    m_tolerance = qBound(0, tolerance, 255);
+    m_tolerance = qBound(0, tolerance, 100);
 }
 
 void BucketFillTool::setFillMode(int mode)
 {
     m_fillMode = qBound(0, mode, 1);
+}
+
+void BucketFillTool::setSearchRadius(qreal radius)
+{
+    m_searchRadius = qMax(10.0, radius);
+}
+
+void BucketFillTool::setConnectionTolerance(qreal tolerance)
+{
+    m_connectionTolerance = qMax(1.0, tolerance);
+}
+
+void BucketFillTool::setDebugMode(bool enabled)
+{
+    m_debugMode = enabled;
+}
+
+QColor BucketFillTool::getFillColor() const { return m_fillColor; }
+int BucketFillTool::getTolerance() const { return m_tolerance; }
+int BucketFillTool::getFillMode() const { return m_fillMode; }
+qreal BucketFillTool::getSearchRadius() const { return m_searchRadius; }
+qreal BucketFillTool::getConnectionTolerance() const { return m_connectionTolerance; }
+bool BucketFillTool::isDebugMode() const { return m_debugMode; }
+
+// Placeholder methods for interface compatibility
+bool BucketFillTool::pathsIntersect(const QPainterPath& path1, const QPainterPath& path2, qreal tolerance)
+{
+    return path1.intersects(path2);
+}
+
+QList<QPointF> BucketFillTool::findPathIntersections(const QPainterPath& path1, const QPainterPath& path2)
+{
+    return QList<QPointF>();
+}
+
+QPainterPath BucketFillTool::mergeIntersectingPaths(const QList<PathSegment>& segments)
+{
+    QPainterPath result;
+    for (const PathSegment& seg : segments) {
+        result = result.united(seg.path);
+    }
+    return result;
+}
+
+QPainterPath BucketFillTool::detectShape(const QPointF& point)
+{
+    return QPainterPath();
+}
+
+bool BucketFillTool::isPointInsideEnclosedArea(const QPointF& point, const QList<PathSegment>& paths)
+{
+    for (const PathSegment& seg : paths) {
+        if (seg.path.contains(point)) return true;
+    }
+    return false;
+}
+
+QPainterPath BucketFillTool::createBoundingShape(const QList<PathSegment>& segments)
+{
+    QPainterPath result;
+    for (const PathSegment& seg : segments) {
+        result = result.united(seg.path);
+    }
+    return result;
+}
+
+QList<BucketFillTool::PathSegment> BucketFillTool::optimizePathSegments(const QList<PathSegment>& segments)
+{
+    return segments;
+}
+
+QPainterPath BucketFillTool::simplifyPath(const QPainterPath& path, qreal tolerance)
+{
+    return path;
+}
+
+void BucketFillTool::cacheNearbyItems(const QRectF& region)
+{
+    m_cachedRegion = region;
+    m_cachedPaths = collectNearbyPaths(region.center(), region.width() / 2);
+    m_cacheValid = true;
+}
+
+void BucketFillTool::clearCache()
+{
+    m_cachedPaths.clear();
+    m_cacheValid = false;
+}
+
+void BucketFillTool::debugDrawPaths(const QList<PathSegment>& segments) {}
+void BucketFillTool::debugDrawIntersections(const QList<QPointF>& intersections) {}
+void BucketFillTool::debugDrawContour(const QList<QPoint>& contour) {}
+
+QList<QPoint> BucketFillTool::getNeighbors8(const QPoint& point)
+{
+    QList<QPoint> neighbors;
+    for (int i = 0; i < 8; ++i) {
+        neighbors.append(point + DIRECTIONS[i]);
+    }
+    return neighbors;
+}
+
+QPoint BucketFillTool::getNextNeighbor(const QPoint& current, int direction)
+{
+    return current + DIRECTIONS[direction % 8];
+}
+
+int BucketFillTool::getDirection(const QPoint& from, const QPoint& to)
+{
+    QPoint diff = to - from;
+    for (int i = 0; i < 8; ++i) {
+        if (DIRECTIONS[i] == diff) {
+            return i;
+        }
+    }
+    return 0;
 }

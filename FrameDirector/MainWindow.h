@@ -32,10 +32,10 @@
 #include <QPropertyAnimation>
 #include <QGraphicsEffect>
 #include <QUndoCommand>
-#include <QProgressDialog>  // Add this include
-#include <QFileDialog>      // Add this include
-#include <QMessageBox>      // Add this include
-#include <QApplication>     // Add this include
+#include <QProgressDialog>
+#include <QFileDialog>
+#include <QMessageBox>
+#include <QApplication>
 #include <memory>
 #include <vector>
 #include <map>
@@ -62,8 +62,8 @@ class SelectionTool;
 class VectorGraphicsItem;
 class AnimationKeyframe;
 class AnimationLayer;
-class AddItemCommand;  // Add this forward declaration
-class DrawCommand;     // Add this forward declaration
+class AddItemCommand;
+class DrawCommand;
 class UndoCommands;
 
 class MainWindow : public QMainWindow
@@ -97,7 +97,7 @@ public:
     };
 
     // Public member access for undo commands
-    QUndoStack* m_undoStack;  // Made public for undo commands access
+    QUndoStack* m_undoStack;
 
 public slots:
     void alignObjects(AlignmentType alignment);
@@ -119,8 +119,8 @@ private slots:
     void importImage();
     void importVector();
     void importAudio();
-    void importMultipleFiles();     // Add this declaration
-    void showSupportedFormats();    // Add this declaration
+    void importMultipleFiles();
+    void showSupportedFormats();
     void exportAnimation();
     void exportFrame();
     void exportSVG();
@@ -211,6 +211,7 @@ private slots:
     // Playback
     void updatePlayback();
     void onPlaybackTimer();
+
     // Drawing tool integration
     void showDrawingToolSettings();
     void setDrawingToolStrokeWidth(double width);
@@ -237,7 +238,7 @@ private:
     QString strippedName(const QString& fullFileName);
     void updateUI();
     void updateStatusBar();
-    void updateImportMenu();        // Add this declaration
+    void updateImportMenu();
 
     // Tool management
     void setupTools();
@@ -250,16 +251,22 @@ private:
     void updateSelectedItemsStroke(const QColor& color);
     void updateSelectedItemsFill(const QColor& color);
 
+    // FIXED: Enhanced color integration methods
+    void updateDrawingToolColor(const QColor& color);
+    void updateBucketFillToolColor(const QColor& color);
+    void initializeToolColors();
+
     // Animation helpers
     void createKeyframeAtCurrentFrame();
     void interpolateFrames();
     void updateTimelineDisplay();
+
     // Enhanced undo system
     void setupComprehensiveUndo();
     void setupCanvasUndoOperations();
 
-    // Enhanced transform operations (update existing declarations)
-    void rotateSelected(double angle);  // Add this new method
+    // Enhanced transform operations
+    void rotateSelected(double angle);
 
     // Central widgets and panels
     QSplitter* m_mainSplitter;

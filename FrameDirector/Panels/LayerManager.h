@@ -13,7 +13,8 @@
 #include <QSpinBox>
 #include <QMenu>
 #include <QAction>
-#include <QGroupBox>  // Add this include
+#include <QGroupBox>
+#include <QHash>
 
 class MainWindow;
 
@@ -31,9 +32,9 @@ public:
     int getOpacity() const;
     int getLayerIndex() const;
 
-    void updateDisplay(); // Add this method declaration
+    void updateDisplay();
 
-public: // Changed from private to public so LayerManager can access
+public: // Made public for LayerManager access
     bool m_visible;
     bool m_locked;
     int m_opacity;
@@ -80,6 +81,19 @@ private slots:
     void onOpacityChanged(int opacity);
 
 private:
+    // FIXED: Structure to preserve layer state
+    struct LayerState {
+        bool visible;
+        bool locked;
+        int opacity;
+        QString name;
+
+        LayerState() : visible(true), locked(false), opacity(100) {}
+        LayerState(bool v, bool l, int o, const QString& n = QString())
+            : visible(v), locked(l), opacity(o), name(n) {
+        }
+    };
+
     void setupUI();
     void createLayerControls();
     void updateLayerControls();
@@ -112,6 +126,9 @@ private:
     QAction* m_duplicateAction;
 
     int m_currentLayer;
+
+    // FIXED: Storage for preserving layer states
+    QHash<int, LayerState> m_preservedStates;
 };
 
 #endif // LAYERMANAGER_H
