@@ -548,6 +548,12 @@ void LayerManager::moveLayerUp(int index)
         static_cast<LayerItem*>(m_layerList->item(index - 1))->m_layerIndex = index - 1;
         static_cast<LayerItem*>(m_layerList->item(index))->m_layerIndex = index;
 
+
+        Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+        if (canvas) {
+            canvas->moveLayer(index, index - 1);
+        }
+
         updateLayerControls();
         emit layerMoved(index, index - 1);
     }
@@ -564,6 +570,12 @@ void LayerManager::moveLayerDown(int index)
         // Update layer indices
         static_cast<LayerItem*>(m_layerList->item(index))->m_layerIndex = index;
         static_cast<LayerItem*>(m_layerList->item(index + 1))->m_layerIndex = index + 1;
+
+
+        Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+        if (canvas) {
+            canvas->moveLayer(index, index + 1);
+        }
 
         updateLayerControls();
         emit layerMoved(index, index + 1);

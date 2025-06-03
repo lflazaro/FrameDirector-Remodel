@@ -324,6 +324,28 @@ void Canvas::setLayerLocked(int layerIndex, bool locked)
     }
 }
 
+void Canvas::moveLayer(int fromIndex, int toIndex)
+{
+    if (fromIndex < 0 || fromIndex >= m_layers.size() ||
+        toIndex < 0 || toIndex >= m_layers.size() || fromIndex == toIndex)
+        return;
+
+    void* layerPtr = m_layers[fromIndex];
+    m_layers.erase(m_layers.begin() + fromIndex);
+    m_layers.insert(m_layers.begin() + toIndex, layerPtr);
+
+    if (m_currentLayerIndex == fromIndex)
+        m_currentLayerIndex = toIndex;
+    else if (m_currentLayerIndex > fromIndex && m_currentLayerIndex <= toIndex)
+        m_currentLayerIndex--;
+    else if (m_currentLayerIndex < fromIndex && m_currentLayerIndex >= toIndex)
+        m_currentLayerIndex++;
+
+    updateAllLayerZValues();
+    emit layerChanged(m_currentLayerIndex);
+}
+
+
 void Canvas::setLayerOpacity(int layerIndex, double opacity)
 {
     if (layerIndex >= 0 && layerIndex < m_layers.size()) {
@@ -404,18 +426,8 @@ void Canvas::saveFrameState(int frame)
 
     for (int layerIndex = 0; layerIndex < m_layers.size(); ++layerIndex) {
         LayerData* layer = static_cast<LayerData*>(m_layers[layerIndex]);
-        QList<QGraphicsItem*> visibleItems;
-
-        // Get items that are currently visible and belong to this layer
-        for (QGraphicsItem* item : layer->allTimeItems) {
-            if (item && item != m_backgroundRect && item->isVisible() &&
-                m_scene->items().contains(item)) {
-                visibleItems.append(item);
-            }
-        }
-
-        layer->setFrameItems(frame, visibleItems);
-        layerFrameItems[layerIndex] = visibleItems;
+        QList<QGraphicsItem*> frameItems = layer->getFrameItems(frame);
+        layerFrameItems[layerIndex] = frameItems;
     }
 
     // Also store in the main frame tracking (for compatibility)
