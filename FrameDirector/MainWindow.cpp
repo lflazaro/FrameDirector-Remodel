@@ -1122,13 +1122,6 @@ void MainWindow::connectLayerManager()
             m_canvas->setLayerOpacity(index, opacity / 100.0);
             qDebug() << "Layer" << index << "opacity changed to:" << opacity << "%";
             });
-        connect(m_layerManager, &LayerManager::layerMoved, [this](int from, int to) {
-            m_canvas->moveLayer(from, to);
-            if (m_timeline) {
-                m_timeline->updateLayersFromCanvas();
-            }
-            qDebug() << "Layer moved from" << from << "to" << to;
-            });
 
 
         // Connect canvas signals to layer manager

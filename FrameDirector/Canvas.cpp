@@ -486,46 +486,16 @@ int Canvas::getItemLayerIndex(QGraphicsItem* item)
     return -1; // Item not found in any layer
 }
 
-
-void Canvas::moveLayer(int fromIndex, int toIndex)
-{
-    if (fromIndex >= 0 && fromIndex < m_layers.size() &&
-        toIndex >= 0 && toIndex < m_layers.size() &&
-        fromIndex != toIndex) {
-
-        // Swap layer data
-        void* temp = m_layers[fromIndex];
-        m_layers[fromIndex] = m_layers[toIndex];
-        m_layers[toIndex] = temp;
-
-        // Update current layer index if affected
-        if (m_currentLayerIndex == fromIndex) {
-            m_currentLayerIndex = toIndex;
-        }
-        else if (m_currentLayerIndex == toIndex) {
-            m_currentLayerIndex = fromIndex;
-        }
-
-        // Update Z-values for proper rendering order
-        updateAllLayerZValues();
-
-        storeCurrentFrameState();
-        emit layerChanged(toIndex);
-        emit layerChanged(m_currentLayerIndex);
-    }
-}
-
-
 void Canvas::updateAllLayerZValues()
 {
-    // FIXED: Update Z-values to match layer order
+    // ROBUST: Update Z-values to match layer order and prevent Z-fighting
     for (int i = 0; i < m_layers.size(); ++i) {
         LayerData* layer = static_cast<LayerData*>(m_layers[i]);
         int baseZValue = i * 1000;
 
-        for (QGraphicsItem* item : layer->items) {
-            if (item != m_backgroundRect) {
-                item->setZValue(baseZValue + static_cast<int>(item->zValue()) % 1000);
+        for (QGraphicsItem* item : layer->allTimeItems) {
+            if (item && item != m_backgroundRect && m_scene->items().contains(item)) {
+                item->setZValue(baseZValue + (static_cast<int>(item->zValue()) % 1000));
             }
         }
     }
