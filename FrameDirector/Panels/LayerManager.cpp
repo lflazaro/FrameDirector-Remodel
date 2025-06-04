@@ -104,6 +104,41 @@ LayerManager::LayerManager(MainWindow* parent)
     setupUI();
 }
 
+void LayerManager::onLayersMoved(const QModelIndex& parent, int start, int end, const QModelIndex& destination, int row)
+{
+    Q_UNUSED(parent)
+        Q_UNUSED(destination)
+
+        // Update layer indices after drag-drop
+        for (int i = 0; i < m_layerList->count(); ++i) {
+            LayerItem* item = static_cast<LayerItem*>(m_layerList->item(i));
+            if (item) {
+                item->m_layerIndex = i;
+            }
+        }
+
+    // Update canvas layer order
+    Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+    if (canvas) {
+        // The layers were moved from 'start' to 'row'
+        int fromIndex = start;
+        int toIndex = (row > start) ? row - 1 : row;
+
+        canvas->moveLayer(fromIndex, toIndex);
+
+        // Update current layer selection
+        m_currentLayer = m_layerList->currentRow();
+        if (m_currentLayer >= 0) {
+            canvas->setCurrentLayer(m_currentLayer);
+        }
+
+        updateLayerControls();
+        emit layerMoved(fromIndex, toIndex);
+
+        qDebug() << "Drag-drop moved layer from" << fromIndex << "to" << toIndex;
+    }
+}
+
 void LayerManager::setupUI()
 {
     m_mainLayout = new QVBoxLayout(this);
@@ -156,6 +191,8 @@ void LayerManager::setupUI()
     m_layerList->setMinimumHeight(150);
     m_mainLayout->addWidget(m_layerList);
 
+    connect(m_layerList->model(), &QAbstractItemModel::rowsMoved,
+        this, &LayerManager::onLayersMoved);
     // Layer control buttons
     createLayerControls();
 

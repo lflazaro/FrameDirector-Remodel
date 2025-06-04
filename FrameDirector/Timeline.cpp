@@ -1,6 +1,7 @@
 ﻿// Timeline.cpp
 #include "Timeline.h"
 #include "MainWindow.h"
+#include "Panels/LayerManager.h"
 #include "Canvas.h"
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -342,19 +343,38 @@ void Timeline::setupUI()
     m_mainLayout->addLayout(timelineLayout, 1);
 
     // Connect layer buttons
+
+    // Connect layer buttons
     connect(m_addLayerButton, &QPushButton::clicked, [this]() {
         Canvas* canvas = m_mainWindow->findChild<Canvas*>();
         if (canvas) {
-            canvas->addLayer(QString("Layer %1").arg(canvas->getLayerCount() + 1));
+            QString layerName = QString("Layer %1").arg(canvas->getLayerCount() + 1);
+            int newIndex = canvas->addLayer(layerName);
+
+            // FIX: Update layer manager when layers are created from timeline
+            LayerManager* layerManager = m_mainWindow->findChild<LayerManager*>();
+            if (layerManager) {
+                layerManager->updateLayers();
+                layerManager->setCurrentLayer(newIndex);
+            }
+
             updateLayersFromCanvas();
+            qDebug() << "Added layer from timeline, updated layer manager";
         }
         });
 
     connect(m_removeLayerButton, &QPushButton::clicked, [this]() {
         Canvas* canvas = m_mainWindow->findChild<Canvas*>();
-        if (canvas && m_selectedLayer >= 0 && canvas->getLayerCount() > 1) {
+        LayerManager* layerManager = m_mainWindow->findChild<LayerManager*>();
+
+        if (canvas && layerManager && m_selectedLayer >= 0 && canvas->getLayerCount() > 1) {
             canvas->removeLayer(m_selectedLayer);
+
+            // FIX: Update layer manager when layers are removed from timeline
+            layerManager->updateLayers();
+
             updateLayersFromCanvas();
+            qDebug() << "Removed layer from timeline, updated layer manager";
         }
         });
 

@@ -143,6 +143,10 @@ private slots:
     void onSceneSelectionChanged();
 
 private:
+
+    QRubberBand* m_rubberBand;
+    QPoint m_rubberBandOrigin;
+    bool m_rubberBandActive;
     void setupScene();
     void setupDefaultLayers();
     void drawGrid(QPainter* painter, const QRectF& rect);
@@ -150,6 +154,7 @@ private:
     void drawCanvasBounds(QPainter* painter, const QRectF& rect);
     QPointF snapToGrid(const QPointF& point);
     void updateCursor();
+    bool m_destroying;
 
     // FIXED: Layer management helpers
     void updateAllLayerZValues();
@@ -188,8 +193,6 @@ private:
     // Interaction state
     bool m_dragging;
     QPointF m_lastMousePos;
-    QRubberBand* m_rubberBand;
-    QPoint m_rubberBandOrigin;
 };
 
 #endif // CANVAS_H

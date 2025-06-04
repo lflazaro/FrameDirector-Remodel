@@ -266,7 +266,6 @@ void SelectionTool::ungroupSelectedItems()
         }
     }
 }
-
 void SelectionTool::showContextMenu(const QPoint& globalPos)
 {
     if (!m_canvas || !m_canvas->scene()) return;
@@ -327,29 +326,49 @@ void SelectionTool::showContextMenu(const QPoint& globalPos)
 
         // Arrange menu
         QMenu* arrangeMenu = contextMenu.addMenu("Arrange");
-        arrangeMenu->addAction("Bring to Front");
-        arrangeMenu->addAction("Bring Forward");
-        arrangeMenu->addAction("Send Backward");
-        arrangeMenu->addAction("Send to Back");
+        QAction* bringToFrontAction = arrangeMenu->addAction("Bring to Front");
+        QAction* bringForwardAction = arrangeMenu->addAction("Bring Forward");
+        QAction* sendBackwardAction = arrangeMenu->addAction("Send Backward");
+        QAction* sendToBackAction = arrangeMenu->addAction("Send to Back");
 
         // Connect actions
+        connect(cutAction, &QAction::triggered, [this]() {
+            if (m_mainWindow) {
+                m_mainWindow->cut();
+            }
+            });
+
+        connect(copyAction, &QAction::triggered, [this]() {
+            if (m_mainWindow) {
+                m_mainWindow->copy();
+            }
+            });
+
         connect(deleteAction, &QAction::triggered, this, &SelectionTool::deleteSelectedItems);
 
-        // TODO: Implement cut/copy functionality
+        connect(bringToFrontAction, &QAction::triggered, m_mainWindow, &MainWindow::bringToFront);
+        connect(bringForwardAction, &QAction::triggered, m_mainWindow, &MainWindow::bringForward);
+        connect(sendBackwardAction, &QAction::triggered, m_mainWindow, &MainWindow::sendBackward);
+        connect(sendToBackAction, &QAction::triggered, m_mainWindow, &MainWindow::sendToBack);
     }
     else {
         // General canvas context menu
         QAction* pasteAction = contextMenu.addAction("Paste");
+        pasteAction->setEnabled(m_mainWindow && m_mainWindow->hasClipboardItems());
         contextMenu.addSeparator();
         QAction* selectAllAction = contextMenu.addAction("Select All");
+
+        connect(pasteAction, &QAction::triggered, [this]() {
+            if (m_mainWindow) {
+                m_mainWindow->paste();
+            }
+            });
 
         connect(selectAllAction, &QAction::triggered, [this]() {
             if (m_canvas) {
                 m_canvas->selectAll();
             }
             });
-
-        // TODO: Implement paste functionality
     }
 
     contextMenu.exec(globalPos);

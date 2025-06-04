@@ -3,6 +3,7 @@
 #include "Canvas.h"
 #include "Tools/Tool.h"
 #include "MainWindow.h"
+#include "Tools/SelectionTool.h"
 #include <QGraphicsScene>
 #include <QGraphicsItem>
 #include <QMouseEvent>
@@ -88,6 +89,7 @@ Canvas::Canvas(MainWindow* parent)
     : QGraphicsView(parent)
     , m_mainWindow(parent)
     , m_scene(nullptr)
+    , m_destroying(false)
     , m_currentTool(nullptr)
     , m_canvasSize(1920, 1080)
     , m_backgroundRect(nullptr)
@@ -103,6 +105,7 @@ Canvas::Canvas(MainWindow* parent)
     , m_strokeWidth(2.0)
     , m_dragging(false)
     , m_rubberBand(nullptr)
+    , m_rubberBandActive(false)
 {
     setupScene();
     setupDefaultLayers();
@@ -120,6 +123,8 @@ Canvas::Canvas(MainWindow* parent)
 
     setFocusPolicy(Qt::StrongFocus);
     createKeyframe(1);
+    m_rubberBand = new QRubberBand(QRubberBand::Rectangle, this);
+    m_rubberBand->hide();
 
     qDebug() << "Canvas created with robust layer system, size:" << m_canvasSize;
 }
@@ -128,25 +133,33 @@ Canvas::~Canvas()
 {
     qDebug() << "Canvas destructor called";
 
-    // FIXED: Proper cleanup order to prevent crashes
+    // FIXED: Disconnect ALL signals immediately to prevent crashes during destruction
+    disconnect();
 
-    // 1. Clear all data structures that reference graphics items
+    // FIXED: Disconnect scene signals specifically
+    if (m_scene) {
+        disconnect(m_scene, nullptr, this, nullptr);
+    }
+
+    // FIXED: Clear all data structures that reference graphics items WITHOUT emitting signals
     m_frameItems.clear();
     m_keyframes.clear();
 
-    // 2. Clear rubber band if it exists
+    // Clear rubber band if it exists
     if (m_rubberBand) {
         delete m_rubberBand;
         m_rubberBand = nullptr;
     }
 
-    // 3. Clean up layer data structures
+    // Clean up layer data structures
     for (void* layerPtr : m_layers) {
         if (layerPtr) {
             LayerData* layer = static_cast<LayerData*>(layerPtr);
 
             // Clear the item lists first (don't delete items, scene will handle that)
             layer->items.clear();
+            layer->frameItems.clear();
+            layer->allTimeItems.clear();
 
             // Delete the layer data structure
             delete layer;
@@ -154,7 +167,8 @@ Canvas::~Canvas()
     }
     m_layers.clear();
 
-    // 4. The scene and its items will be cleaned up by Qt automatically
+    // FIXED: Don't call any methods that might emit signals
+    // The scene and its items will be cleaned up by Qt automatically
     // when the QGraphicsView is destroyed
 
     qDebug() << "Canvas destructor completed";
@@ -169,9 +183,28 @@ void Canvas::setupScene()
     m_scene->setBackgroundBrush(QBrush(QColor(64, 64, 64)));
     setScene(m_scene);
 
+    // Create and lock the background rectangle
+    if (!m_backgroundRect) {
+        m_backgroundRect = new QGraphicsRectItem(m_canvasRect);
+        m_backgroundRect->setBrush(QBrush(Qt::white));
+        m_backgroundRect->setPen(QPen(Qt::black, 1));
+
+        // Lock the background - make it non-selectable and non-movable
+        m_backgroundRect->setFlag(QGraphicsItem::ItemIsSelectable, false);
+        m_backgroundRect->setFlag(QGraphicsItem::ItemIsMovable, false);
+        m_backgroundRect->setFlag(QGraphicsItem::ItemIsSelectable, false);
+
+        // Put background at the bottom Z-order
+        m_backgroundRect->setZValue(-1000);
+
+        // Add a custom data flag to identify this as the background
+        m_backgroundRect->setData(0, "background");
+
+        m_scene->addItem(m_backgroundRect);
+    }
+
     qDebug() << "Scene set up with canvas rect:" << m_canvasRect;
 }
-
 void Canvas::setupDefaultLayers()
 {
     // ROBUST: Clear any existing layers completely
@@ -190,17 +223,12 @@ void Canvas::setupDefaultLayers()
     LayerData* drawingLayer = new LayerData("Layer 1");
     m_layers.push_back(drawingLayer);
 
-    // Create white background rectangle
-    m_backgroundRect = new QGraphicsRectItem(m_canvasRect);
-    m_backgroundRect->setPen(QPen(QColor(200, 200, 200), 1));
-    m_backgroundRect->setBrush(QBrush(Qt::white));
-    m_backgroundRect->setFlag(QGraphicsItem::ItemIsSelectable, false);
-    m_backgroundRect->setFlag(QGraphicsItem::ItemIsMovable, false);
-    m_backgroundRect->setZValue(-1000);
-    m_scene->addItem(m_backgroundRect);
-
-    // Add background to background layer PROPERLY
-    backgroundLayer->addItem(m_backgroundRect, 1);
+    // REMOVED: Don't create another background rectangle here
+    // The background rectangle is already created in setupScene()
+    // Just add the existing background to the background layer
+    if (m_backgroundRect) {
+        backgroundLayer->addItem(m_backgroundRect, 1);
+    }
 
     // Set Layer 1 as current (not background)
     setCurrentLayer(1);
@@ -688,7 +716,6 @@ void Canvas::clearFrameState()
 // [Include all other existing methods that weren't changed...]
 
 // [Mouse events, zoom methods, alignment methods, etc. remain the same...]
-
 void Canvas::mousePressEvent(QMouseEvent* event)
 {
     if (!m_scene) {
@@ -702,21 +729,30 @@ void Canvas::mousePressEvent(QMouseEvent* event)
     }
 
     if (m_currentTool) {
-        m_currentTool->mousePressEvent(event, scenePos);
-    }
-    else {
-        if (event->button() == Qt::LeftButton) {
+        // Check if we're using SelectionTool and clicking on empty space
+        SelectionTool* selectionTool = dynamic_cast<SelectionTool*>(m_currentTool);
+        if (selectionTool && event->button() == Qt::LeftButton) {
             QGraphicsItem* item = m_scene->itemAt(scenePos, transform());
-
             if (!item || item == m_backgroundRect) {
+                // Start rubber band selection
                 m_rubberBandOrigin = event->pos();
                 if (!m_rubberBand) {
                     m_rubberBand = new QRubberBand(QRubberBand::Rectangle, this);
                 }
                 m_rubberBand->setGeometry(QRect(m_rubberBandOrigin, QSize()));
                 m_rubberBand->show();
+                m_rubberBandActive = true;
+
+                // Clear selection if not holding Ctrl
+                if (!(event->modifiers() & Qt::ControlModifier)) {
+                    m_scene->clearSelection();
+                }
             }
         }
+
+        m_currentTool->mousePressEvent(event, scenePos);
+    }
+    else {
         QGraphicsView::mousePressEvent(event);
     }
 
@@ -736,14 +772,16 @@ void Canvas::mouseMoveEvent(QMouseEvent* event)
         scenePos = snapToGrid(scenePos);
     }
 
+    // Handle rubber band selection
+    if (m_rubberBandActive && m_rubberBand && m_rubberBand->isVisible()) {
+        QRect rect = QRect(m_rubberBandOrigin, event->pos()).normalized();
+        m_rubberBand->setGeometry(rect);
+    }
+
     if (m_currentTool) {
         m_currentTool->mouseMoveEvent(event, scenePos);
     }
     else {
-        if (m_rubberBand && m_rubberBand->isVisible()) {
-            QRect rect = QRect(m_rubberBandOrigin, event->pos()).normalized();
-            m_rubberBand->setGeometry(rect);
-        }
         QGraphicsView::mouseMoveEvent(event);
     }
 
@@ -763,32 +801,31 @@ void Canvas::mouseReleaseEvent(QMouseEvent* event)
         scenePos = snapToGrid(scenePos);
     }
 
+    // Handle rubber band selection completion
+    if (m_rubberBandActive && m_rubberBand && m_rubberBand->isVisible() && event->button() == Qt::LeftButton) {
+        QRect rect = m_rubberBand->geometry();
+        QPolygonF selectionArea = mapToScene(rect);
+
+        QPainterPath path;
+        path.addPolygon(selectionArea);
+
+        QList<QGraphicsItem*> allItems = m_scene->items();
+        for (QGraphicsItem* item : allItems) {
+            if (item != m_backgroundRect &&
+                (item->flags() & QGraphicsItem::ItemIsSelectable) &&
+                path.intersects(item->sceneBoundingRect())) {
+                item->setSelected(true);
+            }
+        }
+
+        m_rubberBand->hide();
+        m_rubberBandActive = false;
+    }
+
     if (m_currentTool) {
         m_currentTool->mouseReleaseEvent(event, scenePos);
     }
     else {
-        if (m_rubberBand && m_rubberBand->isVisible()) {
-            QRect rect = m_rubberBand->geometry();
-            QPolygonF selectionArea = mapToScene(rect);
-
-            if (!(event->modifiers() & Qt::ControlModifier)) {
-                m_scene->clearSelection();
-            }
-
-            QPainterPath path;
-            path.addPolygon(selectionArea);
-
-            QList<QGraphicsItem*> allItems = m_scene->items();
-            for (QGraphicsItem* item : allItems) {
-                if (item != m_backgroundRect &&
-                    (item->flags() & QGraphicsItem::ItemIsSelectable) &&
-                    path.intersects(item->sceneBoundingRect())) {
-                    item->setSelected(true);
-                }
-            }
-
-            m_rubberBand->hide();
-        }
         QGraphicsView::mouseReleaseEvent(event);
     }
 
@@ -897,7 +934,9 @@ void Canvas::drawGrid(QPainter* painter, const QRectF& rect)
 
 void Canvas::onSceneSelectionChanged()
 {
-    emit selectionChanged();
+    if (!m_destroying) {
+        emit selectionChanged();
+    }
 }
 
 void Canvas::zoomIn()
@@ -905,7 +944,9 @@ void Canvas::zoomIn()
     double scaleFactor = 1.25;
     scale(scaleFactor, scaleFactor);
     m_zoomFactor *= scaleFactor;
-    emit zoomChanged(m_zoomFactor);
+    if (!m_destroying) {
+        emit zoomChanged(m_zoomFactor);
+    }
 }
 
 void Canvas::zoomOut()
@@ -913,7 +954,9 @@ void Canvas::zoomOut()
     double scaleFactor = 1.0 / 1.25;
     scale(scaleFactor, scaleFactor);
     m_zoomFactor *= scaleFactor;
-    emit zoomChanged(m_zoomFactor);
+    if (!m_destroying) {
+        emit zoomChanged(m_zoomFactor);
+    }
 }
 
 void Canvas::zoomToFit()
@@ -921,7 +964,9 @@ void Canvas::zoomToFit()
     if (!m_scene) return;
     fitInView(m_canvasRect, Qt::KeepAspectRatio);
     m_zoomFactor = transform().m11();
-    emit zoomChanged(m_zoomFactor);
+    if (!m_destroying) {
+        emit zoomChanged(m_zoomFactor);
+    }
 }
 
 void Canvas::setZoomFactor(double factor)
@@ -929,7 +974,9 @@ void Canvas::setZoomFactor(double factor)
     resetTransform();
     scale(factor, factor);
     m_zoomFactor = factor;
-    emit zoomChanged(m_zoomFactor);
+    if (!m_destroying) {
+        emit zoomChanged(m_zoomFactor);
+    }
 }
 
 double Canvas::getZoomFactor() const { return m_zoomFactor; }
@@ -971,7 +1018,9 @@ void Canvas::wheelEvent(QWheelEvent* event)
             scale(1.0 / scaleFactor, 1.0 / scaleFactor);
             m_zoomFactor /= scaleFactor;
         }
-        emit zoomChanged(m_zoomFactor);
+        if (!m_destroying) {
+            emit zoomChanged(m_zoomFactor);
+        }
     }
     else {
         bool wasInteractive = isInteractive();
@@ -1022,7 +1071,9 @@ void Canvas::groupSelectedItems()
         group->setFlag(QGraphicsItem::ItemIsSelectable, true);
         group->setFlag(QGraphicsItem::ItemIsMovable, true);
         addItemToCurrentLayer(group);
-        emit selectionChanged();
+        if (!m_destroying) {
+            emit selectionChanged();
+        }
     }
 }
 
@@ -1036,7 +1087,9 @@ void Canvas::ungroupSelectedItems()
             m_scene->destroyItemGroup(group);
         }
     }
-    emit selectionChanged();
+    if (!m_destroying) {
+        emit selectionChanged();
+    }
 }
 
 void Canvas::alignSelectedItems(int alignment)

@@ -73,6 +73,7 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget* parent = nullptr);
     ~MainWindow();
+    bool hasClipboardItems() const { return !m_clipboardItems.isEmpty(); }
 
     enum ToolType {
         SelectTool,
@@ -105,6 +106,9 @@ public slots:
     void bringForward();
     void sendBackward();
     void sendToBack();
+    void cut();
+    void copy();
+    void paste();
 
 protected:
     void closeEvent(QCloseEvent* event) override;
@@ -128,9 +132,6 @@ private slots:
     // Edit menu actions
     void undo();
     void redo();
-    void cut();
-    void copy();
-    void paste();
     void selectAll();
     void group();
     void ungroup();
@@ -306,6 +307,8 @@ private:
     int m_frameRate;
     bool m_isPlaying;
     QTimer* m_playbackTimer;
+    QList<QGraphicsItem*> m_clipboardItems;
+    QPointF m_clipboardOffset;
 
     // Animation and layers
     std::vector<std::unique_ptr<AnimationLayer>> m_layers;

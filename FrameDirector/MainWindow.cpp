@@ -830,7 +830,7 @@ void MainWindow::createMenus()
     m_helpMenu->addAction("&About", this, [this]() {
         QMessageBox::about(this, "About FrameDirector",
             "FrameDirector v1.0\n\n"
-            "A professional vector animation tool\n"
+            "Vector animation tool\n"
             "Built with Qt and C++");
         });
 }
@@ -1484,18 +1484,158 @@ void MainWindow::redo()
 
 void MainWindow::cut()
 {
-    copy();
-    // Delete selected items
+    if (m_canvas && m_canvas->hasSelection()) {
+        copy();
+        m_canvas->deleteSelected();
+        m_statusLabel->setText("Items cut to clipboard");
+    }
 }
 
 void MainWindow::copy()
 {
-    // Implementation for copying selected items
+    if (!m_canvas || !m_canvas->scene()) return;
+
+    QList<QGraphicsItem*> selectedItems = m_canvas->scene()->selectedItems();
+    if (selectedItems.isEmpty()) return;
+
+    // Clear previous clipboard
+    m_clipboardItems.clear();
+
+    // Find the center point of selected items for offset calculation
+    QRectF boundingRect;
+    for (QGraphicsItem* item : selectedItems) {
+        boundingRect = boundingRect.united(item->sceneBoundingRect());
+    }
+    m_clipboardOffset = boundingRect.center();
+
+    // Create copies of selected items
+    for (QGraphicsItem* item : selectedItems) {
+        QGraphicsItem* copy = nullptr;
+
+        // Create copies based on item type
+        if (auto rectItem = qgraphicsitem_cast<QGraphicsRectItem*>(item)) {
+            auto newRect = new QGraphicsRectItem(rectItem->rect());
+            newRect->setPen(rectItem->pen());
+            newRect->setBrush(rectItem->brush());
+            newRect->setTransform(rectItem->transform());
+            newRect->setPos(rectItem->pos());
+            copy = newRect;
+        }
+        else if (auto ellipseItem = qgraphicsitem_cast<QGraphicsEllipseItem*>(item)) {
+            auto newEllipse = new QGraphicsEllipseItem(ellipseItem->rect());
+            newEllipse->setPen(ellipseItem->pen());
+            newEllipse->setBrush(ellipseItem->brush());
+            newEllipse->setTransform(ellipseItem->transform());
+            newEllipse->setPos(ellipseItem->pos());
+            copy = newEllipse;
+        }
+        else if (auto lineItem = qgraphicsitem_cast<QGraphicsLineItem*>(item)) {
+            auto newLine = new QGraphicsLineItem(lineItem->line());
+            newLine->setPen(lineItem->pen());
+            newLine->setTransform(lineItem->transform());
+            newLine->setPos(lineItem->pos());
+            copy = newLine;
+        }
+        else if (auto pathItem = qgraphicsitem_cast<QGraphicsPathItem*>(item)) {
+            auto newPath = new QGraphicsPathItem(pathItem->path());
+            newPath->setPen(pathItem->pen());
+            newPath->setBrush(pathItem->brush());
+            newPath->setTransform(pathItem->transform());
+            newPath->setPos(pathItem->pos());
+            copy = newPath;
+        }
+        else if (auto textItem = qgraphicsitem_cast<QGraphicsTextItem*>(item)) {
+            auto newText = new QGraphicsTextItem(textItem->toPlainText());
+            newText->setFont(textItem->font());
+            newText->setDefaultTextColor(textItem->defaultTextColor());
+            newText->setTransform(textItem->transform());
+            newText->setPos(textItem->pos());
+            copy = newText;
+        }
+
+        if (copy) {
+            copy->setFlags(item->flags());
+            copy->setZValue(item->zValue());
+            m_clipboardItems.append(copy);
+        }
+    }
+
+    m_pasteAction->setEnabled(!m_clipboardItems.isEmpty());
+    m_statusLabel->setText(QString("Copied %1 items to clipboard").arg(m_clipboardItems.size()));
 }
 
 void MainWindow::paste()
 {
-    // Implementation for pasting items
+    if (m_clipboardItems.isEmpty() || !m_canvas) return;
+
+    QList<QGraphicsItem*> pastedItems;
+
+    // Calculate paste offset (slightly offset from original position)
+    QPointF pasteOffset(20, 20);
+
+    m_undoStack->beginMacro("Paste Items");
+
+    for (QGraphicsItem* clipboardItem : m_clipboardItems) {
+        QGraphicsItem* pastedItem = nullptr;
+
+        // Create new copies of clipboard items
+        if (auto rectItem = qgraphicsitem_cast<QGraphicsRectItem*>(clipboardItem)) {
+            auto newRect = new QGraphicsRectItem(rectItem->rect());
+            newRect->setPen(rectItem->pen());
+            newRect->setBrush(rectItem->brush());
+            newRect->setTransform(rectItem->transform());
+            pastedItem = newRect;
+        }
+        else if (auto ellipseItem = qgraphicsitem_cast<QGraphicsEllipseItem*>(clipboardItem)) {
+            auto newEllipse = new QGraphicsEllipseItem(ellipseItem->rect());
+            newEllipse->setPen(ellipseItem->pen());
+            newEllipse->setBrush(ellipseItem->brush());
+            newEllipse->setTransform(ellipseItem->transform());
+            pastedItem = newEllipse;
+        }
+        else if (auto lineItem = qgraphicsitem_cast<QGraphicsLineItem*>(clipboardItem)) {
+            auto newLine = new QGraphicsLineItem(lineItem->line());
+            newLine->setPen(lineItem->pen());
+            newLine->setTransform(lineItem->transform());
+            pastedItem = newLine;
+        }
+        else if (auto pathItem = qgraphicsitem_cast<QGraphicsPathItem*>(clipboardItem)) {
+            auto newPath = new QGraphicsPathItem(pathItem->path());
+            newPath->setPen(pathItem->pen());
+            newPath->setBrush(pathItem->brush());
+            newPath->setTransform(pathItem->transform());
+            pastedItem = newPath;
+        }
+        else if (auto textItem = qgraphicsitem_cast<QGraphicsTextItem*>(clipboardItem)) {
+            auto newText = new QGraphicsTextItem(textItem->toPlainText());
+            newText->setFont(textItem->font());
+            newText->setDefaultTextColor(textItem->defaultTextColor());
+            newText->setTransform(textItem->transform());
+            pastedItem = newText;
+        }
+
+        if (pastedItem) {
+            pastedItem->setPos(clipboardItem->pos() + pasteOffset);
+            pastedItem->setFlags(clipboardItem->flags());
+            pastedItem->setZValue(clipboardItem->zValue());
+
+            AddItemCommand* addCommand = new AddItemCommand(m_canvas, pastedItem);
+            m_undoStack->push(addCommand);
+
+            pastedItems.append(pastedItem);
+        }
+    }
+
+    m_undoStack->endMacro();
+
+    // Select the pasted items
+    m_canvas->scene()->clearSelection();
+    for (QGraphicsItem* item : pastedItems) {
+        item->setSelected(true);
+    }
+
+    m_statusLabel->setText(QString("Pasted %1 items").arg(pastedItems.size()));
+    m_isModified = true;
 }
 
 void MainWindow::selectAll()

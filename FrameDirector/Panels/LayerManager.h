@@ -79,6 +79,7 @@ private slots:
     void onVisibilityToggled(bool visible);
     void onLockToggled(bool locked);
     void onOpacityChanged(int opacity);
+    void onLayersMoved(const QModelIndex& parent, int start, int end, const QModelIndex& destination, int row);
 
 private:
     // FIXED: Structure to preserve layer state
