@@ -97,6 +97,16 @@ public:
         DistributeVertically
     };
 
+    void play();
+    void stop();
+    void nextFrame();
+    void previousFrame();
+    void nextKeyframe();
+    void previousKeyframe();
+    void firstFrame();
+    void lastFrame();
+    void addKeyframe();
+    void removeKeyframe();
     // Public member access for undo commands
     QUndoStack* m_undoStack;
 
@@ -109,6 +119,9 @@ public slots:
     void cut();
     void copy();
     void paste();
+
+signals:
+    void playbackStateChanged(bool isPlaying);
 
 protected:
     void closeEvent(QCloseEvent* event) override;
@@ -146,16 +159,6 @@ private slots:
     void togglePanel(const QString& panelName);
 
     // Animation actions
-    void play();
-    void stop();
-    void nextFrame();
-    void previousFrame();
-    void nextKeyframe();
-    void previousKeyframe();
-    void firstFrame();
-    void lastFrame();
-    void addKeyframe();
-    void removeKeyframe();
     void setFrameRate(int fps);
     void copyCurrentFrame();
     void createBlankKeyframe();

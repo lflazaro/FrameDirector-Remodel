@@ -164,6 +164,7 @@ Timeline::Timeline(MainWindow* parent)
         connect(canvas, &Canvas::keyframeCreated, this, &Timeline::onKeyframeCreated);
         connect(canvas, &Canvas::frameChanged, this, &Timeline::setCurrentFrame);
         connect(this, &Timeline::frameChanged, canvas, &Canvas::setCurrentFrame);
+        connect(m_mainWindow, &MainWindow::playbackStateChanged, this, &Timeline::setPlaying);
     }
 }
 
@@ -428,6 +429,7 @@ void Timeline::setupControls()
     m_prevFrameButton->setIcon(QIcon(leftArrow.transformed(transform)));
     m_prevFrameButton->setToolTip("Previous Frame");
 
+    // FIX: Use proper icons for play/pause
     m_playButton = new QPushButton();
     m_playButton->setIcon(QIcon(":/icons/Play.png"));
     m_playButton->setToolTip("Play/Pause");
@@ -441,7 +443,7 @@ void Timeline::setupControls()
     m_nextFrameButton->setToolTip("Next Frame");
 
     m_lastFrameButton = new QPushButton();
-    m_lastFrameButton->setIcon(QIcon(":/icons/arrow-right.png")); // Will show as double-right conceptually
+    m_lastFrameButton->setIcon(QIcon(":/icons/arrow-right.png"));
     m_lastFrameButton->setToolTip("Last Frame");
 
     // Style buttons with Flash-like appearance
@@ -601,34 +603,43 @@ void Timeline::setupControls()
 
     m_mainLayout->addWidget(controlsWidget);
 
-    // Connect playback buttons
+    // FIX: Connect playback buttons to MainWindow methods
     connect(m_firstFrameButton, &QPushButton::clicked, [this]() {
-        setCurrentFrame(1);
+        if (m_mainWindow) {
+            m_mainWindow->firstFrame();
+        }
         });
 
     connect(m_prevFrameButton, &QPushButton::clicked, [this]() {
-        if (m_currentFrame > 1) {
-            setCurrentFrame(m_currentFrame - 1);
+        if (m_mainWindow) {
+            m_mainWindow->previousFrame();
+        }
+        });
+
+    // FIX: Connect to MainWindow's play method instead of local setPlaying
+    connect(m_playButton, &QPushButton::clicked, [this]() {
+        if (m_mainWindow) {
+            m_mainWindow->play();
+        }
+        });
+
+    // FIX: Connect to MainWindow's stop method
+    connect(m_stopButton, &QPushButton::clicked, [this]() {
+        if (m_mainWindow) {
+            m_mainWindow->stop();
         }
         });
 
     connect(m_nextFrameButton, &QPushButton::clicked, [this]() {
-        if (m_currentFrame < m_totalFrames) {
-            setCurrentFrame(m_currentFrame + 1);
+        if (m_mainWindow) {
+            m_mainWindow->nextFrame();
         }
         });
 
     connect(m_lastFrameButton, &QPushButton::clicked, [this]() {
-        setCurrentFrame(m_totalFrames);
-        });
-
-    connect(m_playButton, &QPushButton::clicked, [this]() {
-        setPlaying(!m_isPlaying);
-        });
-
-    connect(m_stopButton, &QPushButton::clicked, [this]() {
-        setPlaying(false);
-        setCurrentFrame(1);
+        if (m_mainWindow) {
+            m_mainWindow->lastFrame();
+        }
         });
 }
 
@@ -856,7 +867,16 @@ void Timeline::setPlaying(bool playing)
 {
     if (playing != m_isPlaying) {
         m_isPlaying = playing;
-        m_playButton->setText(playing ? "⏸" : "▶");
+
+        // FIX: Use proper icons instead of emoji text
+        if (playing) {
+            m_playButton->setIcon(QIcon(":/icons/pause.png"));
+            m_playButton->setToolTip("Pause");
+        }
+        else {
+            m_playButton->setIcon(QIcon(":/icons/Play.png"));
+            m_playButton->setToolTip("Play");
+        }
     }
 }
 

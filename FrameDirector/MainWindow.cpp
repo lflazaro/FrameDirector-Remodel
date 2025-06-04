@@ -1490,7 +1490,6 @@ void MainWindow::cut()
         m_statusLabel->setText("Items cut to clipboard");
     }
 }
-
 void MainWindow::copy()
 {
     if (!m_canvas || !m_canvas->scene()) return;
@@ -1512,10 +1511,10 @@ void MainWindow::copy()
     for (QGraphicsItem* item : selectedItems) {
         QGraphicsItem* copy = nullptr;
 
-        // Create copies based on item type
+        // Create copies based on item type with FULL property preservation
         if (auto rectItem = qgraphicsitem_cast<QGraphicsRectItem*>(item)) {
             auto newRect = new QGraphicsRectItem(rectItem->rect());
-            newRect->setPen(rectItem->pen());
+            newRect->setPen(rectItem->pen()); // This preserves stroke width
             newRect->setBrush(rectItem->brush());
             newRect->setTransform(rectItem->transform());
             newRect->setPos(rectItem->pos());
@@ -1523,7 +1522,7 @@ void MainWindow::copy()
         }
         else if (auto ellipseItem = qgraphicsitem_cast<QGraphicsEllipseItem*>(item)) {
             auto newEllipse = new QGraphicsEllipseItem(ellipseItem->rect());
-            newEllipse->setPen(ellipseItem->pen());
+            newEllipse->setPen(ellipseItem->pen()); // This preserves stroke width
             newEllipse->setBrush(ellipseItem->brush());
             newEllipse->setTransform(ellipseItem->transform());
             newEllipse->setPos(ellipseItem->pos());
@@ -1531,14 +1530,16 @@ void MainWindow::copy()
         }
         else if (auto lineItem = qgraphicsitem_cast<QGraphicsLineItem*>(item)) {
             auto newLine = new QGraphicsLineItem(lineItem->line());
-            newLine->setPen(lineItem->pen());
+            newLine->setPen(lineItem->pen()); // This preserves stroke width
             newLine->setTransform(lineItem->transform());
             newLine->setPos(lineItem->pos());
             copy = newLine;
         }
         else if (auto pathItem = qgraphicsitem_cast<QGraphicsPathItem*>(item)) {
             auto newPath = new QGraphicsPathItem(pathItem->path());
-            newPath->setPen(pathItem->pen());
+            // FIX: Explicitly preserve pen properties for path items (drawing tool output)
+            QPen originalPen = pathItem->pen();
+            newPath->setPen(originalPen); // This should preserve stroke width
             newPath->setBrush(pathItem->brush());
             newPath->setTransform(pathItem->transform());
             newPath->setPos(pathItem->pos());
@@ -1556,6 +1557,9 @@ void MainWindow::copy()
         if (copy) {
             copy->setFlags(item->flags());
             copy->setZValue(item->zValue());
+            // FIX: Preserve opacity and other properties
+            copy->setOpacity(item->opacity());
+            copy->setVisible(item->isVisible());
             m_clipboardItems.append(copy);
         }
     }
@@ -1578,30 +1582,32 @@ void MainWindow::paste()
     for (QGraphicsItem* clipboardItem : m_clipboardItems) {
         QGraphicsItem* pastedItem = nullptr;
 
-        // Create new copies of clipboard items
+        // Create new copies of clipboard items with FULL property preservation
         if (auto rectItem = qgraphicsitem_cast<QGraphicsRectItem*>(clipboardItem)) {
             auto newRect = new QGraphicsRectItem(rectItem->rect());
-            newRect->setPen(rectItem->pen());
+            newRect->setPen(rectItem->pen()); // Preserves stroke width
             newRect->setBrush(rectItem->brush());
             newRect->setTransform(rectItem->transform());
             pastedItem = newRect;
         }
         else if (auto ellipseItem = qgraphicsitem_cast<QGraphicsEllipseItem*>(clipboardItem)) {
             auto newEllipse = new QGraphicsEllipseItem(ellipseItem->rect());
-            newEllipse->setPen(ellipseItem->pen());
+            newEllipse->setPen(ellipseItem->pen()); // Preserves stroke width
             newEllipse->setBrush(ellipseItem->brush());
             newEllipse->setTransform(ellipseItem->transform());
             pastedItem = newEllipse;
         }
         else if (auto lineItem = qgraphicsitem_cast<QGraphicsLineItem*>(clipboardItem)) {
             auto newLine = new QGraphicsLineItem(lineItem->line());
-            newLine->setPen(lineItem->pen());
+            newLine->setPen(lineItem->pen()); // Preserves stroke width
             newLine->setTransform(lineItem->transform());
             pastedItem = newLine;
         }
         else if (auto pathItem = qgraphicsitem_cast<QGraphicsPathItem*>(clipboardItem)) {
             auto newPath = new QGraphicsPathItem(pathItem->path());
-            newPath->setPen(pathItem->pen());
+            // FIX: Explicitly copy pen to preserve stroke width for drawing tool items
+            QPen originalPen = pathItem->pen();
+            newPath->setPen(originalPen); // This preserves stroke width
             newPath->setBrush(pathItem->brush());
             newPath->setTransform(pathItem->transform());
             pastedItem = newPath;
@@ -1618,6 +1624,9 @@ void MainWindow::paste()
             pastedItem->setPos(clipboardItem->pos() + pasteOffset);
             pastedItem->setFlags(clipboardItem->flags());
             pastedItem->setZValue(clipboardItem->zValue());
+            // FIX: Preserve opacity and visibility
+            pastedItem->setOpacity(clipboardItem->opacity());
+            pastedItem->setVisible(clipboardItem->isVisible());
 
             AddItemCommand* addCommand = new AddItemCommand(m_canvas, pastedItem);
             m_undoStack->push(addCommand);
@@ -1710,11 +1719,13 @@ void MainWindow::play()
         m_playbackTimer->start();
         m_playAction->setText("Pause");
         m_statusLabel->setText("Playing");
+        emit playbackStateChanged(true); // Add this line
     }
     else {
         stop();
     }
 }
+
 
 void MainWindow::stop()
 {
@@ -1723,6 +1734,7 @@ void MainWindow::stop()
         m_playbackTimer->stop();
         m_playAction->setText("Play");
         m_statusLabel->setText("Stopped");
+        emit playbackStateChanged(false); // Add this line
     }
 }
 
