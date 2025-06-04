@@ -822,8 +822,8 @@ void MainWindow::createMenus()
     m_animationMenu->addAction(m_lastFrameAction);
     m_animationMenu->addSeparator();
     m_animationMenu->addAction(m_addKeyframeAction);
-    m_animationMenu->addAction(m_copyFrameAction);      // ADD THIS
-    m_animationMenu->addAction(m_blankKeyframeAction);  // ADD THIS
+    m_animationMenu->addAction(m_copyFrameAction); 
+    m_animationMenu->addAction(m_blankKeyframeAction);
 
     // Help Menu
     m_helpMenu = menuBar()->addMenu("&Help");
