@@ -179,27 +179,24 @@ void Timeline::updateContextMenuActions()
     qDebug() << "Context menu for frame" << m_contextMenuFrame << "layer" << m_contextMenuLayer
         << "- Extended:" << isExtendedFrame << "Tweened:" << hasTweening << "Keyframe:" << isKeyframe;
 
+    disconnect(m_contextMenu, nullptr, this, nullptr);
+
     if (isExtendedFrame && !hasTweening) {
-        // Extended frame without tweening: offer tweening options
         QList<int> span = findTweenableSpan(m_contextMenuLayer, m_contextMenuFrame);
         if (span.size() >= 2) {
-            m_contextMenu->addAction("Create Motion Tween");
-            m_contextMenu->addAction("Create Classic Tween");
+            QAction* motionTweenAction = m_contextMenu->addAction("Create Motion Tween");
+            QAction* classicTweenAction = m_contextMenu->addAction("Create Classic Tween");
             m_contextMenu->addSeparator();
 
-            // Connect actions properly
-            connect(m_contextMenu->actions().last(), &QAction::triggered,
-                this, &Timeline::onCreateMotionTween, Qt::UniqueConnection);
-            connect(m_contextMenu->actions()[m_contextMenu->actions().size() - 2], &QAction::triggered,
-                this, &Timeline::onCreateClassicTween, Qt::UniqueConnection);
+            // Use direct connections instead of Qt::UniqueConnection with actions().last()
+            connect(motionTweenAction, &QAction::triggered, this, &Timeline::onCreateMotionTween);
+            connect(classicTweenAction, &QAction::triggered, this, &Timeline::onCreateClassicTween);
         }
     }
 
     if (hasTweening) {
-        // Frame with tweening: offer removal
-        m_contextMenu->addAction("Remove Tween");
-        connect(m_contextMenu->actions().last(), &QAction::triggered,
-            this, &Timeline::onRemoveTween, Qt::UniqueConnection);
+        QAction* removeTweenAction = m_contextMenu->addAction("Remove Tween");
+        connect(removeTweenAction, &QAction::triggered, this, &Timeline::onRemoveTween);
         m_contextMenu->addSeparator();
     }
 
@@ -335,11 +332,11 @@ Timeline::Timeline(MainWindow* parent)
     setMinimumHeight(200);
     setMaximumHeight(400);
     // Connect signals
-    connect(m_frameSlider, QOverload<int>::of(&QSlider::valueChanged),
+    connect(m_frameSlider, QOverload<int>::of(&QSlider::valueChanged),  // Keep QOverload here - QSlider::valueChanged IS overloaded
         this, &Timeline::onFrameSliderChanged);
-    connect(m_frameSpinBox, QOverload<int>::of(&QSpinBox::valueChanged),
+    connect(m_frameSpinBox, QOverload<int>::of(&QSpinBox::valueChanged),  // Keep QOverload here - QSpinBox::valueChanged IS overloaded
         this, &Timeline::onFrameSpinBoxChanged);
-    connect(m_frameRateCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+    connect(m_frameRateCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),  // Keep QOverload here - currentIndexChanged IS overloaded
         this, &Timeline::onFrameRateChanged);
     connect(m_layerList, &QListWidget::currentRowChanged,
         this, &Timeline::onLayerSelectionChanged);
@@ -575,9 +572,16 @@ void Timeline::setupUI()
     // Connect to canvas tweening signals
     Canvas* canvas = m_mainWindow->findChild<Canvas*>();
     if (canvas) {
-        connect(this, &Timeline::tweeningRequested, canvas, &Canvas::applyTweening);
+        // FIX: These should be direct connections, not using QOverload
+        connect(this, &Timeline::tweeningRequested, canvas,
+            [canvas](int layer, int startFrame, int endFrame, int typeInt) {
+                TweenType type = static_cast<TweenType>(typeInt);
+                canvas->applyTweening(layer, startFrame, endFrame, type);
+            });
+
         connect(this, &Timeline::tweeningRemovalRequested, canvas, &Canvas::removeTweening);
         connect(canvas, &Canvas::tweeningApplied, this, &Timeline::onTweeningApplied);
+
         connect(canvas, &Canvas::frameAutoConverted, [this](int frame, int layer) {
             if (m_drawingArea) {
                 m_drawingArea->update();

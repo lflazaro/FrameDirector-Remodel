@@ -273,8 +273,8 @@ MainWindow::MainWindow(QWidget* parent)
 
         // FIXED: Enhanced timeline connections
         if (m_timeline && m_canvas) {
-            // Connect tweening signals between Timeline and Canvas
-            connect(m_timeline, QOverload<int, int, int, int>::of(&Timeline::tweeningRequested),
+            // FIX: Remove QOverload from non-overloaded signals
+            connect(m_timeline, &Timeline::tweeningRequested,  // REMOVED QOverload
                 [this](int layer, int startFrame, int endFrame, int typeInt) {
                     TweenType type = static_cast<TweenType>(typeInt);
                     if (m_canvas) {
@@ -297,7 +297,7 @@ MainWindow::MainWindow(QWidget* parent)
                     }
                 });
 
-            // Original timeline connections
+            // FIX: Connect to correct objects
             connect(m_timeline, &Timeline::frameChanged, this, &MainWindow::onFrameChangedWithLayer);
             connect(m_timeline, &Timeline::layerSelected, this, &MainWindow::onCurrentLayerChanged);
 
