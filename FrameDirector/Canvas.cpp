@@ -1205,3 +1205,112 @@ void Canvas::rotateSelected(double angle)
     }
     storeCurrentFrameState();
 }
+
+void Canvas::createExtendedFrame(int frame)
+{
+    if (frame < 1) return;
+
+    qDebug() << "Creating extended frame at frame" << frame;
+
+    // Find the last keyframe before this frame
+    int sourceKeyframe = getLastKeyframeBefore(frame);
+    if (sourceKeyframe == -1) {
+        // No previous keyframe, create as blank keyframe instead
+        qDebug() << "No previous keyframe found, creating blank keyframe";
+        createBlankKeyframe(frame);
+        return;
+    }
+
+    qDebug() << "Source keyframe found at frame" << sourceKeyframe;
+
+    // AUTOMATIC SPAN CALCULATION: Fill the gap between source keyframe and target frame
+    for (int f = sourceKeyframe + 1; f <= frame; f++) {
+        // Skip if frame already has content
+        if (hasContent(f)) {
+            qDebug() << "Frame" << f << "already has content, skipping";
+            continue;
+        }
+
+        qDebug() << "Creating extended frame data for frame" << f;
+
+        // Create extended frame data
+        m_frameData[f].type = FrameType::ExtendedFrame;
+        m_frameData[f].sourceKeyframe = sourceKeyframe;
+
+        // PERFORMANCE FIX: Reference the source frame items for both data structures
+        // This ensures compatibility with loadFrameState()
+        if (m_frameItems.find(sourceKeyframe) != m_frameItems.end()) {
+            // Reference the same item list (no duplication)
+            m_frameData[f].items = m_frameItems[sourceKeyframe];
+            m_frameItems[f] = m_frameItems[sourceKeyframe];  // CRITICAL: Update compatibility layer
+        }
+
+        // Copy item states for potential tweening
+        if (m_frameData.find(sourceKeyframe) != m_frameData.end()) {
+            m_frameData[f].itemStates = m_frameData[sourceKeyframe].itemStates;
+        }
+    }
+
+    // Load the target frame to display the content
+    setCurrentFrame(frame);
+
+    qDebug() << "Extended frames created from" << sourceKeyframe + 1 << "to" << frame;
+
+    // Single emit for the entire span
+    emit frameExtended(sourceKeyframe, frame);
+}
+
+// ENHANCED: Also update copyItemsToFrame for better performance
+void Canvas::copyItemsToFrame(int fromFrame, int toFrame)
+{
+    if (m_frameData.find(fromFrame) == m_frameData.end()) {
+        qDebug() << "Source frame" << fromFrame << "has no data";
+        return;
+    }
+
+    qDebug() << "Copying items from frame" << fromFrame << "to frame" << toFrame;
+
+    // PERFORMANCE OPTIMIZATION: For extended frames, just reference the items
+    // instead of duplicating them in memory
+    if (m_frameItems.find(fromFrame) != m_frameItems.end()) {
+        // Reference the same items (no scene manipulation needed)
+        m_frameData[toFrame].items = m_frameItems[fromFrame];
+        m_frameItems[toFrame] = m_frameItems[fromFrame];  // Update compatibility layer
+
+        // Copy item states
+        if (m_frameData.find(fromFrame) != m_frameData.end()) {
+            m_frameData[toFrame].itemStates = m_frameData[fromFrame].itemStates;
+        }
+
+        qDebug() << "Referenced" << m_frameItems[fromFrame].size() << "items from frame" << fromFrame;
+        return;
+    }
+
+    // FALLBACK: Original method for cases where we need actual duplication
+    // Clear current scene
+    QList<QGraphicsItem*> currentItems;
+    for (QGraphicsItem* item : m_scene->items()) {
+        if (item != m_backgroundRect && item->zValue() > -999) {
+            currentItems.append(item);
+        }
+    }
+
+    for (QGraphicsItem* item : currentItems) {
+        m_scene->removeItem(item);
+        delete item;
+    }
+
+    // Load and duplicate items from source frame
+    loadFrameState(fromFrame);
+
+    QList<QGraphicsItem*> sourceItems;
+    for (QGraphicsItem* item : m_scene->items()) {
+        if (item != m_backgroundRect && item->zValue() > -999) {
+            sourceItems.append(item);
+        }
+    }
+
+    // Store for the target frame
+    m_frameData[toFrame].items = sourceItems;
+    m_frameItems[toFrame] = sourceItems;  // Update compatibility layer
+}
