@@ -325,7 +325,7 @@ private:
 
     // Animation and layers
     std::vector<std::unique_ptr<AnimationLayer>> m_layers;
-    int m_currentLayerIndex;
+    int m_currentLayerIndex;  // FIXED: Keep only one declaration
     std::map<int, std::vector<std::unique_ptr<AnimationKeyframe>>> m_keyframes;
     QAction* m_copyFrameAction;
     QAction* m_blankKeyframeAction;
@@ -336,9 +336,7 @@ private:
     double m_currentStrokeWidth;
     double m_currentOpacity;
 
-
     bool m_drawingToolsEnabled;
-    int m_currentLayerIndex;
     void disableDrawingTools();
     void enableDrawingTools();
     void showTweeningWarning();

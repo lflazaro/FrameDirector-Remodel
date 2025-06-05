@@ -10,9 +10,11 @@
 #include <QGraphicsItem>
 #include <QPen>
 #include <QBrush>
+#include <QMessageBox>  // FIXED: Add missing include
+#include <QDebug>       // FIXED: Add for debug output
 
 class MainWindow;
-class Canvas;
+class Canvas;  // Forward declaration
 
 class Tool : public QObject
 {
@@ -36,28 +38,11 @@ protected:
     // Helper method for tools to add items to the current layer
     void addItemToCanvas(QGraphicsItem* item);
 
-    void checkAutoConversion(Canvas* canvas, int layer, int frame)
-    {
-        if (canvas && canvas->isExtendedFrame(frame, layer)) {
-            qDebug() << "Auto-converting extended frame before drawing";
-            canvas->convertExtendedFrameToKeyframe(frame, layer);
-        }
-    }
+    void checkAutoConversion(Canvas* canvas, int layer, int frame);  // FIXED: Forward declaration
 
     // NEW: Check if drawing is allowed
-    bool canDrawOnCurrentFrame(Canvas* canvas, int layer, int frame)
-    {
-        if (!canvas) return false;
+    bool canDrawOnCurrentFrame(Canvas* canvas, int layer, int frame);  // FIXED: Forward declaration
 
-        if (!canvas->canDrawOnFrame(frame, layer)) {
-            // Show warning about tweening
-            QMessageBox::information(nullptr, "Drawing Disabled",
-                "Cannot draw on tweened frames. Remove tweening first or create a new keyframe.");
-            return false;
-        }
-
-        return true;
-    }
     MainWindow* m_mainWindow;
     Canvas* m_canvas;
 };

@@ -20,6 +20,8 @@
 #include <QBrush>
 #include <QPen>
 #include <QFont>
+#include <QMenu>
+#include <QAction>
 #include <vector>
 #include <map>
 
@@ -29,6 +31,10 @@ class TimelineTrack;
 class TimelineRuler;
 class AnimationKeyframe;
 class LayerGraphicsGroup;
+
+// Forward declare the enums from Canvas.h - FIXED: Include them properly
+enum class FrameType;
+enum class TweenType;
 
 // Frame visualization types
 enum class FrameVisualType {
@@ -114,6 +120,10 @@ public:
     void drawPlayhead(QPainter* painter, const QRect& rect);
     void drawSelection(QPainter* painter, const QRect& rect);
 
+    // FIXED: Method declarations with proper TweenType forward declaration
+    void drawTweening(QPainter* painter, const QRect& rect);
+    void drawTweenArrow(QPainter* painter, int x, int y, const QColor& color);
+
     // Helper methods for drawing area
     QRect getFrameRect(int frame) const;
     QRect getLayerRect(int layer) const;
@@ -125,13 +135,6 @@ public:
     bool hasTweening(int layer, int frame) const;
     MainWindow* m_mainWindow;
 
-    void drawKeyframes(QPainter* painter, const QRect& rect);
-    void drawTweenSpan(QPainter* painter, int layer, int startFrame, int endFrame, TweenType type);
-    void drawTweening(QPainter* painter, const QRect& rect);
-    void drawTweenArrow(QPainter* painter, int x, int y, const QColor& color);
-    void drawTweenTypeIndicator(QPainter* painter, int x, int y, TweenType type);
-
-
 signals:
     void frameChanged(int frame);
     void frameRateChanged(int fps);
@@ -140,9 +143,10 @@ signals:
     void frameExtended(int layer, int frame);  // NEW
     void keyframeSelected(int layer, int frame);
     void layerSelected(int layer);
-    void tweeningRequested(int layer, int startFrame, int endFrame, TweenType type);
-    void tweeningRemovalRequested(int layer, int startFrame, int endFrame);
 
+    // FIXED: Use int instead of TweenType in signal declaration for now
+    void tweeningRequested(int layer, int startFrame, int endFrame, int type);
+    void tweeningRemovalRequested(int layer, int startFrame, int endFrame);
 
 private slots:
     void onFrameSliderChanged(int value);
@@ -154,19 +158,22 @@ private slots:
     void onCreateMotionTween();
     void onCreateClassicTween();
     void onRemoveTween();
-    void onTweeningApplied(int layer, int startFrame, int endFrame, TweenType type);
+
+    // FIXED: Use int instead of TweenType in slot declaration for now
+    void onTweeningApplied(int layer, int startFrame, int endFrame, int type);
 
 private:
     void setupUI();
     void setupControls();
     void updateLayout();
-    void updateScrollbars();
+    void setupContextMenu();
+    void updateContextMenuActions();
+    QList<int> findTweenableSpan(int layer, int frame) const;
 
     // ENHANCED: Frame extension visualization helpers
     void drawFrameSpan(QPainter* painter, int layer, int startFrame, int endFrame);
     void drawKeyframeSymbol(QPainter* painter, int x, int y, FrameVisualType type, bool selected, bool hasTweening);
     QColor getFrameExtensionColor(int layer) const;
-
 
     // UI Components
     QVBoxLayout* m_mainLayout;
@@ -243,6 +250,7 @@ private:
     QPoint m_dragStart;
     int m_selectedLayer;
     std::vector<int> m_selectedKeyframes;
+
     // NEW: Context menu components
     QMenu* m_contextMenu;
     QAction* m_createMotionTweenAction;
@@ -255,10 +263,6 @@ private:
     // Context menu state
     int m_contextMenuLayer;
     int m_contextMenuFrame;
-
-    void setupContextMenu();
-    void updateContextMenuActions();
-    QList<int> findTweenableSpan(int layer, int frame) const;
 };
 
 #endif

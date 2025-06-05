@@ -21,6 +21,7 @@
 #include <QFont>
 #include <QRubberBand>
 #include <QTimer>
+#include <QEasingCurve>  // FIXED: Add missing include
 #include <memory>
 #include <vector>
 #include <map>
@@ -59,12 +60,12 @@ struct LayerFrameData {
     bool hasTweening;
     int tweenStartFrame;
     int tweenEndFrame;
-    QEasingCurve::Type easingType;
+    QEasingCurve::Type easingType;  // FIXED: Now QEasingCurve is properly included
 
     LayerFrameData() : type(FrameType::Empty), sourceKeyframe(-1),
         tweenType(TweenType::None), hasTweening(false),
         tweenStartFrame(-1), tweenEndFrame(-1),
-        easingType(QEasingCurve::Linear) {
+        easingType(QEasingCurve::Linear) {  // FIXED: Now QEasingCurve::Linear is accessible
     }
 };
 
@@ -130,7 +131,6 @@ public:
     bool hasTweening(int layer, int frame) const;
     TweenType getTweenType(int layer, int frame) const;
     QList<int> getTweeningFrames(int layer, int startFrame, int endFrame) const;
-
 
     void convertExtendedFrameToKeyframe(int frame, int layer);
     bool canDrawOnFrame(int frame, int layer) const;  // Check if drawing is allowed
