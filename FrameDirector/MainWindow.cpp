@@ -2824,3 +2824,61 @@ void MainWindow::keyPressEvent(QKeyEvent* event)
         QMainWindow::keyPressEvent(event);
     }
 }
+
+
+void MainWindow::createStatusBar()
+{
+    m_statusLabel = new QLabel("Ready");
+    m_positionLabel = new QLabel("X: 0  Y: 0");
+    m_zoomLabel = new QLabel("Zoom: 100%");
+    m_frameLabel = new QLabel("Frame: 1");
+    m_selectionLabel = new QLabel("No selection");
+    m_fpsLabel = new QLabel("FPS: 24");
+
+    statusBar()->addWidget(m_statusLabel);
+    statusBar()->addPermanentWidget(m_positionLabel);
+    statusBar()->addPermanentWidget(m_zoomLabel);
+    statusBar()->addPermanentWidget(m_frameLabel);
+    statusBar()->addPermanentWidget(m_selectionLabel);
+    statusBar()->addPermanentWidget(m_fpsLabel);
+}
+
+void MainWindow::createDockWindows()
+{
+    // Tools Panel
+    m_toolsDock = new QDockWidget("Tools", this);
+    m_toolsPanel = new ToolsPanel(this);
+    m_toolsDock->setWidget(m_toolsPanel);
+    m_toolsDock->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable);
+    addDockWidget(Qt::LeftDockWidgetArea, m_toolsDock);
+
+    // Right panel tabs
+    m_rightPanelTabs = new QTabWidget;
+
+    // Properties Panel
+    m_propertiesPanel = new PropertiesPanel(this);
+    m_rightPanelTabs->addTab(m_propertiesPanel, "Properties");
+
+    // Color Panel
+    m_colorPanel = new ColorPanel(this);
+    m_rightPanelTabs->addTab(m_colorPanel, "Colors");
+
+    // Layers Panel
+    m_layerManager = new LayerManager(this);
+    m_rightPanelTabs->addTab(m_layerManager, "Layers");
+
+    // Alignment Panel
+    m_alignmentPanel = new AlignmentPanel(this);
+    m_rightPanelTabs->addTab(m_alignmentPanel, "Align");
+
+    // Right dock for panels
+    m_propertiesDock = new QDockWidget("Properties", this);
+    m_propertiesDock->setWidget(m_rightPanelTabs);
+    m_propertiesDock->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable);
+    addDockWidget(Qt::RightDockWidgetArea, m_propertiesDock);
+
+    // Connect panels
+    connect(m_toolsPanel, &ToolsPanel::toolSelected, this, &MainWindow::setTool);
+    connect(m_layerManager, &LayerManager::layerAdded, this, &MainWindow::addLayer);
+    connect(m_layerManager, &LayerManager::layerRemoved, this, &MainWindow::removeLayer);
+}

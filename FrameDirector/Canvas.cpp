@@ -478,35 +478,40 @@ void Canvas::saveFrameState(int frame)
 
 void Canvas::loadFrameState(int frame)
 {
-    qDebug() << "Loading frame state for frame:" << frame;
-
-    // ROBUST: Hide ALL items first, then show only frame-specific items
-    clearFrameState();
-
-    // Load items per layer to maintain proper layer association
-    for (int layerIndex = 0; layerIndex < m_layers.size(); ++layerIndex) {
-        LayerData* layer = static_cast<LayerData*>(m_layers[layerIndex]);
-        QList<QGraphicsItem*> frameItems = layer->getFrameItems(frame);
-
-        for (QGraphicsItem* item : frameItems) {
-            if (item && m_scene->items().contains(item) && item != m_backgroundRect) {
-                item->setVisible(layer->visible);
-
-                // ROBUST: Restore proper opacity (individual × layer)
-                double individualOpacity = item->data(0).toDouble();
-                if (individualOpacity == 0.0) individualOpacity = 1.0;
-                item->setOpacity(individualOpacity * layer->opacity);
-
-                item->setFlag(QGraphicsItem::ItemIsSelectable, !layer->locked);
-                item->setFlag(QGraphicsItem::ItemIsMovable, !layer->locked);
-            }
+    // Clear current items first
+    for (QGraphicsItem* item : scene()->items()) {
+        if (item != m_backgroundRect && item->zValue() > -999) {
+            scene()->removeItem(item);
         }
-
-        qDebug() << "  Layer" << layerIndex << "UUID:" << layer->uuid
-            << "Loaded" << frameItems.size() << "items";
     }
 
-    viewport()->update();
+    // Check if this is an extended frame
+    auto frameDataIt = m_frameData.find(frame);
+    if (frameDataIt != m_frameData.end() && frameDataIt->second.type == FrameType::ExtendedFrame) {
+        // Load content from source keyframe
+        int sourceKeyframe = frameDataIt->second.sourceKeyframe;
+        auto sourceItemsIt = m_frameItems.find(sourceKeyframe);
+        if (sourceItemsIt != m_frameItems.end()) {
+            for (QGraphicsItem* item : sourceItemsIt->second) {
+                if (item && item != m_backgroundRect) {
+                    scene()->addItem(item);
+                    item->setVisible(true);
+                }
+            }
+        }
+    }
+    else {
+        // Regular keyframe or empty frame - load from m_frameItems
+        auto itemsIt = m_frameItems.find(frame);
+        if (itemsIt != m_frameItems.end()) {
+            for (QGraphicsItem* item : itemsIt->second) {
+                if (item && item != m_backgroundRect) {
+                    scene()->addItem(item);
+                    item->setVisible(true);
+                }
+            }
+        }
+    }
 }
 
 int Canvas::getItemLayerIndex(QGraphicsItem* item)
@@ -1313,4 +1318,132 @@ void Canvas::copyItemsToFrame(int fromFrame, int toFrame)
     // Store for the target frame
     m_frameData[toFrame].items = sourceItems;
     m_frameItems[toFrame] = sourceItems;  // Update compatibility layer
+}
+
+// Add these methods to Canvas.cpp
+
+bool Canvas::hasContent(int frame) const
+{
+    auto it = m_frameData.find(frame);
+    if (it != m_frameData.end()) {
+        return !it->second.items.isEmpty();
+    }
+
+    // Fallback: check compatibility frameItems map
+    auto itemsIt = m_frameItems.find(frame);
+    return itemsIt != m_frameItems.end() && !itemsIt->second.isEmpty();
+}
+
+FrameType Canvas::getFrameType(int frame) const
+{
+    auto it = m_frameData.find(frame);
+    if (it != m_frameData.end()) {
+        return it->second.type;
+    }
+
+    // Check if it's a keyframe
+    if (m_keyframes.find(frame) != m_keyframes.end()) {
+        return FrameType::Keyframe;
+    }
+
+    // Check if it has content (legacy compatibility)
+    if (hasContent(frame)) {
+        return FrameType::Keyframe; // Assume keyframe if has content but no frameData
+    }
+
+    return FrameType::Empty;
+}
+
+int Canvas::getSourceKeyframe(int frame) const
+{
+    auto it = m_frameData.find(frame);
+    if (it != m_frameData.end() && it->second.type == FrameType::ExtendedFrame) {
+        return it->second.sourceKeyframe;
+    }
+
+    // If this frame is a keyframe, it's its own source
+    if (hasKeyframe(frame)) {
+        return frame;
+    }
+
+    return -1;
+}
+
+int Canvas::getLastKeyframeBefore(int frame) const
+{
+    int lastKeyframe = -1;
+
+    // Search through keyframes set
+    for (int keyframe : m_keyframes) {
+        if (keyframe < frame && keyframe > lastKeyframe) {
+            lastKeyframe = keyframe;
+        }
+    }
+
+    // Also check frameData for keyframes
+    for (const auto& pair : m_frameData) {
+        if (pair.first < frame && pair.second.type == FrameType::Keyframe) {
+            if (pair.first > lastKeyframe) {
+                lastKeyframe = pair.first;
+            }
+        }
+    }
+
+    return lastKeyframe;
+}
+
+int Canvas::getNextKeyframeAfter(int frame) const
+{
+    int nextKeyframe = -1;
+
+    // Search through keyframes set
+    for (int keyframe : m_keyframes) {
+        if (keyframe > frame) {
+            if (nextKeyframe == -1 || keyframe < nextKeyframe) {
+                nextKeyframe = keyframe;
+            }
+        }
+    }
+
+    // Also check frameData for keyframes
+    for (const auto& pair : m_frameData) {
+        if (pair.first > frame && pair.second.type == FrameType::Keyframe) {
+            if (nextKeyframe == -1 || pair.first < nextKeyframe) {
+                nextKeyframe = pair.first;
+            }
+        }
+    }
+
+    return nextKeyframe;
+}
+
+void Canvas::clearCurrentFrameContent()
+{
+    // Clear all items from current frame
+    QList<QGraphicsItem*> frameItems = scene()->items();
+
+    // Remove items from current layer
+    for (QGraphicsItem* item : frameItems) {
+        if (getItemLayerIndex(item) == m_currentLayerIndex) {
+            scene()->removeItem(item);
+            delete item;
+        }
+    }
+
+    // Update frame data
+    auto it = m_frameData.find(m_currentFrame);
+    if (it != m_frameData.end()) {
+        it->second.items.clear();
+        it->second.itemStates.clear();
+        it->second.type = FrameType::Empty;
+        it->second.sourceKeyframe = -1;
+    }
+
+    // Clear from frameItems map
+    m_frameItems[m_currentFrame].clear();
+
+    // Remove from keyframes set if it was a keyframe
+    m_keyframes.erase(m_currentFrame);
+
+    emit frameChanged(m_currentFrame);
 }
