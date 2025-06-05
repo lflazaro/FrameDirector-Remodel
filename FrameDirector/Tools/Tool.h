@@ -36,6 +36,28 @@ protected:
     // Helper method for tools to add items to the current layer
     void addItemToCanvas(QGraphicsItem* item);
 
+    void checkAutoConversion(Canvas* canvas, int layer, int frame)
+    {
+        if (canvas && canvas->isExtendedFrame(frame, layer)) {
+            qDebug() << "Auto-converting extended frame before drawing";
+            canvas->convertExtendedFrameToKeyframe(frame, layer);
+        }
+    }
+
+    // NEW: Check if drawing is allowed
+    bool canDrawOnCurrentFrame(Canvas* canvas, int layer, int frame)
+    {
+        if (!canvas) return false;
+
+        if (!canvas->canDrawOnFrame(frame, layer)) {
+            // Show warning about tweening
+            QMessageBox::information(nullptr, "Drawing Disabled",
+                "Cannot draw on tweened frames. Remove tweening first or create a new keyframe.");
+            return false;
+        }
+
+        return true;
+    }
     MainWindow* m_mainWindow;
     Canvas* m_canvas;
 };

@@ -1,4 +1,4 @@
-// Timeline.h
+// Timeline.h - Enhanced with frame extension visualization
 #ifndef TIMELINE_H
 #define TIMELINE_H
 
@@ -30,6 +30,14 @@ class TimelineRuler;
 class AnimationKeyframe;
 class LayerGraphicsGroup;
 
+// Frame visualization types
+enum class FrameVisualType {
+    Empty,
+    Keyframe,
+    ExtendedFrame,
+    EndFrame  // Last frame of an extension
+};
+
 // Custom widget for timeline drawing area
 class TimelineDrawingArea : public QWidget
 {
@@ -37,7 +45,6 @@ class TimelineDrawingArea : public QWidget
 
 public:
     explicit TimelineDrawingArea(QWidget* parent = nullptr);
-
     void setTimeline(class Timeline* timeline) { m_timeline = timeline; }
 
 protected:
@@ -71,10 +78,15 @@ public:
     void setPlaying(bool playing);
     bool isPlaying() const;
 
-    // Keyframes
+    // ENHANCED: Keyframe and frame extension management
     void addKeyframe(int layer, int frame);
+    void addExtendedFrame(int layer, int frame);
+    void addBlankKeyframe(int layer, int frame);
     void removeKeyframe(int layer, int frame);
     bool hasKeyframe(int layer, int frame) const;
+    bool hasContent(int layer, int frame) const;
+    FrameVisualType getFrameVisualType(int layer, int frame) const;
+
     void selectKeyframe(int layer, int frame);
     void clearKeyframeSelection();
     void toggleKeyframe(int layer, int frame);
@@ -93,11 +105,12 @@ public:
     double getZoomLevel() const;
     void scrollToFrame(int frame);
 
-    // Drawing methods (called by TimelineDrawingArea)
+    // ENHANCED: Drawing methods with frame extension visualization
     void drawTimelineBackground(QPainter* painter, const QRect& rect);
     void drawFrameRuler(QPainter* painter, const QRect& rect);
     void drawLayers(QPainter* painter, const QRect& rect);
     void drawKeyframes(QPainter* painter, const QRect& rect);
+    void drawFrameExtensions(QPainter* painter, const QRect& rect);  // NEW
     void drawPlayhead(QPainter* painter, const QRect& rect);
     void drawSelection(QPainter* painter, const QRect& rect);
 
@@ -107,14 +120,29 @@ public:
     int getFrameFromX(int x) const;
     int getLayerFromY(int y) const;
     QRect getDrawingAreaRect() const;
+    void showContextMenu(const QPoint& position, int layer, int frame);
+    bool canApplyTweening(int layer, int frame) const;
+    bool hasTweening(int layer, int frame) const;
+    MainWindow* m_mainWindow;
+
+    void drawKeyframes(QPainter* painter, const QRect& rect);
+    void drawTweenSpan(QPainter* painter, int layer, int startFrame, int endFrame, TweenType type);
+    void drawTweening(QPainter* painter, const QRect& rect);
+    void drawTweenArrow(QPainter* painter, int x, int y, const QColor& color);
+    void drawTweenTypeIndicator(QPainter* painter, int x, int y, TweenType type);
+
 
 signals:
     void frameChanged(int frame);
     void frameRateChanged(int fps);
     void keyframeAdded(int layer, int frame);
     void keyframeRemoved(int layer, int frame);
+    void frameExtended(int layer, int frame);  // NEW
     void keyframeSelected(int layer, int frame);
     void layerSelected(int layer);
+    void tweeningRequested(int layer, int startFrame, int endFrame, TweenType type);
+    void tweeningRemovalRequested(int layer, int startFrame, int endFrame);
+
 
 private slots:
     void onFrameSliderChanged(int value);
@@ -122,6 +150,11 @@ private slots:
     void onFrameRateChanged(int index);
     void onLayerSelectionChanged();
     void onKeyframeCreated(int frame);
+    void onFrameExtended(int fromFrame, int toFrame);  // NEW
+    void onCreateMotionTween();
+    void onCreateClassicTween();
+    void onRemoveTween();
+    void onTweeningApplied(int layer, int startFrame, int endFrame, TweenType type);
 
 private:
     void setupUI();
@@ -129,7 +162,11 @@ private:
     void updateLayout();
     void updateScrollbars();
 
-    MainWindow* m_mainWindow;
+    // ENHANCED: Frame extension visualization helpers
+    void drawFrameSpan(QPainter* painter, int layer, int startFrame, int endFrame);
+    void drawKeyframeSymbol(QPainter* painter, int x, int y, FrameVisualType type, bool selected, bool hasTweening);
+    QColor getFrameExtensionColor(int layer) const;
+
 
     // UI Components
     QVBoxLayout* m_mainLayout;
@@ -170,7 +207,7 @@ private:
     int m_rulerHeight;
     int m_layerPanelWidth;
 
-    // Colors and styling
+    // ENHANCED: Colors for frame extension visualization
     QColor m_backgroundColor;
     QColor m_frameColor;
     QColor m_keyframeColor;
@@ -179,6 +216,8 @@ private:
     QColor m_rulerColor;
     QColor m_layerColor;
     QColor m_alternateLayerColor;
+    QColor m_frameExtensionColor;     // NEW: Orange color for extensions
+    QColor m_extendedFrameColor;      // NEW: Lighter color for extended frames
 
     // Data structures
     struct Layer {
@@ -193,6 +232,7 @@ private:
         int frame;
         bool selected;
         QColor color;
+        FrameVisualType visualType;  // NEW: Track visual type
     };
 
     std::vector<Layer> m_layers;
@@ -203,5 +243,22 @@ private:
     QPoint m_dragStart;
     int m_selectedLayer;
     std::vector<int> m_selectedKeyframes;
+    // NEW: Context menu components
+    QMenu* m_contextMenu;
+    QAction* m_createMotionTweenAction;
+    QAction* m_createClassicTweenAction;
+    QAction* m_removeTweenAction;
+    QAction* m_insertKeyframeAction;
+    QAction* m_insertFrameAction;
+    QAction* m_clearFrameAction;
+
+    // Context menu state
+    int m_contextMenuLayer;
+    int m_contextMenuFrame;
+
+    void setupContextMenu();
+    void updateContextMenuActions();
+    QList<int> findTweenableSpan(int layer, int frame) const;
 };
+
 #endif

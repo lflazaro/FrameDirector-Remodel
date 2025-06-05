@@ -1,4 +1,4 @@
-// Canvas.h - Updated header with proper layer management
+// Canvas.h - Enhanced with frame extension support
 #ifndef CANVAS_H
 #define CANVAS_H
 
@@ -30,6 +30,52 @@ class Tool;
 class VectorGraphicsItem;
 class MainWindow;
 class AnimationLayer;
+
+// Enhanced frame type tracking with tweening support
+enum class FrameType {
+    Empty,        // No content, no keyframe
+    Keyframe,     // Contains unique content/state
+    ExtendedFrame, // Extends from previous keyframe
+    TweenedFrame  // Part of a tweened span
+};
+
+// Tweening types (Flash-style)
+enum class TweenType {
+    None,         // No tweening
+    Motion,       // Position, rotation, scale tweening
+    Shape,        // Morphing between shapes (future)
+    Classic       // Traditional Flash-style motion tween
+};
+
+// Layer-specific frame data
+struct LayerFrameData {
+    FrameType type;
+    int sourceKeyframe;                    // For extended/tweened frames
+    QList<QGraphicsItem*> items;
+    QMap<QGraphicsItem*, QVariant> itemStates;
+
+    // NEW: Tweening properties (per layer)
+    TweenType tweenType;
+    bool hasTweening;
+    int tweenStartFrame;
+    int tweenEndFrame;
+    QEasingCurve::Type easingType;
+
+    LayerFrameData() : type(FrameType::Empty), sourceKeyframe(-1),
+        tweenType(TweenType::None), hasTweening(false),
+        tweenStartFrame(-1), tweenEndFrame(-1),
+        easingType(QEasingCurve::Linear) {
+    }
+};
+
+struct FrameData {
+    FrameType type;
+    int sourceKeyframe;  // For extended frames, which keyframe they extend from
+    QList<QGraphicsItem*> items;
+    QMap<QGraphicsItem*, QVariant> itemStates; // Store item states for tweening
+
+    FrameData() : type(FrameType::Empty), sourceKeyframe(-1) {}
+};
 
 // Forward declaration for layer data
 struct LayerData;
@@ -66,16 +112,39 @@ public:
     void setLayerLocked(int layerIndex, bool locked);
     void setLayerOpacity(int layerIndex, double opacity);
     void moveLayer(int fromIndex, int toIndex);
-    void createBlankKeyframe(int frame);
-    void clearCurrentFrameContent();
 
-    // Frame management
+    // ENHANCED: Frame management with proper keyframe/frame distinction
     void setCurrentFrame(int frame);
     int getCurrentFrame() const;
-    void saveFrameState(int frame);
+    void saveFrameState(int frame);  // Keep this method as requested
     void loadFrameState(int frame);
-    void createKeyframe(int frame);
+
+    // NEW: Enhanced frame creation methods
+    void createKeyframe(int frame);              // Creates a keyframe with current content
+    void createBlankKeyframe(int frame);         // Creates empty keyframe, breaks extension
+    void createExtendedFrame(int frame);         // Creates frame extending from last keyframe
+    void clearCurrentFrameContent();
+
+    void applyTweening(int layer, int startFrame, int endFrame, TweenType type = TweenType::Motion);
+    void removeTweening(int layer, int startFrame, int endFrame);
+    bool hasTweening(int layer, int frame) const;
+    TweenType getTweenType(int layer, int frame) const;
+    QList<int> getTweeningFrames(int layer, int startFrame, int endFrame) const;
+
+
+    void convertExtendedFrameToKeyframe(int frame, int layer);
+    bool canDrawOnFrame(int frame, int layer) const;  // Check if drawing is allowed
+
+    // NEW: Frame type queries
     bool hasKeyframe(int frame) const;
+    bool hasContent(int frame, int layer) const;
+    FrameType getFrameType(int frame, int layer) const;
+    int getSourceKeyframe(int frame) const;      // For extended frames
+    int getLastKeyframeBefore(int frame) const;  // Find previous keyframe
+    int getNextKeyframeAfter(int frame) const;   // Find next keyframe
+    QList<int> getFrameSpan(int keyframe) const; // Get all frames extending from keyframe
+    bool isExtendedFrame(int frame, int layer) const;
+    bool isTweenedFrame(int frame, int layer) const;
 
     // Tools
     void setCurrentTool(Tool* tool);
@@ -128,6 +197,10 @@ signals:
     void layerChanged(int layerIndex);
     void frameChanged(int frame);
     void keyframeCreated(int frame);
+    void frameExtended(int fromFrame, int toFrame);  // NEW: Signal for frame extensions
+    void tweeningApplied(int layer, int startFrame, int endFrame, TweenType type);
+    void tweeningRemoved(int layer, int startFrame, int endFrame);
+    void frameAutoConverted(int frame, int layer);  // When extended frame becomes keyframe
 
 protected:
     void mousePressEvent(QMouseEvent* event) override;
@@ -143,7 +216,12 @@ private slots:
     void onSceneSelectionChanged();
 
 private:
-
+    std::map<int, std::map<int, LayerFrameData>> m_layerFrameData;  // [layer][frame] = data
+    void calculateTweenedFrame(int layer, int frame);
+    void interpolateItemsAtFrame(int layer, int frame, double t);
+    QVariant interpolateItemState(const QVariant& fromState, const QVariant& toState, double t);
+    void checkAndConvertExtendedFrame(int frame, int layer);
+    void updateToolsAvailability();  // Update UI based on current frame/layer state
     QRubberBand* m_rubberBand;
     QPoint m_rubberBandOrigin;
     bool m_rubberBandActive;
@@ -156,9 +234,12 @@ private:
     void updateCursor();
     bool m_destroying;
 
-    // FIXED: Layer management helpers
+    // ENHANCED: Frame management helpers
     void updateAllLayerZValues();
     int getItemLayerIndex(QGraphicsItem* item);
+    void copyItemsToFrame(int fromFrame, int toFrame);
+    void captureCurrentStateAsKeyframe(int frame);
+    QList<QGraphicsItem*> duplicateItems(const QList<QGraphicsItem*>& items);
 
     MainWindow* m_mainWindow;
     QGraphicsScene* m_scene;
@@ -169,14 +250,15 @@ private:
     QRectF m_canvasRect;
     QGraphicsRectItem* m_backgroundRect;
 
-    // FIXED: Proper layer management using LayerData structures
+    // Layer management using LayerData structures
     std::vector<void*> m_layers;  // Contains LayerData* pointers
     int m_currentLayerIndex;
 
-    // Frame and keyframe management
+    // ENHANCED: Frame and keyframe management with extension support
     int m_currentFrame;
-    std::map<int, QList<QGraphicsItem*>> m_frameItems;
-    std::set<int> m_keyframes;
+    std::map<int, FrameData> m_frameData;        // Enhanced frame tracking
+    std::map<int, QList<QGraphicsItem*>> m_frameItems; // Keep for compatibility
+    std::set<int> m_keyframes;                   // Track keyframes specifically
 
     // View properties
     double m_zoomFactor;

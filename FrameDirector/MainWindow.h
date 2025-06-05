@@ -107,6 +107,12 @@ public:
     void lastFrame();
     void addKeyframe();
     void removeKeyframe();
+    void insertFrame();                 // Create extended frame
+    void clearCurrentFrame();           // Clear current frame content
+    void convertToKeyframe();           // Convert extended frame to keyframe
+    void updateFrameActions();          // Enable/disable frame actions based on current state
+    void showFrameTypeIndicator();      // Show current frame type in status bar
+
     // Public member access for undo commands
     QUndoStack* m_undoStack;
 
@@ -223,6 +229,10 @@ private slots:
 
     // Enhanced undo/redo support
     void updateUndoRedoActions();
+    void onCurrentLayerChanged(int layer);
+    void onFrameChangedWithLayer(int frame);
+    void updateToolAvailability();
+    void onTweeningStateChanged();
 
 private:
     void createActions();
@@ -326,6 +336,13 @@ private:
     double m_currentStrokeWidth;
     double m_currentOpacity;
 
+
+    bool m_drawingToolsEnabled;
+    int m_currentLayerIndex;
+    void disableDrawingTools();
+    void enableDrawingTools();
+    void showTweeningWarning();
+
     // Actions - File Menu
     QAction* m_newAction;
     QAction* m_openAction;
@@ -368,6 +385,10 @@ private:
     QAction* m_lastFrameAction;
     QAction* m_addKeyframeAction;
     QAction* m_removeKeyframeAction;
+    QAction* m_insertFrameAction;          // Creates extended frame
+    QAction* m_insertBlankKeyframeAction;
+    QAction* m_clearFrameAction;
+    QAction* m_convertToKeyframeAction;    // Convert extended frame to keyframe
 
     // Actions - Tool Menu
     QAction* m_selectToolAction;

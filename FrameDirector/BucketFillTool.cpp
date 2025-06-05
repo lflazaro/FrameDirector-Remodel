@@ -52,6 +52,17 @@ void BucketFillTool::mousePressEvent(QMouseEvent* event, const QPointF& scenePos
 {
     if (!m_canvas || !m_canvas->scene()) return;
 
+    int currentLayer = m_canvas->getCurrentLayer();
+    int currentFrame = m_canvas->getCurrentFrame();
+
+    // Check if drawing is allowed
+    if (!canDrawOnCurrentFrame(m_canvas, currentLayer, currentFrame)) {
+        return;
+    }
+
+    // Auto-convert extended frame to keyframe
+    checkAutoConversion(m_canvas, currentLayer, currentFrame);
+
     if (event->button() == Qt::LeftButton) {
         // Get current fill color from canvas
         m_fillColor = m_canvas->getFillColor();

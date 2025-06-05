@@ -236,6 +236,29 @@ void MainWindow::connectToolsAndCanvas()
         }
 
         qDebug() << "Tools and canvas connected successfully";
+
+        connect(m_canvas, &Canvas::frameAutoConverted, [this](int frame, int layer) {
+            updateToolAvailability();
+            updateFrameActions();
+            m_statusLabel->setText(QString("Extended frame auto-converted to keyframe at frame %1").arg(frame));
+            m_isModified = true;
+            });
+
+        // NEW: Connect tweening signals
+        connect(m_canvas, &Canvas::tweeningApplied, [this](int layer, int startFrame, int endFrame, TweenType type) {
+            updateToolAvailability();
+            QString typeStr = (type == TweenType::Motion) ? "Motion" : "Classic";
+            m_statusLabel->setText(QString("%1 tween applied to layer %2, frames %3-%4")
+                .arg(typeStr).arg(layer).arg(startFrame).arg(endFrame));
+            m_isModified = true;
+            });
+
+        connect(m_canvas, &Canvas::tweeningRemoved, [this](int layer, int startFrame, int endFrame) {
+            updateToolAvailability();
+            m_statusLabel->setText(QString("Tween removed from layer %1, frames %2-%3")
+                .arg(layer).arg(startFrame).arg(endFrame));
+            m_isModified = true;
+            });
     }
 
     // FIXED: Connect tools panel for bucket fill tool
@@ -284,6 +307,16 @@ void MainWindow::connectToolsAndCanvas()
         if (tool) {
             qDebug() << "Tool" << static_cast<int>(toolPair.first) << "has access to undo stack";
         }
+    }
+
+    if (m_layerManager) {
+        connect(m_layerManager, &LayerManager::currentLayerChanged, this, &MainWindow::onCurrentLayerChanged);
+    }
+
+    // Enhanced timeline connections
+    if (m_timeline) {
+        connect(m_timeline, &Timeline::frameChanged, this, &MainWindow::onFrameChangedWithLayer);
+        connect(m_timeline, &Timeline::layerSelected, this, &MainWindow::onCurrentLayerChanged);
     }
 }
 void MainWindow::setupColorConnections()
@@ -602,10 +635,11 @@ void MainWindow::createActions()
     m_lastFrameAction->setShortcut(QKeySequence("End"));
     connect(m_lastFrameAction, &QAction::triggered, this, &MainWindow::lastFrame);
 
+    // ENHANCED: Existing addKeyframe action with F6 shortcut
     m_addKeyframeAction = new QAction("Add &Keyframe", this);
-    m_addKeyframeAction->setIcon(QIcon(":/icons/branch-open.png")); // Using check as keyframe icon
-    m_addKeyframeAction->setShortcut(QKeySequence("Ctrl+K"));
-    m_addKeyframeAction->setStatusTip("Create keyframe at current frame");
+    m_addKeyframeAction->setIcon(QIcon(":/icons/branch-open.png"));
+    m_addKeyframeAction->setShortcut(QKeySequence("F6"));  // NEW: Enhanced with F6
+    m_addKeyframeAction->setStatusTip("Insert keyframe with current content");  // NEW: Enhanced tooltip
     connect(m_addKeyframeAction, &QAction::triggered, this, &MainWindow::addKeyframe);
 
     m_copyFrameAction = new QAction("&Copy Frame", this);
@@ -615,10 +649,53 @@ void MainWindow::createActions()
     connect(m_copyFrameAction, &QAction::triggered, this, &MainWindow::copyCurrentFrame);
 
     m_blankKeyframeAction = new QAction("Create &Blank Keyframe", this);
-    m_blankKeyframeAction->setIcon(QIcon(":/icons/branch-closed.png")); // Using delete to represent blank/clear
+    m_blankKeyframeAction->setIcon(QIcon(":/icons/branch-closed.png"));
     m_blankKeyframeAction->setShortcut(QKeySequence("Ctrl+Shift+K"));
     m_blankKeyframeAction->setStatusTip("Create blank keyframe (clear current frame)");
     connect(m_blankKeyframeAction, &QAction::triggered, this, &MainWindow::createBlankKeyframe);
+
+    // NEW: Enhanced frame creation actions
+    m_insertFrameAction = new QAction("Insert Extended &Frame", this);
+    m_insertFrameAction->setIcon(QIcon(":/icons/arrow-right.png"));  // Reuse existing icon
+    m_insertFrameAction->setShortcut(QKeySequence("F5"));
+    m_insertFrameAction->setStatusTip("Insert frame extending from previous keyframe");
+    connect(m_insertFrameAction, &QAction::triggered, this, &MainWindow::insertFrame);
+
+    m_insertBlankKeyframeAction = new QAction("Insert &Blank Keyframe", this);
+    m_insertBlankKeyframeAction->setIcon(QIcon(":/icons/branch-closed.png"));  // Reuse existing icon
+    m_insertBlankKeyframeAction->setShortcut(QKeySequence("F7"));
+    m_insertBlankKeyframeAction->setStatusTip("Insert blank keyframe (clears content)");
+    connect(m_insertBlankKeyframeAction, &QAction::triggered, this, &MainWindow::createBlankKeyframe);
+
+    m_clearFrameAction = new QAction("&Clear Frame", this);
+    m_clearFrameAction->setIcon(QIcon(":/icons/stop.png"));  // Reuse stop icon for "clear"
+    m_clearFrameAction->setShortcut(QKeySequence("Shift+F5"));
+    m_clearFrameAction->setStatusTip("Clear current frame content");
+    connect(m_clearFrameAction, &QAction::triggered, this, &MainWindow::clearCurrentFrame);
+
+    m_convertToKeyframeAction = new QAction("Convert to &Keyframe", this);
+    m_convertToKeyframeAction->setIcon(QIcon(":/icons/branch-open.png"));  // Reuse keyframe icon
+    m_convertToKeyframeAction->setShortcut(QKeySequence("F8"));
+    m_convertToKeyframeAction->setStatusTip("Convert extended frame to keyframe");
+    connect(m_convertToKeyframeAction, &QAction::triggered, this, &MainWindow::convertToKeyframe);
+
+    // NEW: Enhanced keyframe navigation actions
+    m_nextKeyframeAction = new QAction("Next &Keyframe", this);
+    // Create a right arrow with a small diamond to indicate keyframe
+    QPixmap nextKeyframePixmap = QIcon(":/icons/arrow-right.png").pixmap(16, 16);
+    m_nextKeyframeAction->setIcon(QIcon(nextKeyframePixmap));
+    m_nextKeyframeAction->setShortcut(QKeySequence("Ctrl+Right"));
+    m_nextKeyframeAction->setStatusTip("Go to next keyframe");
+    connect(m_nextKeyframeAction, &QAction::triggered, this, &MainWindow::nextKeyframe);
+
+    m_prevKeyframeAction = new QAction("Previous &Keyframe", this);
+    // Create a left arrow with a small diamond to indicate keyframe
+    QPixmap prevKeyframePixmap = QIcon(":/icons/arrow-right.png").pixmap(16, 16);
+    prevKeyframePixmap = prevKeyframePixmap.transformed(transform);  // Use the transform from above
+    m_prevKeyframeAction->setIcon(QIcon(prevKeyframePixmap));
+    m_prevKeyframeAction->setShortcut(QKeySequence("Ctrl+Left"));
+    m_prevKeyframeAction->setStatusTip("Go to previous keyframe");
+    connect(m_prevKeyframeAction, &QAction::triggered, this, &MainWindow::previousKeyframe);
 
     // Tool Actions
     m_toolActionGroup = new QActionGroup(this);
@@ -810,28 +887,49 @@ void MainWindow::createMenus()
     m_viewMenu->addAction(m_toggleSnapAction);
     m_viewMenu->addAction(m_toggleRulersAction);
 
-    // Animation Menu
+    // ENHANCED: Animation Menu with frame extension support
     m_animationMenu = menuBar()->addMenu("&Animation");
+
+    // Playback controls
     m_animationMenu->addAction(m_playAction);
     m_animationMenu->addAction(m_stopAction);
     m_animationMenu->addSeparator();
+
+    // Frame navigation submenu
+    QMenu* navigationMenu = m_animationMenu->addMenu("&Navigation");
+    navigationMenu->addAction(m_firstFrameAction);
+    navigationMenu->addAction(m_prevFrameAction);
+    navigationMenu->addAction(m_nextFrameAction);
+    navigationMenu->addAction(m_lastFrameAction);
+    navigationMenu->addSeparator();
+    navigationMenu->addAction(m_prevKeyframeAction);   // NEW: Enhanced keyframe navigation
+    navigationMenu->addAction(m_nextKeyframeAction);   // NEW: Enhanced keyframe navigation
+
+    // Quick access to common navigation (keep for compatibility)
     m_animationMenu->addAction(m_nextFrameAction);
     m_animationMenu->addAction(m_prevFrameAction);
     m_animationMenu->addSeparator();
     m_animationMenu->addAction(m_firstFrameAction);
     m_animationMenu->addAction(m_lastFrameAction);
     m_animationMenu->addSeparator();
-    m_animationMenu->addAction(m_addKeyframeAction);
-    m_animationMenu->addAction(m_copyFrameAction); 
-    m_animationMenu->addAction(m_blankKeyframeAction);
+
+    // Frame creation submenu - NEW: Enhanced frame management
+    QMenu* frameMenu = m_animationMenu->addMenu("&Frames");
+    frameMenu->addAction(m_insertFrameAction);         // NEW: F5 - Insert extended frame
+    frameMenu->addAction(m_addKeyframeAction);         // ENHANCED: F6 - Insert keyframe (existing)
+    frameMenu->addAction(m_insertBlankKeyframeAction); // NEW: F7 - Insert blank keyframe
+    frameMenu->addSeparator();
+    frameMenu->addAction(m_clearFrameAction);          // NEW: Shift+F5 - Clear frame
+    frameMenu->addAction(m_convertToKeyframeAction);   // NEW: F8 - Convert to keyframe
+    frameMenu->addSeparator();
+    frameMenu->addAction(m_copyFrameAction);           // Existing: Copy frame content
 
     // Help Menu
     m_helpMenu = menuBar()->addMenu("&Help");
     m_helpMenu->addAction("&About", this, [this]() {
         QMessageBox::about(this, "About FrameDirector",
-            "FrameDirector v1.0\n\n"
-            "Vector animation tool\n"
-            "Built with Qt and C++");
+            "FrameDirector v1.0\n"
+            "https://intelligencecasino.neocities.org/");
         });
 }
 
@@ -861,16 +959,35 @@ void MainWindow::createToolBars()
     m_viewToolBar->addAction(m_zoomOutAction);
     m_viewToolBar->addAction(m_zoomToFitAction);
 
-    // Animation Toolbar
+    // ENHANCED: Animation Toolbar with frame extension support
     m_animationToolBar = addToolBar("Animation");
+
+    // Playback controls
     m_animationToolBar->addAction(m_firstFrameAction);
     m_animationToolBar->addAction(m_prevFrameAction);
     m_animationToolBar->addAction(m_playAction);
     m_animationToolBar->addAction(m_stopAction);
     m_animationToolBar->addAction(m_nextFrameAction);
     m_animationToolBar->addAction(m_lastFrameAction);
+
     m_animationToolBar->addSeparator();
-    m_animationToolBar->addAction(m_addKeyframeAction);
+
+    // NEW: Enhanced keyframe navigation
+    m_animationToolBar->addAction(m_prevKeyframeAction);  // NEW: Ctrl+Left - Previous keyframe
+    m_animationToolBar->addAction(m_nextKeyframeAction);  // NEW: Ctrl+Right - Next keyframe
+
+    m_animationToolBar->addSeparator();
+
+    // NEW: Enhanced frame creation tools
+    m_animationToolBar->addAction(m_insertFrameAction);         // NEW: F5 - Insert extended frame
+    m_animationToolBar->addAction(m_addKeyframeAction);         // ENHANCED: F6 - Insert keyframe (existing)
+    m_animationToolBar->addAction(m_insertBlankKeyframeAction); // NEW: F7 - Insert blank keyframe
+
+    m_animationToolBar->addSeparator();
+
+    // NEW: Additional frame operations
+    m_animationToolBar->addAction(m_convertToKeyframeAction);   // NEW: F8 - Convert to keyframe
+    m_animationToolBar->addAction(m_clearFrameAction);          // NEW: Shift+F5 - Clear frame
 }
 
 void MainWindow::createDockWindows()
@@ -1754,53 +1871,32 @@ void MainWindow::previousFrame()
 
 void MainWindow::nextKeyframe()
 {
-    if (!m_timeline) return;
-
-    int nextFrame = -1;
-
-    for (const auto& frameKeyframes : m_keyframes) {
-        int frameNum = frameKeyframes.first;
-        if (frameNum > m_currentFrame) {
-            if (nextFrame == -1 || frameNum < nextFrame) {
-                nextFrame = frameNum;
-            }
+    if (m_canvas) {
+        int nextKeyframe = m_canvas->getNextKeyframeAfter(m_currentFrame);
+        if (nextKeyframe != -1) {
+            onFrameChanged(nextKeyframe);
+            m_statusLabel->setText(QString("Jumped to keyframe at frame %1").arg(nextKeyframe));
+        }
+        else {
+            m_statusLabel->setText("No keyframes after current frame");
         }
     }
-
-    if (nextFrame != -1) {
-        onFrameChanged(nextFrame);
-    }
-    else {
-        lastFrame();
-    }
-
-    m_statusLabel->setText("Jumped to next keyframe");
 }
 
 void MainWindow::previousKeyframe()
 {
-    if (!m_timeline) return;
-
-    int prevFrame = -1;
-
-    for (const auto& frameKeyframes : m_keyframes) {
-        int frameNum = frameKeyframes.first;
-        if (frameNum < m_currentFrame) {
-            if (prevFrame == -1 || frameNum > prevFrame) {
-                prevFrame = frameNum;
-            }
+    if (m_canvas) {
+        int prevKeyframe = m_canvas->getLastKeyframeBefore(m_currentFrame);
+        if (prevKeyframe != -1) {
+            onFrameChanged(prevKeyframe);
+            m_statusLabel->setText(QString("Jumped to keyframe at frame %1").arg(prevKeyframe));
+        }
+        else {
+            m_statusLabel->setText("No keyframes before current frame");
         }
     }
-
-    if (prevFrame != -1) {
-        onFrameChanged(prevFrame);
-    }
-    else {
-        firstFrame();
-    }
-
-    m_statusLabel->setText("Jumped to previous keyframe");
 }
+
 
 void MainWindow::firstFrame()
 {
@@ -1815,14 +1911,32 @@ void MainWindow::lastFrame()
 void MainWindow::addKeyframe()
 {
     if (m_canvas) {
-        // Create a keyframe at the current frame with current canvas content
+        // Use new enhanced createKeyframe method
         m_canvas->createKeyframe(m_currentFrame);
 
         if (m_timeline) {
             m_timeline->updateLayersFromCanvas();
         }
 
+        updateFrameActions();
+        showFrameTypeIndicator();
         m_statusLabel->setText(QString("Keyframe created at frame %1").arg(m_currentFrame));
+        m_isModified = true;
+    }
+}
+
+void MainWindow::insertFrame()
+{
+    if (m_canvas) {
+        m_canvas->createExtendedFrame(m_currentFrame);
+
+        if (m_timeline) {
+            m_timeline->updateLayersFromCanvas();
+        }
+
+        updateFrameActions();
+        showFrameTypeIndicator();
+        m_statusLabel->setText(QString("Frame inserted at frame %1").arg(m_currentFrame));
         m_isModified = true;
     }
 }
@@ -1845,18 +1959,99 @@ void MainWindow::copyCurrentFrame()
 void MainWindow::createBlankKeyframe()
 {
     if (m_canvas) {
-        // FIXED: Use the new method to create truly blank keyframe
         m_canvas->createBlankKeyframe(m_currentFrame);
 
         if (m_timeline) {
             m_timeline->updateLayersFromCanvas();
         }
 
-        m_statusLabel->setText(QString("Blank keyframe created at frame %1").arg(m_currentFrame));
+        updateFrameActions();
+        showFrameTypeIndicator();
+        m_statusLabel->setText(QString("Blank keyframe inserted at frame %1").arg(m_currentFrame));
         m_isModified = true;
     }
 }
 
+void MainWindow::clearCurrentFrame()
+{
+    if (m_canvas) {
+        m_canvas->clearCurrentFrameContent();
+        updateFrameActions();
+        showFrameTypeIndicator();
+        m_statusLabel->setText(QString("Frame %1 cleared").arg(m_currentFrame));
+        m_isModified = true;
+    }
+}
+
+
+void MainWindow::convertToKeyframe()
+{
+    if (m_canvas && m_canvas->getFrameType(m_currentFrame, m_currentLayerIndex) == FrameType::ExtendedFrame) {
+        // Convert extended frame to keyframe by creating keyframe with current content
+        m_canvas->createKeyframe(m_currentFrame);
+
+        if (m_timeline) {
+            m_timeline->updateLayersFromCanvas();
+        }
+
+        updateFrameActions();
+        showFrameTypeIndicator();
+        m_statusLabel->setText(QString("Frame %1 converted to keyframe").arg(m_currentFrame));
+        m_isModified = true;
+    }
+}
+
+void MainWindow::updateFrameActions()
+{
+    if (!m_canvas) return;
+
+    FrameType currentFrameType = m_canvas->getFrameType(m_currentFrame, m_currentLayerIndex);
+    bool hasContent = m_canvas->hasContent(m_currentFrame, m_currentLayerIndex);
+    bool isKeyframe = m_canvas->hasKeyframe(m_currentFrame);
+    bool isExtended = m_canvas->isExtendedFrame(m_currentFrame, m_currentLayerIndex);
+    bool hasTweening = m_canvas->hasTweening(m_currentLayerIndex, m_currentFrame);
+
+    // Convert to keyframe action: only enabled for extended frames
+    m_convertToKeyframeAction->setEnabled(isExtended && !hasTweening);
+
+    // Clear frame action: disabled for extended frames and tweened frames
+    m_clearFrameAction->setEnabled(hasContent && !isExtended && !hasTweening);
+
+    // Insert frame action: disabled if would create gap in tweened span
+    m_insertFrameAction->setEnabled(!hasTweening);
+
+    // Navigation actions
+    m_nextKeyframeAction->setEnabled(m_canvas->getNextKeyframeAfter(m_currentFrame) != -1);
+    m_prevKeyframeAction->setEnabled(m_canvas->getLastKeyframeBefore(m_currentFrame) != -1);
+
+    qDebug() << "Frame actions updated - Extended:" << isExtended << "Tweened:" << hasTweening;
+}
+
+// NEW: Show frame type in status bar
+void MainWindow::showFrameTypeIndicator()
+{
+    if (!m_canvas) return;
+
+    FrameType frameType = m_canvas->getFrameType(m_currentFrame, m_currentLayerIndex);
+    QString typeText;
+
+    switch (frameType) {
+    case FrameType::Empty:
+        typeText = "Empty Frame";
+        break;
+    case FrameType::Keyframe:
+        typeText = "Keyframe";
+        break;
+    case FrameType::ExtendedFrame:
+        int sourceKeyframe = m_canvas->getSourceKeyframe(m_currentFrame);
+        typeText = QString("Extended Frame (from %1)").arg(sourceKeyframe);
+        break;
+    }
+
+    // Update status label with frame type info
+    QString statusText = QString("Frame: %1 (%2)").arg(m_currentFrame).arg(typeText);
+    m_frameLabel->setText(statusText);
+}
 
 void MainWindow::removeKeyframe()
 {
@@ -2387,7 +2582,6 @@ void MainWindow::setOpacity(double opacity)
 void MainWindow::onFrameChanged(int frame)
 {
     m_currentFrame = frame;
-    m_frameLabel->setText(QString("Frame: %1").arg(frame));
 
     if (m_timeline) {
         m_timeline->setCurrentFrame(frame);
@@ -2396,7 +2590,12 @@ void MainWindow::onFrameChanged(int frame)
     if (m_canvas) {
         m_canvas->setCurrentFrame(frame);
     }
+
+    // NEW: Update frame-dependent UI
+    updateFrameActions();
+    showFrameTypeIndicator();
 }
+
 
 void MainWindow::onZoomChanged(double zoom)
 {
@@ -2661,6 +2860,111 @@ void MainWindow::closeEvent(QCloseEvent* event)
     }
 }
 
+void MainWindow::onCurrentLayerChanged(int layer)
+{
+    m_currentLayerIndex = layer;
+    updateToolAvailability();
+
+    // Update canvas current layer
+    if (m_canvas) {
+        m_canvas->setCurrentLayer(layer);
+    }
+
+    qDebug() << "Current layer changed to:" << layer;
+}
+
+void MainWindow::onFrameChangedWithLayer(int frame)
+{
+    onFrameChanged(frame);  // Call existing method
+    updateToolAvailability();
+}
+
+void MainWindow::updateToolAvailability()
+{
+    if (!m_canvas) return;
+
+    bool canDraw = m_canvas->canDrawOnFrame(m_currentFrame, m_currentLayerIndex);
+    bool isExtended = m_canvas->isExtendedFrame(m_currentFrame, m_currentLayerIndex);
+    bool hasTweening = m_canvas->hasTweening(m_currentLayerIndex, m_currentFrame);
+
+    if (canDraw && !hasTweening) {
+        enableDrawingTools();
+    }
+    else {
+        disableDrawingTools();
+    }
+
+    // Update frame actions based on extended frame state
+    updateFrameActions();
+
+    // Update status bar with current state
+    QString statusText = QString("Frame: %1, Layer: %2").arg(m_currentFrame).arg(m_currentLayerIndex);
+
+    if (hasTweening) {
+        statusText += " (Tweened - Drawing Disabled)";
+    }
+    else if (isExtended) {
+        statusText += " (Extended Frame)";
+    }
+
+    m_statusLabel->setText(statusText);
+}
+
+void MainWindow::disableDrawingTools()
+{
+    if (m_drawingToolsEnabled) {
+        m_drawingToolsEnabled = false;
+
+        // Disable drawing tool actions
+        m_drawToolAction->setEnabled(false);
+        m_lineToolAction->setEnabled(false);
+        m_rectangleToolAction->setEnabled(false);
+        m_ellipseToolAction->setEnabled(false);
+        m_textToolAction->setEnabled(false);
+
+        // Disable bucket fill and erase tools
+        if (m_bucketFillToolAction) m_bucketFillToolAction->setEnabled(false);
+        if (m_eraseToolAction) m_eraseToolAction->setEnabled(false);
+
+        // Switch to select tool if a drawing tool is active
+        if (m_currentTool != SelectTool) {
+            setTool(SelectTool);
+        }
+
+        // Update tools panel
+        if (m_toolsPanel) {
+            m_toolsPanel->setDrawingToolsEnabled(false);
+        }
+
+        qDebug() << "Drawing tools disabled - tweening active";
+    }
+}
+
+void MainWindow::enableDrawingTools()
+{
+    if (!m_drawingToolsEnabled) {
+        m_drawingToolsEnabled = true;
+
+        // Enable drawing tool actions
+        m_drawToolAction->setEnabled(true);
+        m_lineToolAction->setEnabled(true);
+        m_rectangleToolAction->setEnabled(true);
+        m_ellipseToolAction->setEnabled(true);
+        m_textToolAction->setEnabled(true);
+
+        // Enable bucket fill and erase tools
+        if (m_bucketFillToolAction) m_bucketFillToolAction->setEnabled(true);
+        if (m_eraseToolAction) m_eraseToolAction->setEnabled(true);
+
+        // Update tools panel
+        if (m_toolsPanel) {
+            m_toolsPanel->setDrawingToolsEnabled(true);
+        }
+
+        qDebug() << "Drawing tools enabled";
+    }
+}
+
 void MainWindow::keyPressEvent(QKeyEvent* event)
 {
     // Handle global key shortcuts
@@ -2673,6 +2977,40 @@ void MainWindow::keyPressEvent(QKeyEvent* event)
     case Qt::Key_Escape:
         if (m_canvas) {
             m_canvas->clearSelection();
+        }
+        break;
+
+    case Qt::Key_F5:
+        if (event->modifiers() & Qt::ShiftModifier) {
+            clearCurrentFrame();
+        }
+        else {
+            insertFrame();
+        }
+        break;
+    case Qt::Key_F6:
+        addKeyframe();  // Use existing method name
+        break;
+    case Qt::Key_F7:
+        createBlankKeyframe();
+        break;
+    case Qt::Key_F8:
+        convertToKeyframe();
+        break;
+    case Qt::Key_Left:
+        if (event->modifiers() & Qt::ControlModifier) {
+            previousKeyframe();  // Use existing method name
+        }
+        else {
+            previousFrame();
+        }
+        break;
+    case Qt::Key_Right:
+        if (event->modifiers() & Qt::ControlModifier) {
+            nextKeyframe();  // Use existing method name
+        }
+        else {
+            nextFrame();
         }
         break;
     default:
