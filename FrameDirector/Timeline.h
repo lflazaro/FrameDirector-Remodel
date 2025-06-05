@@ -1,6 +1,4 @@
-// Replace Timeline.h with this fixed version
-
-// Timeline.h - Enhanced with frame extension visualization
+// Timeline.h - Enhanced with frame extension visualization - FIXED
 #ifndef TIMELINE_H
 #define TIMELINE_H
 
@@ -26,6 +24,15 @@
 #include <QAction>
 #include <vector>
 #include <map>
+
+// FIXED: Forward declare TweenType or include Canvas.h
+// Forward declaration of TweenType from Canvas.h
+enum class TweenType {
+    None,         // No tweening
+    Motion,       // Position, rotation, scale tweening
+    Shape,        // Morphing between shapes (future)
+    Classic       // Traditional Flash-style motion tween
+};
 
 class MainWindow;
 class TimelineHeader;
@@ -118,7 +125,7 @@ public:
     void drawPlayhead(QPainter* painter, const QRect& rect);
     void drawSelection(QPainter* painter, const QRect& rect);
 
-    // FIXED: Tweening visualization methods
+    // FIXED: Correct tweening visualization method signatures
     void drawTweening(QPainter* painter, const QRect& rect);
     void drawTweenSpan(QPainter* painter, int layer, int startFrame, int endFrame, TweenType type);
     void drawTweenArrow(QPainter* painter, int x, int y, const QColor& color);
@@ -150,8 +157,8 @@ signals:
     void tweeningRemovalRequested(int layer, int startFrame, int endFrame);
 
 public slots:
-    // FIXED: Proper slot declaration using int for cross-boundary compatibility
-    void onTweeningApplied(int layer, int startFrame, int endFrame, int type);
+    // FIXED: Correct slot signature with TweenType
+    void onTweeningApplied(int layer, int startFrame, int endFrame, TweenType type);
 
 private slots:
     void onFrameSliderChanged(int value);

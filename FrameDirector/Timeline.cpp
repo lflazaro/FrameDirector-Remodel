@@ -1,8 +1,9 @@
 ﻿// Timeline.cpp
+
 #include "Timeline.h"
 #include "MainWindow.h"
 #include "Panels/LayerManager.h"
-#include "Canvas.h"
+#include "Canvas.h"  // CRITICAL: This include is needed for TweenType
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QGridLayout>
@@ -21,6 +22,8 @@
 #include <QPaintEvent>
 #include <QApplication>
 #include <QStyle>
+#include <QLinearGradient>  // Add this for gradient support
+#include <QPolygon>         // Add this for arrow drawing
 
 // TimelineDrawingArea implementation
 TimelineDrawingArea::TimelineDrawingArea(QWidget* parent)
@@ -1108,6 +1111,7 @@ void Timeline::drawTweening(QPainter* painter, const QRect& rect)
 }
 
 
+
 void Timeline::drawTweenSpan(QPainter* painter, int layer, int startFrame, int endFrame, TweenType type)
 {
     if (startFrame >= endFrame) return;
@@ -1277,7 +1281,7 @@ void Timeline::onCreateClassicTween()
     }
 }
 
-// FIXED: Correct the onTweeningApplied method signature
+
 void Timeline::onTweeningApplied(int layer, int startFrame, int endFrame, TweenType type)
 {
     qDebug() << "Timeline: Tweening applied to layer" << layer << "from" << startFrame << "to" << endFrame;
