@@ -34,21 +34,6 @@ class TimelineRuler;
 class AnimationKeyframe;
 class LayerGraphicsGroup;
 
-// FIXED: Proper enum definitions (don't forward declare, include or define)
-enum class FrameType {
-    Empty,        // No content, no keyframe
-    Keyframe,     // Contains unique content/state
-    ExtendedFrame, // Extends from previous keyframe
-    TweenedFrame  // Part of a tweened span
-};
-
-enum class TweenType {
-    None,         // No tweening
-    Motion,       // Position, rotation, scale tweening
-    Shape,        // Morphing between shapes (future)
-    Classic       // Traditional Flash-style motion tween
-};
-
 // Frame visualization types
 enum class FrameVisualType {
     Empty,
