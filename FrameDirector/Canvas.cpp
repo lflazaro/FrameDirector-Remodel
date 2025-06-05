@@ -1692,3 +1692,103 @@ void Canvas::interpolateItemsAtFrame(int layer, int frame, double t)
         // TODO: Add color interpolation for brushes and pens
     }
 }
+
+
+bool Canvas::hasTweening(int layer, int frame) const
+{
+    auto layerIt = m_layerFrameData.find(layer);
+    if (layerIt != m_layerFrameData.end()) {
+        auto frameIt = layerIt->second.find(frame);
+        if (frameIt != layerIt->second.end()) {
+            return frameIt->second.hasTweening;
+        }
+    }
+    return false;
+}
+
+TweenType Canvas::getTweenType(int layer, int frame) const
+{
+    auto layerIt = m_layerFrameData.find(layer);
+    if (layerIt != m_layerFrameData.end()) {
+        auto frameIt = layerIt->second.find(frame);
+        if (frameIt != layerIt->second.end()) {
+            return frameIt->second.tweenType;
+        }
+    }
+    return TweenType::None;
+}
+
+QList<int> Canvas::getTweeningFrames(int layer, int startFrame, int endFrame) const
+{
+    QList<int> frames;
+
+    auto layerIt = m_layerFrameData.find(layer);
+    if (layerIt == m_layerFrameData.end()) {
+        return frames;
+    }
+
+    for (int frame = startFrame; frame <= endFrame; ++frame) {
+        auto frameIt = layerIt->second.find(frame);
+        if (frameIt != layerIt->second.end() && frameIt->second.hasTweening) {
+            frames.append(frame);
+        }
+    }
+
+    return frames;
+}
+
+void Canvas::removeTweening(int layer, int startFrame, int endFrame)
+{
+    auto layerIt = m_layerFrameData.find(layer);
+    if (layerIt == m_layerFrameData.end()) {
+        return;
+    }
+
+    qDebug() << "Removing tweening from layer" << layer << "frames" << startFrame << "to" << endFrame;
+
+    // Remove tweening from all frames in the range
+    for (int frame = startFrame; frame <= endFrame; ++frame) {
+        auto frameIt = layerIt->second.find(frame);
+        if (frameIt != layerIt->second.end()) {
+            frameIt->second.hasTweening = false;
+            frameIt->second.tweenType = TweenType::None;
+            frameIt->second.tweenStartFrame = -1;
+            frameIt->second.tweenEndFrame = -1;
+            frameIt->second.easingType = QEasingCurve::Linear;
+        }
+    }
+
+    // Update current frame if it's in the affected range
+    if (m_currentFrame >= startFrame && m_currentFrame <= endFrame) {
+        loadFrameState(m_currentFrame);
+    }
+
+    emit tweeningRemoved(layer, startFrame, endFrame);
+    storeCurrentFrameState();
+}
+
+// FIXED: Make sure isExtendedFrame method exists
+bool Canvas::isExtendedFrame(int frame, int layer) const
+{
+    auto layerIt = m_layerFrameData.find(layer);
+    if (layerIt != m_layerFrameData.end()) {
+        auto frameIt = layerIt->second.find(frame);
+        if (frameIt != layerIt->second.end()) {
+            return frameIt->second.type == FrameType::ExtendedFrame;
+        }
+    }
+    return false;
+}
+
+// FIXED: Make sure isTweenedFrame method exists  
+bool Canvas::isTweenedFrame(int frame, int layer) const
+{
+    auto layerIt = m_layerFrameData.find(layer);
+    if (layerIt != m_layerFrameData.end()) {
+        auto frameIt = layerIt->second.find(frame);
+        if (frameIt != layerIt->second.end()) {
+            return frameIt->second.type == FrameType::TweenedFrame;
+        }
+    }
+    return false;
+}

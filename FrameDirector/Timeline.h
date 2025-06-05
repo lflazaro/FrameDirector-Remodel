@@ -32,9 +32,8 @@ class TimelineRuler;
 class AnimationKeyframe;
 class LayerGraphicsGroup;
 
-// Forward declare the enums from Canvas.h - FIXED: Include them properly
-enum class FrameType;
-enum class TweenType;
+// FIXED: Include Canvas.h to get the actual enum definitions
+#include "Canvas.h"
 
 // Frame visualization types
 enum class FrameVisualType {
@@ -71,6 +70,7 @@ class Timeline : public QWidget
 public:
     explicit Timeline(MainWindow* parent = nullptr);
     ~Timeline();
+    TimelineDrawingArea* m_drawingArea;
 
     // Frame management
     void setCurrentFrame(int frame);
@@ -120,9 +120,11 @@ public:
     void drawPlayhead(QPainter* painter, const QRect& rect);
     void drawSelection(QPainter* painter, const QRect& rect);
 
-    // FIXED: Method declarations with proper TweenType forward declaration
+    // FIXED: Properly declare tweening methods with correct TweenType
     void drawTweening(QPainter* painter, const QRect& rect);
+    void drawTweenSpan(QPainter* painter, int layer, int startFrame, int endFrame, TweenType type);
     void drawTweenArrow(QPainter* painter, int x, int y, const QColor& color);
+    void drawTweenTypeIndicator(QPainter* painter, int x, int y, TweenType type);
 
     // Helper methods for drawing area
     QRect getFrameRect(int frame) const;
@@ -144,8 +146,8 @@ signals:
     void keyframeSelected(int layer, int frame);
     void layerSelected(int layer);
 
-    // FIXED: Use int instead of TweenType in signal declaration for now
-    void tweeningRequested(int layer, int startFrame, int endFrame, int type);
+    // FIXED: Use proper TweenType in signal declarations
+    void tweeningRequested(int layer, int startFrame, int endFrame, TweenType type);
     void tweeningRemovalRequested(int layer, int startFrame, int endFrame);
 
 private slots:
@@ -159,8 +161,8 @@ private slots:
     void onCreateClassicTween();
     void onRemoveTween();
 
-    // FIXED: Use int instead of TweenType in slot declaration for now
-    void onTweeningApplied(int layer, int startFrame, int endFrame, int type);
+    // FIXED: Use proper TweenType in slot declaration
+    void onTweeningApplied(int layer, int startFrame, int endFrame, TweenType type);
 
 private:
     void setupUI();
@@ -179,7 +181,6 @@ private:
     QVBoxLayout* m_mainLayout;
     QHBoxLayout* m_controlsLayout;
     QScrollArea* m_scrollArea;
-    TimelineDrawingArea* m_drawingArea;
 
     // Controls
     QPushButton* m_playButton;

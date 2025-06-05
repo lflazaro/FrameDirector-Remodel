@@ -2940,6 +2940,35 @@ void MainWindow::disableDrawingTools()
     }
 }
 
+void MainWindow::onTweeningStateChanged()
+{
+    // Update tool availability based on current tweening state
+    updateToolAvailability();
+
+    // Update frame actions based on tweening state
+    updateFrameActions();
+
+    // Update timeline display
+    if (m_timeline && m_timeline->m_drawingArea) {
+        m_timeline->m_drawingArea->update();
+    }
+
+    // Update status bar with tweening information
+    if (m_canvas && m_canvas->hasTweening(m_currentLayerIndex, m_currentFrame)) {
+        TweenType tweenType = m_canvas->getTweenType(m_currentLayerIndex, m_currentFrame);
+        QString typeStr = (tweenType == TweenType::Motion) ? "Motion" : "Classic";
+        m_statusLabel->setText(QString("Frame %1 - %2 Tween Active (Drawing Disabled)")
+            .arg(m_currentFrame).arg(typeStr));
+    }
+    else {
+        m_statusLabel->setText(QString("Frame %1").arg(m_currentFrame));
+    }
+
+    // Mark as modified if tweening state changed
+    m_isModified = true;
+
+    qDebug() << "Tweening state changed - UI updated";
+}
 void MainWindow::enableDrawingTools()
 {
     if (!m_drawingToolsEnabled) {

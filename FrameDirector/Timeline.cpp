@@ -256,23 +256,6 @@ QList<int> Timeline::findTweenableSpan(int layer, int frame) const
     return span;
 }
 
-void Timeline::onCreateMotionTween()
-{
-    QList<int> span = findTweenableSpan(m_contextMenuLayer, m_contextMenuFrame);
-    if (span.size() == 2) {
-        qDebug() << "Creating motion tween from frame" << span[0] << "to" << span[1] << "on layer" << m_contextMenuLayer;
-        emit tweeningRequested(m_contextMenuLayer, span[0], span[1], TweenType::Motion);
-    }
-}
-
-void Timeline::onCreateClassicTween()
-{
-    QList<int> span = findTweenableSpan(m_contextMenuLayer, m_contextMenuFrame);
-    if (span.size() == 2) {
-        qDebug() << "Creating classic tween from frame" << span[0] << "to" << span[1] << "on layer" << m_contextMenuLayer;
-        emit tweeningRequested(m_contextMenuLayer, span[0], span[1], TweenType::Classic);
-    }
-}
 
 void Timeline::onRemoveTween()
 {
@@ -287,14 +270,6 @@ void Timeline::onRemoveTween()
     }
 }
 
-void Timeline::onTweeningApplied(int layer, int startFrame, int endFrame, TweenType type)
-{
-    qDebug() << "Timeline: Tweening applied to layer" << layer << "from" << startFrame << "to" << endFrame;
-
-    if (m_drawingArea) {
-        m_drawingArea->update();
-    }
-}
 // Timeline implementation
 Timeline::Timeline(MainWindow* parent)
     : QWidget(parent)
@@ -1105,6 +1080,7 @@ void Timeline::drawTweening(QPainter* painter, const QRect& rect)
     }
 }
 
+
 void Timeline::drawTweenSpan(QPainter* painter, int layer, int startFrame, int endFrame, TweenType type)
 {
     if (startFrame >= endFrame) return;
@@ -1220,6 +1196,36 @@ void Timeline::drawTweenTypeIndicator(QPainter* painter, int x, int y, TweenType
     painter->setPen(QPen(Qt::white, 1));
     painter->setFont(QFont("Arial", 8, QFont::Bold));
     painter->drawText(x - 3, y + 3, typeChar);
+}
+
+// FIXED: Correct the onCreateMotionTween method to emit proper TweenType
+void Timeline::onCreateMotionTween()
+{
+    QList<int> span = findTweenableSpan(m_contextMenuLayer, m_contextMenuFrame);
+    if (span.size() == 2) {
+        qDebug() << "Creating motion tween from frame" << span[0] << "to" << span[1] << "on layer" << m_contextMenuLayer;
+        emit tweeningRequested(m_contextMenuLayer, span[0], span[1], TweenType::Motion);
+    }
+}
+
+// FIXED: Correct the onCreateClassicTween method to emit proper TweenType
+void Timeline::onCreateClassicTween()
+{
+    QList<int> span = findTweenableSpan(m_contextMenuLayer, m_contextMenuFrame);
+    if (span.size() == 2) {
+        qDebug() << "Creating classic tween from frame" << span[0] << "to" << span[1] << "on layer" << m_contextMenuLayer;
+        emit tweeningRequested(m_contextMenuLayer, span[0], span[1], TweenType::Classic);
+    }
+}
+
+// FIXED: Correct the onTweeningApplied method signature
+void Timeline::onTweeningApplied(int layer, int startFrame, int endFrame, TweenType type)
+{
+    qDebug() << "Timeline: Tweening applied to layer" << layer << "from" << startFrame << "to" << endFrame;
+
+    if (m_drawingArea) {
+        m_drawingArea->update();
+    }
 }
 
 void Timeline::drawKeyframeSymbol(QPainter* painter, int x, int y, FrameVisualType type, bool selected, bool hasTweening)
