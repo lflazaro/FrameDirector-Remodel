@@ -1,3 +1,5 @@
+// Replace Timeline.h with this fixed version
+
 // Timeline.h - Enhanced with frame extension visualization
 #ifndef TIMELINE_H
 #define TIMELINE_H
@@ -32,8 +34,20 @@ class TimelineRuler;
 class AnimationKeyframe;
 class LayerGraphicsGroup;
 
-// FIXED: Include Canvas.h to get the actual enum definitions
-#include "Canvas.h"
+// FIXED: Proper enum definitions (don't forward declare, include or define)
+enum class FrameType {
+    Empty,        // No content, no keyframe
+    Keyframe,     // Contains unique content/state
+    ExtendedFrame, // Extends from previous keyframe
+    TweenedFrame  // Part of a tweened span
+};
+
+enum class TweenType {
+    None,         // No tweening
+    Motion,       // Position, rotation, scale tweening
+    Shape,        // Morphing between shapes (future)
+    Classic       // Traditional Flash-style motion tween
+};
 
 // Frame visualization types
 enum class FrameVisualType {
@@ -70,7 +84,6 @@ class Timeline : public QWidget
 public:
     explicit Timeline(MainWindow* parent = nullptr);
     ~Timeline();
-    TimelineDrawingArea* m_drawingArea;
 
     // Frame management
     void setCurrentFrame(int frame);
@@ -120,7 +133,7 @@ public:
     void drawPlayhead(QPainter* painter, const QRect& rect);
     void drawSelection(QPainter* painter, const QRect& rect);
 
-    // FIXED: Properly declare tweening methods with correct TweenType
+    // FIXED: Tweening visualization methods
     void drawTweening(QPainter* painter, const QRect& rect);
     void drawTweenSpan(QPainter* painter, int layer, int startFrame, int endFrame, TweenType type);
     void drawTweenArrow(QPainter* painter, int x, int y, const QColor& color);
@@ -136,6 +149,7 @@ public:
     bool canApplyTweening(int layer, int frame) const;
     bool hasTweening(int layer, int frame) const;
     MainWindow* m_mainWindow;
+    TimelineDrawingArea* m_drawingArea;  // Made public for MainWindow access
 
 signals:
     void frameChanged(int frame);
@@ -146,9 +160,13 @@ signals:
     void keyframeSelected(int layer, int frame);
     void layerSelected(int layer);
 
-    // FIXED: Use proper TweenType in signal declarations
-    void tweeningRequested(int layer, int startFrame, int endFrame, TweenType type);
+    // FIXED: Proper signal declarations using int for cross-boundary compatibility
+    void tweeningRequested(int layer, int startFrame, int endFrame, int type);
     void tweeningRemovalRequested(int layer, int startFrame, int endFrame);
+
+public slots:
+    // FIXED: Proper slot declaration using int for cross-boundary compatibility
+    void onTweeningApplied(int layer, int startFrame, int endFrame, int type);
 
 private slots:
     void onFrameSliderChanged(int value);
@@ -160,9 +178,6 @@ private slots:
     void onCreateMotionTween();
     void onCreateClassicTween();
     void onRemoveTween();
-
-    // FIXED: Use proper TweenType in slot declaration
-    void onTweeningApplied(int layer, int startFrame, int endFrame, TweenType type);
 
 private:
     void setupUI();

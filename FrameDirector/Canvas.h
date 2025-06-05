@@ -102,6 +102,7 @@ public:
     void setCanvasSize(const QSize& size);
     QSize getCanvasSize() const;
     QRectF getCanvasRect() const;
+    std::map<int, std::map<int, LayerFrameData>> m_layerFrameData;  // [layer][frame] = data
 
     // Layer management
     int addLayer(const QString& name = QString());
@@ -216,7 +217,6 @@ private slots:
     void onSceneSelectionChanged();
 
 private:
-    std::map<int, std::map<int, LayerFrameData>> m_layerFrameData;  // [layer][frame] = data
     void calculateTweenedFrame(int layer, int frame);
     void interpolateItemsAtFrame(int layer, int frame, double t);
     QVariant interpolateItemState(const QVariant& fromState, const QVariant& toState, double t);

@@ -404,6 +404,32 @@ void Canvas::addItemToCurrentLayer(QGraphicsItem* item)
         return;
     }
 
+    // FIXED: Flash-like behavior - check if this is a tweened frame
+    if (hasTweening(m_currentLayerIndex, m_currentFrame)) {
+        // In Flash, you can only edit the last frame of a tween
+        int tweenStart = -1;
+        int tweenEnd = -1;
+
+        // Find the tween span for this frame
+        auto layerIt = m_layerFrameData.find(m_currentLayerIndex);
+        if (layerIt != m_layerFrameData.end()) {
+            auto frameIt = layerIt->second.find(m_currentFrame);
+            if (frameIt != layerIt->second.end()) {
+                tweenStart = frameIt->second.tweenStartFrame;
+                tweenEnd = frameIt->second.tweenEndFrame;
+            }
+        }
+
+        // Only allow editing the last frame of the tween (Flash behavior)
+        if (m_currentFrame != tweenEnd) {
+            QMessageBox::information(m_mainWindow, "Tweening Active",
+                QString("Cannot edit frame %1. This frame is part of a tween.\n"
+                    "You can only edit the last frame (%2) of a tween, or remove the tween first.")
+                .arg(m_currentFrame).arg(tweenEnd));
+            return;
+        }
+    }
+
     // Add to scene first
     if (!item->scene()) {
         m_scene->addItem(item);
@@ -441,10 +467,7 @@ void Canvas::addItemToCurrentLayer(QGraphicsItem* item)
     storeCurrentFrameState();
 
     qDebug() << "Added item to layer:" << m_currentLayerIndex
-        << "UUID:" << currentLayer->uuid
-        << "Frame:" << m_currentFrame
-        << "Individual opacity:" << individualOpacity
-        << "Final opacity:" << item->opacity();
+        << "Frame:" << m_currentFrame;
 }
 
 void Canvas::saveFrameState(int frame)
@@ -642,10 +665,19 @@ void Canvas::setCanvasSize(const QSize& size)
 QSize Canvas::getCanvasSize() const { return m_canvasSize; }
 QRectF Canvas::getCanvasRect() const { return m_canvasRect; }
 
+
 void Canvas::setCurrentFrame(int frame)
 {
     if (frame != m_currentFrame && frame >= 1) {
         m_currentFrame = frame;
+
+        // FIXED: Properly handle tweened frames
+        for (int layer = 0; layer < getLayerCount(); ++layer) {
+            if (hasTweening(layer, frame)) {
+                calculateTweenedFrame(layer, frame);
+            }
+        }
+
         loadFrameState(frame);
         emit frameChanged(frame);
         qDebug() << "Current frame set to:" << frame;
@@ -1572,11 +1604,18 @@ void Canvas::convertExtendedFrameToKeyframe(int frame, int layer)
     qDebug() << "Extended frame auto-converted to keyframe with" << layerItems.size() << "items";
 }
 
-
 bool Canvas::canDrawOnFrame(int frame, int layer) const
 {
-    // Can't draw on tweened frames
-    if (isTweenedFrame(frame, layer)) {
+    // Can't draw on tweened frames unless it's the last frame of the tween
+    if (hasTweening(layer, frame)) {
+        auto layerIt = m_layerFrameData.find(layer);
+        if (layerIt != m_layerFrameData.end()) {
+            auto frameIt = layerIt->second.find(frame);
+            if (frameIt != layerIt->second.end()) {
+                // In Flash, you can only edit the last frame of a tween
+                return frame == frameIt->second.tweenEndFrame;
+            }
+        }
         return false;
     }
 
@@ -1588,38 +1627,72 @@ bool Canvas::canDrawOnFrame(int frame, int layer) const
 // NEW: Layer-specific tweening application
 void Canvas::applyTweening(int layer, int startFrame, int endFrame, TweenType type)
 {
-    if (startFrame >= endFrame || !hasContent(startFrame, layer) || !hasContent(endFrame, layer)) {
+    if (startFrame >= endFrame || !hasKeyframe(startFrame) || !hasKeyframe(endFrame)) {
         qDebug() << "Cannot apply tweening: invalid range or missing keyframes";
+        qDebug() << "Start frame" << startFrame << "has keyframe:" << hasKeyframe(startFrame);
+        qDebug() << "End frame" << endFrame << "has keyframe:" << hasKeyframe(endFrame);
         return;
     }
 
     qDebug() << "Applying" << static_cast<int>(type) << "tweening to layer" << layer
         << "from frame" << startFrame << "to" << endFrame;
 
+    // Ensure layer data exists
+    auto& layerData = m_layerFrameData[layer];
+
+    // First, capture the state of start and end keyframes
+    captureCurrentStateAsKeyframe(startFrame);
+    captureCurrentStateAsKeyframe(endFrame);
+
+    // Mark start and end frames as having tweening
+    layerData[startFrame].hasTweening = true;
+    layerData[startFrame].tweenType = type;
+    layerData[startFrame].tweenStartFrame = startFrame;
+    layerData[startFrame].tweenEndFrame = endFrame;
+    layerData[startFrame].easingType = QEasingCurve::Linear;
+
+    layerData[endFrame].hasTweening = true;
+    layerData[endFrame].tweenType = type;
+    layerData[endFrame].tweenStartFrame = startFrame;
+    layerData[endFrame].tweenEndFrame = endFrame;
+    layerData[endFrame].easingType = QEasingCurve::Linear;
+
     // Mark all frames in between as tweened
-    for (int frame = startFrame + 1; frame < endFrame; frame++) {
-        auto& frameData = m_layerFrameData[layer][frame];
+    for (int frame = startFrame + 1; frame < endFrame; ++frame) {
+        auto& frameData = layerData[frame];
         frameData.type = FrameType::TweenedFrame;
         frameData.tweenType = type;
         frameData.hasTweening = true;
         frameData.tweenStartFrame = startFrame;
         frameData.tweenEndFrame = endFrame;
-        frameData.easingType = QEasingCurve::Linear;  // Default easing
+        frameData.easingType = QEasingCurve::Linear;
         frameData.sourceKeyframe = startFrame;
+
+        // Ensure the frame has the extended frame items from the start
+        if (frameData.items.isEmpty() && m_frameItems.find(startFrame) != m_frameItems.end()) {
+            frameData.items = m_frameItems[startFrame];
+            frameData.itemStates = layerData[startFrame].itemStates;
+        }
     }
 
-    // Also mark the end frame as having tweening (for UI purposes)
-    auto& endFrameData = m_layerFrameData[layer][endFrame];
-    endFrameData.hasTweening = true;
-    endFrameData.tweenStartFrame = startFrame;
-    endFrameData.tweenEndFrame = endFrame;
+    // Update compatibility layer
+    for (int frame = startFrame; frame <= endFrame; ++frame) {
+        if (m_frameItems.find(frame) == m_frameItems.end() &&
+            m_frameItems.find(startFrame) != m_frameItems.end()) {
+            m_frameItems[frame] = m_frameItems[startFrame];
+        }
+    }
 
+    storeCurrentFrameState();
     emit tweeningApplied(layer, startFrame, endFrame, type);
 
     // Refresh current frame if it's in the tweened range
-    if (m_currentFrame > startFrame && m_currentFrame < endFrame) {
+    if (m_currentFrame >= startFrame && m_currentFrame <= endFrame) {
         calculateTweenedFrame(layer, m_currentFrame);
+        viewport()->update();
     }
+
+    qDebug() << "Tweening applied successfully";
 }
 
 // NEW: Calculate interpolated frame content
@@ -1627,9 +1700,17 @@ void Canvas::calculateTweenedFrame(int layer, int frame)
 {
     if (!isTweenedFrame(frame, layer)) return;
 
-    auto& frameData = m_layerFrameData[layer][frame];
+    auto layerIt = m_layerFrameData.find(layer);
+    if (layerIt == m_layerFrameData.end()) return;
+
+    auto frameIt = layerIt->second.find(frame);
+    if (frameIt == layerIt->second.end()) return;
+
+    const auto& frameData = frameIt->second;
     int startFrame = frameData.tweenStartFrame;
     int endFrame = frameData.tweenEndFrame;
+
+    if (startFrame == -1 || endFrame == -1) return;
 
     // Calculate interpolation factor (0.0 to 1.0)
     double t = static_cast<double>(frame - startFrame) / (endFrame - startFrame);
@@ -1638,23 +1719,38 @@ void Canvas::calculateTweenedFrame(int layer, int frame)
     QEasingCurve easingCurve(frameData.easingType);
     t = easingCurve.valueForProgress(t);
 
-    qDebug() << "Calculating tweened frame" << frame << "with t=" << t;
+    qDebug() << "Calculating tweened frame" << frame << "with t=" << t
+        << "between frames" << startFrame << "and" << endFrame;
 
-    // Interpolate items between start and end frames
+    // Update items for this frame based on interpolation
     interpolateItemsAtFrame(layer, frame, t);
 }
 
+// FIXED: Enhanced interpolateItemsAtFrame method
 void Canvas::interpolateItemsAtFrame(int layer, int frame, double t)
 {
-    auto& frameData = m_layerFrameData[layer][frame];
+    auto layerIt = m_layerFrameData.find(layer);
+    if (layerIt == m_layerFrameData.end()) return;
+
+    auto frameIt = layerIt->second.find(frame);
+    if (frameIt == layerIt->second.end()) return;
+
+    const auto& frameData = frameIt->second;
     int startFrame = frameData.tweenStartFrame;
     int endFrame = frameData.tweenEndFrame;
 
     // Get start and end frame data
-    auto& startFrameData = m_layerFrameData[layer][startFrame];
-    auto& endFrameData = m_layerFrameData[layer][endFrame];
+    auto startFrameIt = layerIt->second.find(startFrame);
+    auto endFrameIt = layerIt->second.find(endFrame);
 
-    // Only update items that belong to this layer
+    if (startFrameIt == layerIt->second.end() || endFrameIt == layerIt->second.end()) {
+        return;
+    }
+
+    const auto& startFrameData = startFrameIt->second;
+    const auto& endFrameData = endFrameIt->second;
+
+    // Only update items that belong to this layer and are currently in the scene
     for (QGraphicsItem* item : m_scene->items()) {
         if (getItemLayerIndex(item) != layer) continue;
 
@@ -1689,10 +1785,9 @@ void Canvas::interpolateItemsAtFrame(int layer, int frame, double t)
         double newOpacity = startOpacity + (endOpacity - startOpacity) * t;
         item->setOpacity(newOpacity);
 
-        // TODO: Add color interpolation for brushes and pens
+        qDebug() << "Interpolated item at t=" << t << "pos:" << newPos << "rotation:" << newRot;
     }
 }
-
 
 bool Canvas::hasTweening(int layer, int frame) const
 {
@@ -1705,6 +1800,7 @@ bool Canvas::hasTweening(int layer, int frame) const
     }
     return false;
 }
+
 
 TweenType Canvas::getTweenType(int layer, int frame) const
 {
@@ -1721,50 +1817,47 @@ TweenType Canvas::getTweenType(int layer, int frame) const
 QList<int> Canvas::getTweeningFrames(int layer, int startFrame, int endFrame) const
 {
     QList<int> frames;
-
     auto layerIt = m_layerFrameData.find(layer);
-    if (layerIt == m_layerFrameData.end()) {
-        return frames;
-    }
-
-    for (int frame = startFrame; frame <= endFrame; ++frame) {
-        auto frameIt = layerIt->second.find(frame);
-        if (frameIt != layerIt->second.end() && frameIt->second.hasTweening) {
-            frames.append(frame);
+    if (layerIt != m_layerFrameData.end()) {
+        for (int frame = startFrame; frame <= endFrame; ++frame) {
+            auto frameIt = layerIt->second.find(frame);
+            if (frameIt != layerIt->second.end() && frameIt->second.hasTweening) {
+                frames.append(frame);
+            }
         }
     }
-
     return frames;
 }
 
 void Canvas::removeTweening(int layer, int startFrame, int endFrame)
 {
-    auto layerIt = m_layerFrameData.find(layer);
-    if (layerIt == m_layerFrameData.end()) {
-        return;
-    }
-
     qDebug() << "Removing tweening from layer" << layer << "frames" << startFrame << "to" << endFrame;
+
+    auto& layerData = m_layerFrameData[layer];
 
     // Remove tweening from all frames in the range
     for (int frame = startFrame; frame <= endFrame; ++frame) {
-        auto frameIt = layerIt->second.find(frame);
-        if (frameIt != layerIt->second.end()) {
-            frameIt->second.hasTweening = false;
-            frameIt->second.tweenType = TweenType::None;
-            frameIt->second.tweenStartFrame = -1;
-            frameIt->second.tweenEndFrame = -1;
-            frameIt->second.easingType = QEasingCurve::Linear;
+        auto& frameData = layerData[frame];
+        frameData.hasTweening = false;
+        frameData.tweenType = TweenType::None;
+        frameData.tweenStartFrame = -1;
+        frameData.tweenEndFrame = -1;
+        frameData.easingType = QEasingCurve::Linear;
+    }
+
+    // Convert tweened frames back to extended frames
+    for (int frame = startFrame + 1; frame < endFrame; ++frame) {
+        auto& frameData = layerData[frame];
+        if (frameData.type == FrameType::TweenedFrame) {
+            frameData.type = FrameType::ExtendedFrame;
+            frameData.sourceKeyframe = startFrame;
         }
     }
 
-    // Update current frame if it's in the affected range
-    if (m_currentFrame >= startFrame && m_currentFrame <= endFrame) {
-        loadFrameState(m_currentFrame);
-    }
-
-    emit tweeningRemoved(layer, startFrame, endFrame);
     storeCurrentFrameState();
+    emit tweeningRemoved(layer, startFrame, endFrame);
+
+    qDebug() << "Tweening removed successfully";
 }
 
 // FIXED: Make sure isExtendedFrame method exists
@@ -1783,12 +1876,5 @@ bool Canvas::isExtendedFrame(int frame, int layer) const
 // FIXED: Make sure isTweenedFrame method exists  
 bool Canvas::isTweenedFrame(int frame, int layer) const
 {
-    auto layerIt = m_layerFrameData.find(layer);
-    if (layerIt != m_layerFrameData.end()) {
-        auto frameIt = layerIt->second.find(frame);
-        if (frameIt != layerIt->second.end()) {
-            return frameIt->second.type == FrameType::TweenedFrame;
-        }
-    }
-    return false;
+    return hasTweening(layer, frame);
 }

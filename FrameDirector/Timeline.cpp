@@ -167,44 +167,57 @@ void Timeline::updateContextMenuActions()
     bool isExtendedFrame = canvas->isExtendedFrame(m_contextMenuFrame, m_contextMenuLayer);
     bool hasContent = canvas->hasContent(m_contextMenuFrame, m_contextMenuLayer);
     bool hasTweening = canvas->hasTweening(m_contextMenuLayer, m_contextMenuFrame);
-    bool canApplyTween = canApplyTweening(m_contextMenuLayer, m_contextMenuFrame);
+    bool isKeyframe = canvas->hasKeyframe(m_contextMenuFrame);
 
     // Clear previous menu
     m_contextMenu->clear();
+
+    qDebug() << "Context menu for frame" << m_contextMenuFrame << "layer" << m_contextMenuLayer
+        << "- Extended:" << isExtendedFrame << "Tweened:" << hasTweening << "Keyframe:" << isKeyframe;
 
     if (isExtendedFrame && !hasTweening) {
         // Extended frame without tweening: offer tweening options
         QList<int> span = findTweenableSpan(m_contextMenuLayer, m_contextMenuFrame);
         if (span.size() >= 2) {
-            m_contextMenu->addAction(m_createMotionTweenAction);
-            m_contextMenu->addAction(m_createClassicTweenAction);
+            m_contextMenu->addAction("Create Motion Tween");
+            m_contextMenu->addAction("Create Classic Tween");
             m_contextMenu->addSeparator();
+
+            // Connect actions properly
+            connect(m_contextMenu->actions().last(), &QAction::triggered,
+                this, &Timeline::onCreateMotionTween, Qt::UniqueConnection);
+            connect(m_contextMenu->actions()[m_contextMenu->actions().size() - 2], &QAction::triggered,
+                this, &Timeline::onCreateClassicTween, Qt::UniqueConnection);
         }
     }
 
     if (hasTweening) {
         // Frame with tweening: offer removal
-        m_contextMenu->addAction(m_removeTweenAction);
+        m_contextMenu->addAction("Remove Tween");
+        connect(m_contextMenu->actions().last(), &QAction::triggered,
+            this, &Timeline::onRemoveTween, Qt::UniqueConnection);
         m_contextMenu->addSeparator();
     }
 
     // Standard frame operations
     if (!hasContent) {
-        m_contextMenu->addAction(m_insertKeyframeAction);
-        m_contextMenu->addAction(m_insertFrameAction);
+        m_contextMenu->addAction("Insert Keyframe");
+        m_contextMenu->addAction("Insert Frame");
     }
 
     // Clear frame (only for non-extended frames)
     if (hasContent && !isExtendedFrame) {
-        m_contextMenu->addAction(m_clearFrameAction);
+        m_contextMenu->addAction("Clear Frame");
     }
 
-    // Debug info (remove in production)
+    // Debug info
     m_contextMenu->addSeparator();
-    QAction* debugAction = m_contextMenu->addAction(QString("Debug: L%1 F%2 %3")
-        .arg(m_contextMenuLayer)
-        .arg(m_contextMenuFrame)
-        .arg(isExtendedFrame ? "Extended" : hasContent ? "Keyframe" : "Empty"));
+    QString debugText = QString("Debug: L%1 F%2").arg(m_contextMenuLayer).arg(m_contextMenuFrame);
+    if (isExtendedFrame) debugText += " Extended";
+    if (hasTweening) debugText += " Tweened";
+    if (isKeyframe) debugText += " Keyframe";
+
+    QAction* debugAction = m_contextMenu->addAction(debugText);
     debugAction->setEnabled(false);
 }
 
@@ -231,7 +244,7 @@ QList<int> Timeline::findTweenableSpan(int layer, int frame) const
 
     QList<int> span;
 
-    // Find start keyframe (look backwards)
+    // Find start keyframe (look backwards from current frame)
     int startFrame = -1;
     for (int f = frame; f >= 1; f--) {
         if (canvas->hasKeyframe(f)) {
@@ -240,7 +253,7 @@ QList<int> Timeline::findTweenableSpan(int layer, int frame) const
         }
     }
 
-    // Find end keyframe (look forwards)
+    // Find end keyframe (look forwards from current frame)
     int endFrame = -1;
     for (int f = frame; f <= m_totalFrames; f++) {
         if (canvas->hasKeyframe(f) && f != startFrame) {
@@ -251,6 +264,10 @@ QList<int> Timeline::findTweenableSpan(int layer, int frame) const
 
     if (startFrame != -1 && endFrame != -1) {
         span << startFrame << endFrame;
+        qDebug() << "Found tween span from" << startFrame << "to" << endFrame;
+    }
+    else {
+        qDebug() << "No valid tween span found for frame" << frame;
     }
 
     return span;
@@ -262,11 +279,21 @@ void Timeline::onRemoveTween()
     Canvas* canvas = m_mainWindow->findChild<Canvas*>();
     if (!canvas) return;
 
-    // Get tween span for this frame
-    QList<int> frames = canvas->getTweeningFrames(m_contextMenuLayer, m_contextMenuFrame, m_contextMenuFrame);
-    if (frames.size() >= 2) {
-        qDebug() << "Removing tween from frame" << frames.first() << "to" << frames.last() << "on layer" << m_contextMenuLayer;
-        emit tweeningRemovalRequested(m_contextMenuLayer, frames.first(), frames.last());
+    // Find the tween span for this frame
+    auto layerData = canvas->m_layerFrameData.find(m_contextMenuLayer);
+    if (layerData != canvas->m_layerFrameData.end()) {
+        auto frameData = layerData->second.find(m_contextMenuFrame);
+        if (frameData != layerData->second.end() && frameData->second.hasTweening) {
+            int startFrame = frameData->second.tweenStartFrame;
+            int endFrame = frameData->second.tweenEndFrame;
+
+            qDebug() << "Removing tween from frame" << startFrame << "to" << endFrame << "on layer" << m_contextMenuLayer;
+            canvas->removeTweening(m_contextMenuLayer, startFrame, endFrame);
+
+            if (m_drawingArea) {
+                m_drawingArea->update();
+            }
+        }
     }
 }
 
@@ -1109,18 +1136,34 @@ void Timeline::drawTweenSpan(QPainter* painter, int layer, int startFrame, int e
         break;
     }
 
-    // Draw tween background
-    QRect tweenRect(startX, layerRect.top() + 3, endX - startX, layerRect.height() - 6);
-    painter->fillRect(tweenRect, QColor(tweenColor.red(), tweenColor.green(), tweenColor.blue(), 60));
+    // Draw tween background with gradient
+    QRect tweenRect(startX, layerRect.top() + 2, endX - startX, layerRect.height() - 4);
+    QLinearGradient gradient(tweenRect.topLeft(), tweenRect.bottomLeft());
+    gradient.setColorAt(0, QColor(tweenColor.red(), tweenColor.green(), tweenColor.blue(), 80));
+    gradient.setColorAt(0.5, QColor(tweenColor.red(), tweenColor.green(), tweenColor.blue(), 40));
+    gradient.setColorAt(1, QColor(tweenColor.red(), tweenColor.green(), tweenColor.blue(), 80));
+    painter->fillRect(tweenRect, QBrush(gradient));
 
-    // Draw tween line with arrow pattern
-    QPen tweenPen(tweenColor, 3);
+    // Draw tween border
+    QPen borderPen(tweenColor.darker(150), 1, Qt::DashLine);
+    painter->setPen(borderPen);
+    painter->drawRect(tweenRect);
+
+    // Draw main tween line with arrows
+    QPen tweenPen(tweenColor, 2);
     painter->setPen(tweenPen);
     painter->drawLine(startX + frameWidth / 2, y, endX - frameWidth / 2, y);
 
-    // Draw small arrows along the tween line to show direction
-    int arrowSpacing = frameWidth * 2;  // Arrow every 2 frames
-    for (int x = startX + frameWidth; x < endX - frameWidth; x += arrowSpacing) {
+    // Draw small dots along the tween path (Flash-style)
+    int dotSpacing = frameWidth;
+    for (int x = startX + frameWidth; x < endX - frameWidth; x += dotSpacing) {
+        painter->setBrush(QBrush(tweenColor));
+        painter->drawEllipse(x - 2, y - 2, 4, 4);
+    }
+
+    // Draw arrows every few frames to show direction
+    int arrowSpacing = frameWidth * 3;  // Arrow every 3 frames
+    for (int x = startX + frameWidth * 2; x < endX - frameWidth; x += arrowSpacing) {
         drawTweenArrow(painter, x, y, tweenColor);
     }
 
@@ -1157,14 +1200,15 @@ void Timeline::drawTweenArrow(QPainter* painter, int x, int y, const QColor& col
 {
     QPen arrowPen(color, 2);
     painter->setPen(arrowPen);
+    painter->setBrush(QBrush(color));
 
     // Small right-pointing arrow
     QPolygon arrow;
-    arrow << QPoint(x - 3, y - 2)
-        << QPoint(x + 2, y)
-        << QPoint(x - 3, y + 2);
+    arrow << QPoint(x - 4, y - 3)
+        << QPoint(x + 3, y)
+        << QPoint(x - 4, y + 3)
+        << QPoint(x - 2, y);
 
-    painter->setBrush(QBrush(color));
     painter->drawPolygon(arrow);
 }
 
@@ -1190,12 +1234,12 @@ void Timeline::drawTweenTypeIndicator(QPainter* painter, int x, int y, TweenType
     // Draw small circle with type letter
     painter->setBrush(QBrush(indicatorColor));
     painter->setPen(QPen(indicatorColor.darker(), 1));
-    painter->drawEllipse(x - 6, y - 6, 12, 12);
+    painter->drawEllipse(x - 8, y - 8, 16, 16);
 
     // Draw type letter
     painter->setPen(QPen(Qt::white, 1));
-    painter->setFont(QFont("Arial", 8, QFont::Bold));
-    painter->drawText(x - 3, y + 3, typeChar);
+    painter->setFont(QFont("Arial", 9, QFont::Bold));
+    painter->drawText(x - 4, y + 3, typeChar);
 }
 
 // FIXED: Correct the onCreateMotionTween method to emit proper TweenType
@@ -1204,17 +1248,32 @@ void Timeline::onCreateMotionTween()
     QList<int> span = findTweenableSpan(m_contextMenuLayer, m_contextMenuFrame);
     if (span.size() == 2) {
         qDebug() << "Creating motion tween from frame" << span[0] << "to" << span[1] << "on layer" << m_contextMenuLayer;
-        emit tweeningRequested(m_contextMenuLayer, span[0], span[1], TweenType::Motion);
+
+        Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+        if (canvas) {
+            canvas->applyTweening(m_contextMenuLayer, span[0], span[1], TweenType::Motion);
+        }
+
+        if (m_drawingArea) {
+            m_drawingArea->update();
+        }
     }
 }
 
-// FIXED: Correct the onCreateClassicTween method to emit proper TweenType
 void Timeline::onCreateClassicTween()
 {
     QList<int> span = findTweenableSpan(m_contextMenuLayer, m_contextMenuFrame);
     if (span.size() == 2) {
         qDebug() << "Creating classic tween from frame" << span[0] << "to" << span[1] << "on layer" << m_contextMenuLayer;
-        emit tweeningRequested(m_contextMenuLayer, span[0], span[1], TweenType::Classic);
+
+        Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+        if (canvas) {
+            canvas->applyTweening(m_contextMenuLayer, span[0], span[1], TweenType::Classic);
+        }
+
+        if (m_drawingArea) {
+            m_drawingArea->update();
+        }
     }
 }
 
