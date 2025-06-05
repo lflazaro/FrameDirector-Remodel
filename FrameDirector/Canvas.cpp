@@ -10,6 +10,7 @@
 #include <QWheelEvent>
 #include <QKeyEvent>
 #include <QPainter>
+#include <QObject>
 #include <QRubberBand>
 #include <QScrollBar>
 #include <QApplication>

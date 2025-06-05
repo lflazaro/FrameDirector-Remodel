@@ -293,7 +293,7 @@ MainWindow::MainWindow(QWidget* parent)
             connect(m_canvas, &Canvas::tweeningApplied,
                 [this](int layer, int startFrame, int endFrame, TweenType type) {
                     if (m_timeline) {
-                        m_timeline->onTweeningApplied(layer, startFrame, endFrame, static_cast<int>(type));
+                        m_timeline->onTweeningApplied(layer, startFrame, endFrame, type);
                     }
                 });
 

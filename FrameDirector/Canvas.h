@@ -22,6 +22,7 @@
 #include <QRubberBand>
 #include <QTimer>
 #include <QEasingCurve>  // FIXED: Add missing include
+#include <QObject>
 #include <memory>
 #include <vector>
 #include <map>

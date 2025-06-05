@@ -9,6 +9,7 @@
 #include <QGridLayout>
 #include <QScrollArea>
 #include <QScrollBar>
+#include <QObject>
 #include <QPushButton>
 #include <QSlider>
 #include <QSpinBox>

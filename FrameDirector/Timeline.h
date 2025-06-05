@@ -1,8 +1,9 @@
 // Timeline.h - Enhanced with frame extension visualization - FIXED
 #ifndef TIMELINE_H
 #define TIMELINE_H
-
+#include <Canvas.h>
 #include <QWidget>
+#include <QObject>
 #include <QScrollArea>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -24,15 +25,6 @@
 #include <QAction>
 #include <vector>
 #include <map>
-
-// FIXED: Forward declare TweenType or include Canvas.h
-// Forward declaration of TweenType from Canvas.h
-enum class TweenType {
-    None,         // No tweening
-    Motion,       // Position, rotation, scale tweening
-    Shape,        // Morphing between shapes (future)
-    Classic       // Traditional Flash-style motion tween
-};
 
 class MainWindow;
 class TimelineHeader;
