@@ -193,7 +193,7 @@ private:
         connect(m_stabilizerSlider, &QSlider::valueChanged,
                 [this](int value) { onStabilizerChanged(value); });
         connect(m_colorButton, &QPushButton::clicked,
-                [this]() { onColorButtonClicked(); });
+                [this](bool) { onColorButtonClicked(); });
         connect(m_smoothingCheckBox, &QCheckBox::toggled,
                 [this](bool enabled) { onSmoothingToggled(enabled); });
         connect(m_pressureCheckBox, &QCheckBox::toggled,
@@ -201,7 +201,7 @@ private:
         
         connect(okButton, &QPushButton::clicked, this, &QDialog::accept);
         connect(cancelButton, &QPushButton::clicked, this, &QDialog::reject);
-        connect(resetButton, &QPushButton::clicked, [this]() { resetToDefaults(); });
+        connect(resetButton, &QPushButton::clicked, [this](bool) { resetToDefaults(); });
     }
     
     void loadSettings()
