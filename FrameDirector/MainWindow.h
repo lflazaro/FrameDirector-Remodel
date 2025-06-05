@@ -105,14 +105,7 @@ public:
     void previousKeyframe();
     void firstFrame();
     void lastFrame();
-    void addKeyframe();
     void removeKeyframe();
-    void insertFrame();                 // Create extended frame
-    void clearCurrentFrame();           // Clear current frame content
-    void convertToKeyframe();           // Convert extended frame to keyframe
-    void updateFrameActions();          // Enable/disable frame actions based on current state
-    void showFrameTypeIndicator();      // Show current frame type in status bar
-
     // Public member access for undo commands
     QUndoStack* m_undoStack;
 
@@ -125,6 +118,15 @@ public slots:
     void cut();
     void copy();
     void paste();
+
+    void addKeyframe();                 // Enhanced to use new createKeyframe
+
+    // NEW: Additional frame creation methods
+    void insertFrame();                 // Create extended frame
+    void insertBlankKeyframe();         // Create blank keyframe
+    void clearCurrentFrame();           // Clear current frame content
+    void convertToKeyframe();           // Convert extended frame to keyframe
+
 
 signals:
     void playbackStateChanged(bool isPlaying);
@@ -229,10 +231,6 @@ private slots:
 
     // Enhanced undo/redo support
     void updateUndoRedoActions();
-    void onCurrentLayerChanged(int layer);
-    void onFrameChangedWithLayer(int frame);
-    void updateToolAvailability();
-    void onTweeningStateChanged();
 
 private:
     void createActions();
@@ -253,6 +251,8 @@ private:
     void updateUI();
     void updateStatusBar();
     void updateImportMenu();
+    void updateFrameActions();          // Enable/disable frame actions based on current state
+    void showFrameTypeIndicator();      // Show current frame type in status bar
 
     // Tool management
     void setupTools();
@@ -325,7 +325,7 @@ private:
 
     // Animation and layers
     std::vector<std::unique_ptr<AnimationLayer>> m_layers;
-    int m_currentLayerIndex;  // FIXED: Keep only one declaration
+    int m_currentLayerIndex;
     std::map<int, std::vector<std::unique_ptr<AnimationKeyframe>>> m_keyframes;
     QAction* m_copyFrameAction;
     QAction* m_blankKeyframeAction;
@@ -335,11 +335,6 @@ private:
     QColor m_currentFillColor;
     double m_currentStrokeWidth;
     double m_currentOpacity;
-
-    bool m_drawingToolsEnabled;
-    void disableDrawingTools();
-    void enableDrawingTools();
-    void showTweeningWarning();
 
     // Actions - File Menu
     QAction* m_newAction;

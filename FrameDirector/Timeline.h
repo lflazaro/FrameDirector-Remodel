@@ -1,9 +1,8 @@
-// Timeline.h - Enhanced with frame extension visualization - FIXED
+// Timeline.h - Enhanced with frame extension visualization
 #ifndef TIMELINE_H
 #define TIMELINE_H
-#include <Canvas.h>
+
 #include <QWidget>
-#include <QObject>
 #include <QScrollArea>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -21,8 +20,6 @@
 #include <QBrush>
 #include <QPen>
 #include <QFont>
-#include <QMenu>
-#include <QAction>
 #include <vector>
 #include <map>
 
@@ -117,23 +114,12 @@ public:
     void drawPlayhead(QPainter* painter, const QRect& rect);
     void drawSelection(QPainter* painter, const QRect& rect);
 
-    // FIXED: Correct tweening visualization method signatures
-    void drawTweening(QPainter* painter, const QRect& rect);
-    void drawTweenSpan(QPainter* painter, int layer, int startFrame, int endFrame, TweenType type);
-    void drawTweenArrow(QPainter* painter, int x, int y, const QColor& color);
-    void drawTweenTypeIndicator(QPainter* painter, int x, int y, TweenType type);
-
     // Helper methods for drawing area
     QRect getFrameRect(int frame) const;
     QRect getLayerRect(int layer) const;
     int getFrameFromX(int x) const;
     int getLayerFromY(int y) const;
     QRect getDrawingAreaRect() const;
-    void showContextMenu(const QPoint& position, int layer, int frame);
-    bool canApplyTweening(int layer, int frame) const;
-    bool hasTweening(int layer, int frame) const;
-    MainWindow* m_mainWindow;
-    TimelineDrawingArea* m_drawingArea;  // Made public for MainWindow access
 
 signals:
     void frameChanged(int frame);
@@ -144,14 +130,6 @@ signals:
     void keyframeSelected(int layer, int frame);
     void layerSelected(int layer);
 
-    // FIXED: Proper signal declarations using int for cross-boundary compatibility
-    void tweeningRequested(int layer, int startFrame, int endFrame, int type);
-    void tweeningRemovalRequested(int layer, int startFrame, int endFrame);
-
-public slots:
-    // FIXED: Correct slot signature with TweenType
-    void onTweeningApplied(int layer, int startFrame, int endFrame, TweenType type);
-
 private slots:
     void onFrameSliderChanged(int value);
     void onFrameSpinBoxChanged(int value);
@@ -159,27 +137,25 @@ private slots:
     void onLayerSelectionChanged();
     void onKeyframeCreated(int frame);
     void onFrameExtended(int fromFrame, int toFrame);  // NEW
-    void onCreateMotionTween();
-    void onCreateClassicTween();
-    void onRemoveTween();
 
 private:
     void setupUI();
     void setupControls();
     void updateLayout();
-    void setupContextMenu();
-    void updateContextMenuActions();
-    QList<int> findTweenableSpan(int layer, int frame) const;
+    void updateScrollbars();
 
     // ENHANCED: Frame extension visualization helpers
     void drawFrameSpan(QPainter* painter, int layer, int startFrame, int endFrame);
-    void drawKeyframeSymbol(QPainter* painter, int x, int y, FrameVisualType type, bool selected, bool hasTweening);
+    void drawKeyframeSymbol(QPainter* painter, int x, int y, FrameVisualType type, bool selected = false);
     QColor getFrameExtensionColor(int layer) const;
+
+    MainWindow* m_mainWindow;
 
     // UI Components
     QVBoxLayout* m_mainLayout;
     QHBoxLayout* m_controlsLayout;
     QScrollArea* m_scrollArea;
+    TimelineDrawingArea* m_drawingArea;
 
     // Controls
     QPushButton* m_playButton;
@@ -250,19 +226,6 @@ private:
     QPoint m_dragStart;
     int m_selectedLayer;
     std::vector<int> m_selectedKeyframes;
-
-    // NEW: Context menu components
-    QMenu* m_contextMenu;
-    QAction* m_createMotionTweenAction;
-    QAction* m_createClassicTweenAction;
-    QAction* m_removeTweenAction;
-    QAction* m_insertKeyframeAction;
-    QAction* m_insertFrameAction;
-    QAction* m_clearFrameAction;
-
-    // Context menu state
-    int m_contextMenuLayer;
-    int m_contextMenuFrame;
 };
 
 #endif

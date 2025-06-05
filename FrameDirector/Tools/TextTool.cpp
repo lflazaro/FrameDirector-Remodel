@@ -19,16 +19,6 @@ void TextTool::mousePressEvent(QMouseEvent* event, const QPointF& scenePos)
 {
     if (!m_canvas) return;
 
-    int currentLayer = m_canvas->getCurrentLayer();
-    int currentFrame = m_canvas->getCurrentFrame();
-
-    // Check if drawing is allowed
-    if (!canDrawOnCurrentFrame(m_canvas, currentLayer, currentFrame)) {
-        return;
-    }
-
-    // Auto-convert extended frame to keyframe
-    checkAutoConversion(m_canvas, currentLayer, currentFrame);
     if (event->button() == Qt::LeftButton) {
         // Get text from user
         bool ok;

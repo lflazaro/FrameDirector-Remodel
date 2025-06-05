@@ -212,151 +212,80 @@ MainWindow::MainWindow(QWidget* parent)
     }
 
 
-    void MainWindow::connectToolsAndCanvas()
-    {
-        // Make sure canvas has the right colors and settings
-        if (m_canvas) {
-            m_canvas->setStrokeColor(m_currentStrokeColor);
-            m_canvas->setFillColor(m_currentFillColor);
-            m_canvas->setStrokeWidth(m_currentStrokeWidth);
+void MainWindow::connectToolsAndCanvas()
+{
+    // Make sure canvas has the right colors and settings
+    if (m_canvas) {
+        m_canvas->setStrokeColor(m_currentStrokeColor);
+        m_canvas->setFillColor(m_currentFillColor);
+        m_canvas->setStrokeWidth(m_currentStrokeWidth);
 
-            // Connect tool signals for item creation
-            for (auto& toolPair : m_tools) {
-                Tool* tool = toolPair.second.get();
-                if (tool) {
-                    connect(tool, &Tool::itemCreated, [this](QGraphicsItem* item) {
-                        if (item && m_canvas && m_canvas->scene()) {
-                            onSelectionChanged();
-                            m_statusLabel->setText("Item created");
-                            m_isModified = true;
-                        }
-                        });
-                    qDebug() << "Connected tool:" << static_cast<int>(toolPair.first) << "Tool object:" << tool;
-                }
-            }
-
-            qDebug() << "Tools and canvas connected successfully";
-
-            connect(m_canvas, &Canvas::frameAutoConverted, [this](int frame, int layer) {
-                updateToolAvailability();
-                updateFrameActions();
-                m_statusLabel->setText(QString("Extended frame auto-converted to keyframe at frame %1").arg(frame));
-                m_isModified = true;
-                });
-
-            // FIXED: Enhanced tweening signal connections
-            connect(m_canvas, &Canvas::tweeningApplied, [this](int layer, int startFrame, int endFrame, TweenType type) {
-                updateToolAvailability();
-                QString typeStr = (type == TweenType::Motion) ? "Motion" : "Classic";
-                m_statusLabel->setText(QString("%1 tween applied to layer %2, frames %3-%4")
-                    .arg(typeStr).arg(layer).arg(startFrame).arg(endFrame));
-                m_isModified = true;
-
-                // Update timeline display
-                if (m_timeline && m_timeline->m_drawingArea) {
-                    m_timeline->m_drawingArea->update();
-                }
-                });
-
-            connect(m_canvas, &Canvas::tweeningRemoved, [this](int layer, int startFrame, int endFrame) {
-                updateToolAvailability();
-                m_statusLabel->setText(QString("Tween removed from layer %1, frames %2-%3")
-                    .arg(layer).arg(startFrame).arg(endFrame));
-                m_isModified = true;
-
-                // Update timeline display
-                if (m_timeline && m_timeline->m_drawingArea) {
-                    m_timeline->m_drawingArea->update();
-                }
-                });
-        }
-
-        // FIXED: Enhanced timeline connections
-        if (m_timeline && m_canvas) {
-            // FIX: Remove QOverload from non-overloaded signals
-            connect(m_timeline, &Timeline::tweeningRequested,  // REMOVED QOverload
-                [this](int layer, int startFrame, int endFrame, int typeInt) {
-                    TweenType type = static_cast<TweenType>(typeInt);
-                    if (m_canvas) {
-                        m_canvas->applyTweening(layer, startFrame, endFrame, type);
-                    }
-                });
-
-            connect(m_timeline, &Timeline::tweeningRemovalRequested,
-                [this](int layer, int startFrame, int endFrame) {
-                    if (m_canvas) {
-                        m_canvas->removeTweening(layer, startFrame, endFrame);
-                    }
-                });
-
-            // Connect canvas tweening signals to timeline updates
-            connect(m_canvas, &Canvas::tweeningApplied,
-                [this](int layer, int startFrame, int endFrame, TweenType type) {
-                    if (m_timeline) {
-                        m_timeline->onTweeningApplied(layer, startFrame, endFrame, type);
-                    }
-                });
-
-            // FIX: Connect to correct objects
-            connect(m_timeline, &Timeline::frameChanged, this, &MainWindow::onFrameChangedWithLayer);
-            connect(m_timeline, &Timeline::layerSelected, this, &MainWindow::onCurrentLayerChanged);
-
-            qDebug() << "Enhanced tweening connections established";
-        }
-
-        // FIXED: Connect tools panel for bucket fill tool
-        if (m_toolsPanel) {
-            connect(m_toolsPanel, &ToolsPanel::drawingToolSettingsRequested,
-                this, &MainWindow::showDrawingToolSettings);
-
-            connect(m_toolsPanel, &ToolsPanel::quickStrokeWidthChanged,
-                this, &MainWindow::setDrawingToolStrokeWidth);
-
-            connect(m_toolsPanel, &ToolsPanel::quickColorChanged,
-                this, &MainWindow::setDrawingToolColor);
-        }
-
-        // Make sure the select tool is active by default
-        if (m_toolsPanel) {
-            m_toolsPanel->setActiveTool(SelectTool);
-        }
-
-        // Debug: Print all available tools
-        qDebug() << "Available tools:" << m_tools.size();
-        for (auto& toolPair : m_tools) {
-            qDebug() << "Tool type:" << static_cast<int>(toolPair.first) << "Tool:" << toolPair.second.get();
-        }
-
-        if (m_propertiesPanel && m_canvas) {
-            connect(m_canvas, &Canvas::selectionChanged,
-                m_propertiesPanel, &PropertiesPanel::onSelectionChanged);
-
-            connect(m_propertiesPanel, &PropertiesPanel::propertyChanged, [this]() {
-                if (m_canvas) {
-                    m_canvas->storeCurrentFrameState();
-                    m_isModified = true;
-                }
-                });
-
-            qDebug() << "Properties panel connected to canvas successfully";
-        }
-        else {
-            qDebug() << "Warning: Could not connect properties panel - panel or canvas is null";
-        }
-
-        // Make sure undo stack is accessible to all tools
+        // Connect tool signals for item creation
         for (auto& toolPair : m_tools) {
             Tool* tool = toolPair.second.get();
             if (tool) {
-                qDebug() << "Tool" << static_cast<int>(toolPair.first) << "has access to undo stack";
+                connect(tool, &Tool::itemCreated, [this](QGraphicsItem* item) {
+                    if (item && m_canvas && m_canvas->scene()) {
+                        onSelectionChanged();
+                        m_statusLabel->setText("Item created");
+                        m_isModified = true;
+                    }
+                    });
+                qDebug() << "Connected tool:" << static_cast<int>(toolPair.first) << "Tool object:" << tool;
             }
         }
 
-        if (m_layerManager) {
-            connect(m_layerManager, &LayerManager::currentLayerChanged, this, &MainWindow::onCurrentLayerChanged);
-        }
+        qDebug() << "Tools and canvas connected successfully";
     }
 
+    // FIXED: Connect tools panel for bucket fill tool
+    if (m_toolsPanel) {
+        connect(m_toolsPanel, &ToolsPanel::drawingToolSettingsRequested,
+            this, &MainWindow::showDrawingToolSettings);
+
+        connect(m_toolsPanel, &ToolsPanel::quickStrokeWidthChanged,
+            this, &MainWindow::setDrawingToolStrokeWidth);
+
+        connect(m_toolsPanel, &ToolsPanel::quickColorChanged,
+            this, &MainWindow::setDrawingToolColor);
+    }
+
+    // Make sure the select tool is active by default
+    if (m_toolsPanel) {
+        m_toolsPanel->setActiveTool(SelectTool);
+    }
+
+    // Debug: Print all available tools
+    qDebug() << "Available tools:" << m_tools.size();
+    for (auto& toolPair : m_tools) {
+        qDebug() << "Tool type:" << static_cast<int>(toolPair.first) << "Tool:" << toolPair.second.get();
+    }
+
+    if (m_propertiesPanel && m_canvas) {
+        connect(m_canvas, &Canvas::selectionChanged,
+            m_propertiesPanel, &PropertiesPanel::onSelectionChanged);
+
+        connect(m_propertiesPanel, &PropertiesPanel::propertyChanged, [this]() {
+            if (m_canvas) {
+                m_canvas->storeCurrentFrameState();
+                m_isModified = true;
+            }
+            });
+
+        qDebug() << "Properties panel connected to canvas successfully";
+    }
+    else {
+        qDebug() << "Warning: Could not connect properties panel - panel or canvas is null";
+    }
+
+    // Make sure undo stack is accessible to all tools
+    for (auto& toolPair : m_tools) {
+        Tool* tool = toolPair.second.get();
+        if (tool) {
+            qDebug() << "Tool" << static_cast<int>(toolPair.first) << "has access to undo stack";
+        }
+    }
+}
 void MainWindow::setupColorConnections()
 {
     if (m_colorPanel && m_canvas) {
@@ -487,7 +416,6 @@ void MainWindow::createTestShape()
         qDebug() << "Test shape created at scene center";
     }
 }
-
 void MainWindow::createActions()
 {
     // File Menu Actions
@@ -693,7 +621,7 @@ void MainWindow::createActions()
     connect(m_blankKeyframeAction, &QAction::triggered, this, &MainWindow::createBlankKeyframe);
 
     // NEW: Enhanced frame creation actions
-    m_insertFrameAction = new QAction("Insert Extended &Frame", this);
+    m_insertFrameAction = new QAction("Insert &Frame", this);
     m_insertFrameAction->setIcon(QIcon(":/icons/arrow-right.png"));  // Reuse existing icon
     m_insertFrameAction->setShortcut(QKeySequence("F5"));
     m_insertFrameAction->setStatusTip("Insert frame extending from previous keyframe");
@@ -703,7 +631,7 @@ void MainWindow::createActions()
     m_insertBlankKeyframeAction->setIcon(QIcon(":/icons/branch-closed.png"));  // Reuse existing icon
     m_insertBlankKeyframeAction->setShortcut(QKeySequence("F7"));
     m_insertBlankKeyframeAction->setStatusTip("Insert blank keyframe (clears content)");
-    connect(m_insertBlankKeyframeAction, &QAction::triggered, this, &MainWindow::createBlankKeyframe);
+    connect(m_insertBlankKeyframeAction, &QAction::triggered, this, &MainWindow::insertBlankKeyframe);
 
     m_clearFrameAction = new QAction("&Clear Frame", this);
     m_clearFrameAction->setIcon(QIcon(":/icons/stop.png"));  // Reuse stop icon for "clear"
@@ -851,7 +779,6 @@ void MainWindow::createActions()
     m_rotateCounterClockwiseAction->setIcon(QIcon(":/icons/undo.png")); // Undo icon for counter-rotation
     connect(m_rotateCounterClockwiseAction, &QAction::triggered, this, &MainWindow::rotateCounterClockwise);
 }
-
 void MainWindow::createMenus()
 {
     m_fileMenu = menuBar()->addMenu("&File");
@@ -962,12 +889,18 @@ void MainWindow::createMenus()
     frameMenu->addSeparator();
     frameMenu->addAction(m_copyFrameAction);           // Existing: Copy frame content
 
+    // Keep existing actions for compatibility and quick access
+    m_animationMenu->addAction(m_addKeyframeAction);   // Keep for quick access
+    m_animationMenu->addAction(m_copyFrameAction);     // Keep existing
+    m_animationMenu->addAction(m_blankKeyframeAction); // Keep existing legacy action
+
     // Help Menu
     m_helpMenu = menuBar()->addMenu("&Help");
     m_helpMenu->addAction("&About", this, [this]() {
         QMessageBox::about(this, "About FrameDirector",
-            "FrameDirector v1.0\n"
-            "https://intelligencecasino.neocities.org/");
+            "FrameDirector v1.0\n\n"
+            "Vector animation tool with frame extension support\n"
+            "Built with Qt and C++");
         });
 }
 
@@ -1027,65 +960,6 @@ void MainWindow::createToolBars()
     m_animationToolBar->addAction(m_convertToKeyframeAction);   // NEW: F8 - Convert to keyframe
     m_animationToolBar->addAction(m_clearFrameAction);          // NEW: Shift+F5 - Clear frame
 }
-
-void MainWindow::createDockWindows()
-{
-    // Tools Panel
-    m_toolsDock = new QDockWidget("Tools", this);
-    m_toolsPanel = new ToolsPanel(this);
-    m_toolsDock->setWidget(m_toolsPanel);
-    m_toolsDock->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable);
-    addDockWidget(Qt::LeftDockWidgetArea, m_toolsDock);
-
-    // Right panel tabs
-    m_rightPanelTabs = new QTabWidget;
-
-    // Properties Panel
-    m_propertiesPanel = new PropertiesPanel(this);
-    m_rightPanelTabs->addTab(m_propertiesPanel, "Properties");
-
-    // Color Panel
-    m_colorPanel = new ColorPanel(this);
-    m_rightPanelTabs->addTab(m_colorPanel, "Colors");
-
-    // Layers Panel
-    m_layerManager = new LayerManager(this);
-    m_rightPanelTabs->addTab(m_layerManager, "Layers");
-
-    // Alignment Panel
-    m_alignmentPanel = new AlignmentPanel(this);
-    m_rightPanelTabs->addTab(m_alignmentPanel, "Align");
-
-    // Right dock for panels
-    m_propertiesDock = new QDockWidget("Properties", this);
-    m_propertiesDock->setWidget(m_rightPanelTabs);
-    m_propertiesDock->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable);
-    addDockWidget(Qt::RightDockWidgetArea, m_propertiesDock);
-
-    // Connect panels
-    connect(m_toolsPanel, &ToolsPanel::toolSelected, this, &MainWindow::setTool);
-    connect(m_layerManager, &LayerManager::layerAdded, this, &MainWindow::addLayer);
-    connect(m_layerManager, &LayerManager::layerRemoved, this, &MainWindow::removeLayer);
-}
-
-void MainWindow::createStatusBar()
-{
-    m_statusLabel = new QLabel("Ready");
-    m_positionLabel = new QLabel("X: 0  Y: 0");
-    m_zoomLabel = new QLabel("Zoom: 100%");
-    m_frameLabel = new QLabel("Frame: 1");
-    m_selectionLabel = new QLabel("No selection");
-    m_fpsLabel = new QLabel("FPS: 24");
-
-    statusBar()->addWidget(m_statusLabel);
-    statusBar()->addPermanentWidget(m_positionLabel);
-    statusBar()->addPermanentWidget(m_zoomLabel);
-    statusBar()->addPermanentWidget(m_frameLabel);
-    statusBar()->addPermanentWidget(m_selectionLabel);
-    statusBar()->addPermanentWidget(m_fpsLabel);
-}
-
-
 
 void MainWindow::setupTools()
 {
@@ -1935,7 +1809,6 @@ void MainWindow::previousKeyframe()
     }
 }
 
-
 void MainWindow::firstFrame()
 {
     onFrameChanged(1);
@@ -1945,6 +1818,7 @@ void MainWindow::lastFrame()
 {
     onFrameChanged(m_totalFrames);
 }
+
 
 void MainWindow::addKeyframe()
 {
@@ -1963,6 +1837,7 @@ void MainWindow::addKeyframe()
     }
 }
 
+
 void MainWindow::insertFrame()
 {
     if (m_canvas) {
@@ -1977,6 +1852,96 @@ void MainWindow::insertFrame()
         m_statusLabel->setText(QString("Frame inserted at frame %1").arg(m_currentFrame));
         m_isModified = true;
     }
+}
+
+
+void MainWindow::insertBlankKeyframe()
+{
+    if (m_canvas) {
+        m_canvas->createBlankKeyframe(m_currentFrame);
+
+        if (m_timeline) {
+            m_timeline->updateLayersFromCanvas();
+        }
+
+        updateFrameActions();
+        showFrameTypeIndicator();
+        m_statusLabel->setText(QString("Blank keyframe inserted at frame %1").arg(m_currentFrame));
+        m_isModified = true;
+    }
+}
+
+
+void MainWindow::clearCurrentFrame()
+{
+    if (m_canvas) {
+        m_canvas->clearCurrentFrameContent();
+        updateFrameActions();
+        showFrameTypeIndicator();
+        m_statusLabel->setText(QString("Frame %1 cleared").arg(m_currentFrame));
+        m_isModified = true;
+    }
+}
+
+void MainWindow::convertToKeyframe()
+{
+    if (m_canvas && m_canvas->getFrameType(m_currentFrame) == FrameType::ExtendedFrame) {
+        // Convert extended frame to keyframe by creating keyframe with current content
+        m_canvas->createKeyframe(m_currentFrame);
+
+        if (m_timeline) {
+            m_timeline->updateLayersFromCanvas();
+        }
+
+        updateFrameActions();
+        showFrameTypeIndicator();
+        m_statusLabel->setText(QString("Frame %1 converted to keyframe").arg(m_currentFrame));
+        m_isModified = true;
+    }
+}
+
+
+void MainWindow::updateFrameActions()
+{
+    if (!m_canvas) return;
+
+    FrameType currentFrameType = m_canvas->getFrameType(m_currentFrame);
+    bool hasContent = m_canvas->hasContent(m_currentFrame);
+    bool isKeyframe = m_canvas->hasKeyframe(m_currentFrame);
+
+    // Enable/disable actions based on frame state
+    m_convertToKeyframeAction->setEnabled(currentFrameType == FrameType::ExtendedFrame);
+    m_clearFrameAction->setEnabled(hasContent);
+
+    // Update navigation actions
+    m_nextKeyframeAction->setEnabled(m_canvas->getNextKeyframeAfter(m_currentFrame) != -1);
+    m_prevKeyframeAction->setEnabled(m_canvas->getLastKeyframeBefore(m_currentFrame) != -1);
+}
+
+
+void MainWindow::showFrameTypeIndicator()
+{
+    if (!m_canvas) return;
+
+    FrameType frameType = m_canvas->getFrameType(m_currentFrame);
+    QString typeText;
+
+    switch (frameType) {
+    case FrameType::Empty:
+        typeText = "Empty Frame";
+        break;
+    case FrameType::Keyframe:
+        typeText = "Keyframe";
+        break;
+    case FrameType::ExtendedFrame:
+        int sourceKeyframe = m_canvas->getSourceKeyframe(m_currentFrame);
+        typeText = QString("Extended Frame (from %1)").arg(sourceKeyframe);
+        break;
+    }
+
+    // Update status label with frame type info
+    QString statusText = QString("Frame: %1 (%2)").arg(m_currentFrame).arg(typeText);
+    m_frameLabel->setText(statusText);
 }
 
 void MainWindow::copyCurrentFrame()
@@ -1997,99 +1962,18 @@ void MainWindow::copyCurrentFrame()
 void MainWindow::createBlankKeyframe()
 {
     if (m_canvas) {
+        // FIXED: Use the new method to create truly blank keyframe
         m_canvas->createBlankKeyframe(m_currentFrame);
 
         if (m_timeline) {
             m_timeline->updateLayersFromCanvas();
         }
 
-        updateFrameActions();
-        showFrameTypeIndicator();
-        m_statusLabel->setText(QString("Blank keyframe inserted at frame %1").arg(m_currentFrame));
+        m_statusLabel->setText(QString("Blank keyframe created at frame %1").arg(m_currentFrame));
         m_isModified = true;
     }
 }
 
-void MainWindow::clearCurrentFrame()
-{
-    if (m_canvas) {
-        m_canvas->clearCurrentFrameContent();
-        updateFrameActions();
-        showFrameTypeIndicator();
-        m_statusLabel->setText(QString("Frame %1 cleared").arg(m_currentFrame));
-        m_isModified = true;
-    }
-}
-
-
-void MainWindow::convertToKeyframe()
-{
-    if (m_canvas && m_canvas->getFrameType(m_currentFrame, m_currentLayerIndex) == FrameType::ExtendedFrame) {
-        // Convert extended frame to keyframe by creating keyframe with current content
-        m_canvas->createKeyframe(m_currentFrame);
-
-        if (m_timeline) {
-            m_timeline->updateLayersFromCanvas();
-        }
-
-        updateFrameActions();
-        showFrameTypeIndicator();
-        m_statusLabel->setText(QString("Frame %1 converted to keyframe").arg(m_currentFrame));
-        m_isModified = true;
-    }
-}
-
-void MainWindow::updateFrameActions()
-{
-    if (!m_canvas) return;
-
-    FrameType currentFrameType = m_canvas->getFrameType(m_currentFrame, m_currentLayerIndex);
-    bool hasContent = m_canvas->hasContent(m_currentFrame, m_currentLayerIndex);
-    bool isKeyframe = m_canvas->hasKeyframe(m_currentFrame);
-    bool isExtended = m_canvas->isExtendedFrame(m_currentFrame, m_currentLayerIndex);
-    bool hasTweening = m_canvas->hasTweening(m_currentLayerIndex, m_currentFrame);
-
-    // Convert to keyframe action: only enabled for extended frames
-    m_convertToKeyframeAction->setEnabled(isExtended && !hasTweening);
-
-    // Clear frame action: disabled for extended frames and tweened frames
-    m_clearFrameAction->setEnabled(hasContent && !isExtended && !hasTweening);
-
-    // Insert frame action: disabled if would create gap in tweened span
-    m_insertFrameAction->setEnabled(!hasTweening);
-
-    // Navigation actions
-    m_nextKeyframeAction->setEnabled(m_canvas->getNextKeyframeAfter(m_currentFrame) != -1);
-    m_prevKeyframeAction->setEnabled(m_canvas->getLastKeyframeBefore(m_currentFrame) != -1);
-
-    qDebug() << "Frame actions updated - Extended:" << isExtended << "Tweened:" << hasTweening;
-}
-
-// NEW: Show frame type in status bar
-void MainWindow::showFrameTypeIndicator()
-{
-    if (!m_canvas) return;
-
-    FrameType frameType = m_canvas->getFrameType(m_currentFrame, m_currentLayerIndex);
-    QString typeText;
-
-    switch (frameType) {
-    case FrameType::Empty:
-        typeText = "Empty Frame";
-        break;
-    case FrameType::Keyframe:
-        typeText = "Keyframe";
-        break;
-    case FrameType::ExtendedFrame:
-        int sourceKeyframe = m_canvas->getSourceKeyframe(m_currentFrame);
-        typeText = QString("Extended Frame (from %1)").arg(sourceKeyframe);
-        break;
-    }
-
-    // Update status label with frame type info
-    QString statusText = QString("Frame: %1 (%2)").arg(m_currentFrame).arg(typeText);
-    m_frameLabel->setText(statusText);
-}
 
 void MainWindow::removeKeyframe()
 {
@@ -2617,6 +2501,7 @@ void MainWindow::setOpacity(double opacity)
 }
 
 // Event handlers
+
 void MainWindow::onFrameChanged(int frame)
 {
     m_currentFrame = frame;
@@ -2633,7 +2518,6 @@ void MainWindow::onFrameChanged(int frame)
     updateFrameActions();
     showFrameTypeIndicator();
 }
-
 
 void MainWindow::onZoomChanged(double zoom)
 {
@@ -2898,171 +2782,11 @@ void MainWindow::closeEvent(QCloseEvent* event)
     }
 }
 
-void MainWindow::onCurrentLayerChanged(int layer)
-{
-    m_currentLayerIndex = layer;
-    updateToolAvailability();
-
-    // Update canvas current layer
-    if (m_canvas) {
-        m_canvas->setCurrentLayer(layer);
-    }
-
-    qDebug() << "Current layer changed to:" << layer;
-}
-
-void MainWindow::onFrameChangedWithLayer(int frame)
-{
-    onFrameChanged(frame);  // Call existing method
-    updateToolAvailability();
-}
-
-void MainWindow::updateToolAvailability()
-{
-    if (!m_canvas) return;
-
-    bool canDraw = m_canvas->canDrawOnFrame(m_currentFrame, m_currentLayerIndex);
-    bool isExtended = m_canvas->isExtendedFrame(m_currentFrame, m_currentLayerIndex);
-    bool hasTweening = m_canvas->hasTweening(m_currentLayerIndex, m_currentFrame);
-
-    // FIXED: Enhanced logic for Flash-like behavior
-    if (hasTweening) {
-        // Check if this is the last frame of a tween (Flash allows editing last frame)
-        auto layerData = m_canvas->m_layerFrameData.find(m_currentLayerIndex);
-        if (layerData != m_canvas->m_layerFrameData.end()) {
-            auto frameData = layerData->second.find(m_currentFrame);
-            if (frameData != layerData->second.end()) {
-                bool isLastFrame = (m_currentFrame == frameData->second.tweenEndFrame);
-                if (isLastFrame) {
-                    enableDrawingTools();
-                    m_statusLabel->setText(QString("Frame: %1, Layer: %2 (Last frame of tween - editable)")
-                        .arg(m_currentFrame).arg(m_currentLayerIndex));
-                }
-                else {
-                    disableDrawingTools();
-                    m_statusLabel->setText(QString("Frame: %1, Layer: %2 (Tweened - only last frame editable)")
-                        .arg(m_currentFrame).arg(m_currentLayerIndex));
-                }
-            }
-        }
-    }
-    else if (canDraw) {
-        enableDrawingTools();
-        QString statusText = QString("Frame: %1, Layer: %2").arg(m_currentFrame).arg(m_currentLayerIndex);
-        if (isExtended) {
-            statusText += " (Extended Frame)";
-        }
-        m_statusLabel->setText(statusText);
-    }
-    else {
-        disableDrawingTools();
-        m_statusLabel->setText(QString("Frame: %1, Layer: %2 (Drawing Disabled)")
-            .arg(m_currentFrame).arg(m_currentLayerIndex));
-    }
-
-    // Update frame actions based on current state
-    updateFrameActions();
-}
-
-void MainWindow::disableDrawingTools()
-{
-    if (m_drawingToolsEnabled) {
-        m_drawingToolsEnabled = false;
-
-        // Disable drawing tool actions
-        m_drawToolAction->setEnabled(false);
-        m_lineToolAction->setEnabled(false);
-        m_rectangleToolAction->setEnabled(false);
-        m_ellipseToolAction->setEnabled(false);
-        m_textToolAction->setEnabled(false);
-
-        // Disable bucket fill and erase tools
-        if (m_bucketFillToolAction) m_bucketFillToolAction->setEnabled(false);
-        if (m_eraseToolAction) m_eraseToolAction->setEnabled(false);
-
-        // Switch to select tool if a drawing tool is active
-        if (m_currentTool != SelectTool) {
-            setTool(SelectTool);
-        }
-
-        // Update tools panel
-        if (m_toolsPanel) {
-            m_toolsPanel->setDrawingToolsEnabled(false);
-        }
-
-        qDebug() << "Drawing tools disabled - tweening active";
-    }
-}
-
-void MainWindow::onTweeningStateChanged()
-{
-    // Update tool availability based on current tweening state
-    updateToolAvailability();
-
-    // Update frame actions based on tweening state
-    updateFrameActions();
-
-    // Update timeline display
-    if (m_timeline && m_timeline->m_drawingArea) {
-        m_timeline->m_drawingArea->update();
-    }
-
-    // Update status bar with tweening information
-    if (m_canvas && m_canvas->hasTweening(m_currentLayerIndex, m_currentFrame)) {
-        TweenType tweenType = m_canvas->getTweenType(m_currentLayerIndex, m_currentFrame);
-        QString typeStr = (tweenType == TweenType::Motion) ? "Motion" : "Classic";
-        m_statusLabel->setText(QString("Frame %1 - %2 Tween Active (Drawing Disabled)")
-            .arg(m_currentFrame).arg(typeStr));
-    }
-    else {
-        m_statusLabel->setText(QString("Frame %1").arg(m_currentFrame));
-    }
-
-    // Mark as modified if tweening state changed
-    m_isModified = true;
-
-    qDebug() << "Tweening state changed - UI updated";
-}
-void MainWindow::enableDrawingTools()
-{
-    if (!m_drawingToolsEnabled) {
-        m_drawingToolsEnabled = true;
-
-        // Enable drawing tool actions
-        m_drawToolAction->setEnabled(true);
-        m_lineToolAction->setEnabled(true);
-        m_rectangleToolAction->setEnabled(true);
-        m_ellipseToolAction->setEnabled(true);
-        m_textToolAction->setEnabled(true);
-
-        // Enable bucket fill and erase tools
-        if (m_bucketFillToolAction) m_bucketFillToolAction->setEnabled(true);
-        if (m_eraseToolAction) m_eraseToolAction->setEnabled(true);
-
-        // Update tools panel
-        if (m_toolsPanel) {
-            m_toolsPanel->setDrawingToolsEnabled(true);
-        }
-
-        qDebug() << "Drawing tools enabled";
-    }
-}
 
 void MainWindow::keyPressEvent(QKeyEvent* event)
 {
-    // Handle global key shortcuts
+    // Handle frame creation shortcuts
     switch (event->key()) {
-    case Qt::Key_Delete:
-        if (m_canvas && m_canvas->hasSelection()) {
-            m_canvas->deleteSelected();
-        }
-        break;
-    case Qt::Key_Escape:
-        if (m_canvas) {
-            m_canvas->clearSelection();
-        }
-        break;
-
     case Qt::Key_F5:
         if (event->modifiers() & Qt::ShiftModifier) {
             clearCurrentFrame();
@@ -3075,7 +2799,7 @@ void MainWindow::keyPressEvent(QKeyEvent* event)
         addKeyframe();  // Use existing method name
         break;
     case Qt::Key_F7:
-        createBlankKeyframe();
+        insertBlankKeyframe();
         break;
     case Qt::Key_F8:
         convertToKeyframe();

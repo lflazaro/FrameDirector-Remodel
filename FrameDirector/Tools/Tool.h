@@ -10,11 +10,9 @@
 #include <QGraphicsItem>
 #include <QPen>
 #include <QBrush>
-#include <QMessageBox>  // FIXED: Add missing include
-#include <QDebug>       // FIXED: Add for debug output
 
 class MainWindow;
-class Canvas;  // Forward declaration
+class Canvas;
 
 class Tool : public QObject
 {
@@ -37,11 +35,6 @@ signals:
 protected:
     // Helper method for tools to add items to the current layer
     void addItemToCanvas(QGraphicsItem* item);
-
-    void checkAutoConversion(Canvas* canvas, int layer, int frame);  // FIXED: Forward declaration
-
-    // NEW: Check if drawing is allowed
-    bool canDrawOnCurrentFrame(Canvas* canvas, int layer, int frame);  // FIXED: Forward declaration
 
     MainWindow* m_mainWindow;
     Canvas* m_canvas;

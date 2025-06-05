@@ -291,21 +291,3 @@ void ToolsPanel::onToolButtonClicked()
         emit toolSelected(m_activeTool);
     }
 }
-
-void ToolsPanel::setDrawingToolsEnabled(bool enabled)
-{
-    m_drawingToolsEnabled = enabled;
-
-    // Enable/disable drawing tool buttons
-    if (m_drawButton) m_drawButton->setEnabled(enabled);
-    if (m_lineButton) m_lineButton->setEnabled(enabled);
-    if (m_rectangleButton) m_rectangleButton->setEnabled(enabled);
-    if (m_ellipseButton) m_ellipseButton->setEnabled(enabled);
-    if (m_textButton) m_textButton->setEnabled(enabled);
-    if (m_bucketFillButton) m_bucketFillButton->setEnabled(enabled);
-    if (m_eraseButton) m_eraseButton->setEnabled(enabled);
-
-    // Visual feedback - gray out disabled tools
-    QString styleSheet = enabled ? "" : "QToolButton:disabled { color: gray; }";
-    setStyleSheet(styleSheet);
-}

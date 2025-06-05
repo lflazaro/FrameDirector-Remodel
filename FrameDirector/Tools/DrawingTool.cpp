@@ -193,7 +193,7 @@ private:
         connect(m_stabilizerSlider, &QSlider::valueChanged,
                 [this](int value) { onStabilizerChanged(value); });
         connect(m_colorButton, &QPushButton::clicked,
-                [this](bool) { onColorButtonClicked(); });
+                [this]() { onColorButtonClicked(); });
         connect(m_smoothingCheckBox, &QCheckBox::toggled,
                 [this](bool enabled) { onSmoothingToggled(enabled); });
         connect(m_pressureCheckBox, &QCheckBox::toggled,
@@ -201,7 +201,7 @@ private:
         
         connect(okButton, &QPushButton::clicked, this, &QDialog::accept);
         connect(cancelButton, &QPushButton::clicked, this, &QDialog::reject);
-        connect(resetButton, &QPushButton::clicked, [this](bool) { resetToDefaults(); });
+        connect(resetButton, &QPushButton::clicked, [this]() { resetToDefaults(); });
     }
     
     void loadSettings()
@@ -281,16 +281,6 @@ DrawingTool::DrawingTool(MainWindow* mainWindow, QObject* parent)
 void DrawingTool::mousePressEvent(QMouseEvent* event, const QPointF& scenePos)
 {
     if (!m_canvas) return;
-    int currentLayer = m_canvas->getCurrentLayer();
-    int currentFrame = m_canvas->getCurrentFrame();
-
-    // Check if drawing is allowed
-    if (!canDrawOnCurrentFrame(m_canvas, currentLayer, currentFrame)) {
-        return;
-    }
-
-    // Auto-convert extended frame to keyframe
-    checkAutoConversion(m_canvas, currentLayer, currentFrame);
 
     if (event->button() == Qt::LeftButton) {
         m_drawing = true;

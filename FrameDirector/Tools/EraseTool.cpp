@@ -22,16 +22,6 @@ void EraseTool::mousePressEvent(QMouseEvent* event, const QPointF& scenePos)
 {
     if (!m_canvas || !m_canvas->scene()) return;
 
-    int currentLayer = m_canvas->getCurrentLayer();
-    int currentFrame = m_canvas->getCurrentFrame();
-
-    // Check if drawing is allowed
-    if (!canDrawOnCurrentFrame(m_canvas, currentLayer, currentFrame)) {
-        return;
-    }
-
-    // Auto-convert extended frame to keyframe
-    checkAutoConversion(m_canvas, currentLayer, currentFrame);
     if (event->button() == Qt::LeftButton) {
         m_erasing = true;
         m_lastErasePos = scenePos;

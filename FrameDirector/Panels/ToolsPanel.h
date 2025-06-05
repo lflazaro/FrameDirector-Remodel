@@ -23,7 +23,6 @@ public:
 
     void setActiveTool(MainWindow::ToolType tool);
     MainWindow::ToolType getActiveTool() const;
-    void setDrawingToolsEnabled(bool enabled);
 
 signals:
     void toolSelected(MainWindow::ToolType tool);
@@ -44,7 +43,6 @@ private:
     void showDrawingToolSettings();
     void handleQuickStrokeWidth(const QString& widthText);
     void handleQuickColor(const QString& colorName);
-    bool m_drawingToolsEnabled;
 
     MainWindow* m_mainWindow;
     QVBoxLayout* m_mainLayout;
