@@ -23,8 +23,11 @@ public:
 
     void setActiveTool(MainWindow::ToolType tool);
     MainWindow::ToolType getActiveTool() const;
+    // NEW: Method to enable/disable tools based on frame state
+    void setToolsEnabled(bool enabled);
 
 signals:
+    void toolChanged(MainWindow::ToolType tool);
     void toolSelected(MainWindow::ToolType tool);
     void drawingToolSettingsRequested();
     void quickStrokeWidthChanged(double width);
@@ -58,6 +61,9 @@ private:
     QPushButton* m_textButton;
     QPushButton* m_bucketFillButton;
     QPushButton* m_eraseButton;
+    // NEW: Store original enabled states for restoration
+    QMap<QPushButton*, bool> m_originalEnabledStates;
+    bool m_toolsCurrentlyEnabled;
 };
 
 #endif // TOOLSPANEL_H

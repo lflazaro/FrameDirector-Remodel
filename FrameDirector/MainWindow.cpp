@@ -859,6 +859,8 @@ void MainWindow::createMenus()
     m_animationMenu->addAction(m_playAction);
     m_animationMenu->addAction(m_stopAction);
     m_animationMenu->addSeparator();
+    m_animationMenu->addAction(m_applyTweeningAction);
+    m_animationMenu->addAction(m_removeTweeningAction);
 
     // Frame navigation submenu
     QMenu* navigationMenu = m_animationMenu->addMenu("&Navigation");
@@ -1908,22 +1910,59 @@ void MainWindow::updateFrameActions()
     FrameType currentFrameType = m_canvas->getFrameType(m_currentFrame);
     bool hasContent = m_canvas->hasContent(m_currentFrame);
     bool isKeyframe = m_canvas->hasKeyframe(m_currentFrame);
+    bool isFrameTweened = m_canvas->isFrameTweened(m_currentFrame);
 
     // Enable/disable actions based on frame state
-    m_convertToKeyframeAction->setEnabled(currentFrameType == FrameType::ExtendedFrame);
-    m_clearFrameAction->setEnabled(hasContent);
+    m_convertToKeyframeAction->setEnabled(currentFrameType == FrameType::ExtendedFrame && !isFrameTweened);
+
+    // ENHANCED: Disable clear frame action on extended frames OR tweened frames
+    m_clearFrameAction->setEnabled(hasContent && currentFrameType != FrameType::ExtendedFrame && !isFrameTweened);
 
     // Update navigation actions
     m_nextKeyframeAction->setEnabled(m_canvas->getNextKeyframeAfter(m_currentFrame) != -1);
     m_prevKeyframeAction->setEnabled(m_canvas->getLastKeyframeBefore(m_currentFrame) != -1);
+
+    // Update tool availability based on tweening state
+    updateToolAvailability();
 }
 
+void MainWindow::updateToolAvailability()
+{
+    if (!m_canvas) return;
+
+    bool canDraw = m_canvas->canDrawOnCurrentFrame();
+
+    // Disable drawing tools on tweened frames
+    if (m_toolsPanel) {
+        m_toolsPanel->setToolsEnabled(canDraw);
+    }
+
+    // Update tool actions - add null checks
+    if (m_drawToolAction) m_drawToolAction->setEnabled(canDraw);
+    if (m_lineToolAction) m_lineToolAction->setEnabled(canDraw);
+    if (m_rectangleToolAction) m_rectangleToolAction->setEnabled(canDraw);
+    if (m_ellipseToolAction) m_ellipseToolAction->setEnabled(canDraw);
+    if (m_textToolAction) m_textToolAction->setEnabled(canDraw);
+    if (m_bucketFillToolAction) m_bucketFillToolAction->setEnabled(canDraw);
+    if (m_eraseToolAction) m_eraseToolAction->setEnabled(canDraw);
+
+    // If current tool is disabled, switch to select tool
+    if (!canDraw && m_currentTool != SelectTool) {
+        setTool(SelectTool);
+    }
+
+    // Update status message - add null check
+    if (!canDraw && m_canvas->isFrameTweened(m_currentFrame) && m_statusLabel) {
+        m_statusLabel->setText("Drawing disabled on tweened frame. Right-click to remove tweening.");
+    }
+}
 
 void MainWindow::showFrameTypeIndicator()
 {
     if (!m_canvas) return;
 
     FrameType frameType = m_canvas->getFrameType(m_currentFrame);
+    bool isFrameTweened = m_canvas->isFrameTweened(m_currentFrame);
     QString typeText;
 
     switch (frameType) {
@@ -1931,17 +1970,147 @@ void MainWindow::showFrameTypeIndicator()
         typeText = "Empty Frame";
         break;
     case FrameType::Keyframe:
-        typeText = "Keyframe";
+        if (isFrameTweened) {
+            int endFrame = m_canvas->getTweeningEndFrame(m_currentFrame);
+            if (endFrame > 0) {
+                typeText = QString("Tweened Keyframe (to %1)").arg(endFrame);
+            }
+            else {
+                typeText = "Tweened Keyframe";
+            }
+        }
+        else {
+            typeText = "Keyframe";
+        }
         break;
     case FrameType::ExtendedFrame:
         int sourceKeyframe = m_canvas->getSourceKeyframe(m_currentFrame);
-        typeText = QString("Extended Frame (from %1)").arg(sourceKeyframe);
+        if (isFrameTweened) {
+            typeText = QString("Tweened Frame (from %1)").arg(sourceKeyframe);
+        }
+        else {
+            typeText = QString("Extended Frame (from %1)").arg(sourceKeyframe);
+        }
         break;
     }
 
     // Update status label with frame type info
     QString statusText = QString("Frame: %1 (%2)").arg(m_currentFrame).arg(typeText);
     m_frameLabel->setText(statusText);
+}
+
+// NEW: Apply tweening between frames
+void MainWindow::applyTweening()
+{
+    if (!m_canvas) return;
+
+    // Get current frame as start frame
+    int startFrame = m_currentFrame;
+
+    // Find next keyframe as end frame
+    int endFrame = m_canvas->getNextKeyframeAfter(startFrame);
+
+    if (endFrame == -1) {
+        m_statusLabel->setText("No next keyframe found for tweening");
+        return;
+    }
+
+    // Apply tweening with default linear easing
+    m_canvas->applyTweening(startFrame, endFrame, "linear");
+
+    // Update UI
+    updateFrameActions();
+    showFrameTypeIndicator();
+
+    if (m_timeline) {
+        m_timeline->updateLayersFromCanvas();
+    }
+
+    m_statusLabel->setText(QString("Tweening applied from frame %1 to %2").arg(startFrame).arg(endFrame));
+    m_isModified = true;
+}
+
+// NEW: Remove tweening from current frame
+void MainWindow::removeTweening()
+{
+    if (!m_canvas) return;
+
+    int currentFrame = m_currentFrame;
+
+    // Find the start frame of the tweening sequence
+    int startFrame = currentFrame;
+
+    // If current frame is an extended tweened frame, find the source keyframe
+    if (m_canvas->getFrameType(currentFrame) == FrameType::ExtendedFrame &&
+        m_canvas->isFrameTweened(currentFrame)) {
+        startFrame = m_canvas->getSourceKeyframe(currentFrame);
+    }
+
+    // Remove tweening
+    m_canvas->removeTweening(startFrame);
+
+    // Update UI
+    updateFrameActions();
+    showFrameTypeIndicator();
+
+    if (m_timeline) {
+        m_timeline->updateLayersFromCanvas();
+    }
+
+    m_statusLabel->setText(QString("Tweening removed from frame %1").arg(startFrame));
+    m_isModified = true;
+}
+
+// NEW: Create actions for tweening
+void MainWindow::createTweeningActions()
+{
+    m_applyTweeningAction = new QAction("Apply &Tweening", this);
+    m_applyTweeningAction->setStatusTip("Apply tweening to frame span");
+    connect(m_applyTweeningAction, &QAction::triggered, this, &MainWindow::applyTweening);
+
+    m_removeTweeningAction = new QAction("Remove &Tweening", this);
+    m_removeTweeningAction->setStatusTip("Remove tweening from frame span");
+    connect(m_removeTweeningAction, &QAction::triggered, this, &MainWindow::removeTweening);
+}
+
+// ENHANCED: Modified onFrameChanged to update tool availability
+void MainWindow::onFrameChanged(int frame)
+{
+    m_currentFrame = frame;
+
+    if (m_canvas) {
+        m_canvas->setCurrentFrame(frame);
+    }
+
+    // Update frame slider and spinbox
+    if (m_timeline) {
+        // Update timeline UI
+        m_timeline->setCurrentFrame(frame);
+    }
+
+    // Update frame actions and tool availability
+    updateFrameActions();
+    showFrameTypeIndicator();
+
+    // Update frame display
+    QString frameText = QString("Frame: %1").arg(frame);
+    m_frameLabel->setText(frameText);
+}
+
+// NEW: Connect canvas tweening signals
+void MainWindow::connectTweeningSignals()
+{
+    if (m_canvas) {
+        connect(m_canvas, &Canvas::tweeningApplied,
+            this, [this](int startFrame, int endFrame) {
+                m_statusLabel->setText(QString("Tweening applied: frames %1-%2").arg(startFrame).arg(endFrame));
+            });
+
+        connect(m_canvas, &Canvas::tweeningRemoved,
+            this, [this](int frame) {
+                m_statusLabel->setText(QString("Tweening removed from frame %1").arg(frame));
+            });
+    }
 }
 
 void MainWindow::copyCurrentFrame()
@@ -2500,24 +2669,6 @@ void MainWindow::setOpacity(double opacity)
     m_currentOpacity = opacity;
 }
 
-// Event handlers
-
-void MainWindow::onFrameChanged(int frame)
-{
-    m_currentFrame = frame;
-
-    if (m_timeline) {
-        m_timeline->setCurrentFrame(frame);
-    }
-
-    if (m_canvas) {
-        m_canvas->setCurrentFrame(frame);
-    }
-
-    // NEW: Update frame-dependent UI
-    updateFrameActions();
-    showFrameTypeIndicator();
-}
 
 void MainWindow::onZoomChanged(double zoom)
 {

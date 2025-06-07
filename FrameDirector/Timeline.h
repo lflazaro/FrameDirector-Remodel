@@ -77,6 +77,8 @@ public:
     int getFrameRate() const;
     void setPlaying(bool playing);
     bool isPlaying() const;
+    void showFrameContextMenu(int frame, int layer, const QPoint& globalPos);
+    void drawTweeningIndicators(QPainter* painter, const QRect& rect);
 
     // ENHANCED: Keyframe and frame extension management
     void addKeyframe(int layer, int frame);
@@ -189,6 +191,7 @@ private:
     int m_layerHeight;
     int m_rulerHeight;
     int m_layerPanelWidth;
+
 
     // ENHANCED: Colors for frame extension visualization
     QColor m_backgroundColor;

@@ -50,6 +50,7 @@ void TimelineDrawingArea::paintEvent(QPaintEvent* event)
     m_timeline->drawSelection(&painter, rect);
 }
 
+
 void TimelineDrawingArea::mousePressEvent(QMouseEvent* event)
 {
     if (!m_timeline) return;
@@ -83,8 +84,156 @@ void TimelineDrawingArea::mousePressEvent(QMouseEvent* event)
             }
         }
     }
+    else if (event->button() == Qt::RightButton) {
+        // NEW: Right-click context menu for tweening
+        int frame = m_timeline->getFrameFromX(mouseX);
+        int layer = m_timeline->getLayerFromY(mouseY);
+
+        if (mouseX > m_timeline->getDrawingAreaRect().left() &&
+            mouseY > m_timeline->getDrawingAreaRect().top()) {
+            m_timeline->showFrameContextMenu(frame, layer, event->globalPosition().toPoint());
+        }
+    }
 
     update();
+}
+
+void Timeline::showFrameContextMenu(int frame, int layer, const QPoint& globalPos)
+{
+    Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+    if (!canvas) return;
+
+    // Set current frame and layer for context
+    setCurrentFrame(frame);
+
+    FrameType frameType = canvas->getFrameType(frame);
+    bool isFrameTweened = canvas->isFrameTweened(frame);
+    bool hasNextKeyframe = canvas->getNextKeyframeAfter(frame) != -1;
+
+    QMenu contextMenu;
+    contextMenu.setStyleSheet(
+        "QMenu {"
+        "    background-color: #3E3E42;"
+        "    color: #FFFFFF;"
+        "    border: 1px solid #5A5A5C;"
+        "    border-radius: 3px;"
+        "}"
+        "QMenu::item {"
+        "    padding: 8px 16px;"
+        "    border: none;"
+        "}"
+        "QMenu::item:selected {"
+        "    background-color: #4A4A4F;"
+        "}"
+        "QMenu::item:disabled {"
+        "    color: #808080;"
+        "}"
+        "QMenu::separator {"
+        "    height: 1px;"
+        "    background-color: #5A5A5C;"
+        "    margin: 4px 8px;"
+        "}"
+    );
+
+    // Frame creation actions
+    if (frameType == FrameType::Empty) {
+        QAction* createKeyframeAction = contextMenu.addAction("Create Keyframe");
+        createKeyframeAction->setIcon(QIcon(":/icons/branch-open.png"));
+        connect(createKeyframeAction, &QAction::triggered, [this, frame]() {
+            addKeyframe(-1, frame);  // -1 for current layer
+            });
+
+        QAction* createExtendedAction = contextMenu.addAction("Create Extended Frame");
+        createExtendedAction->setIcon(QIcon(":/icons/arrow-right.png"));
+        connect(createExtendedAction, &QAction::triggered, [this, frame]() {
+            addExtendedFrame(-1, frame);  // -1 for current layer
+            });
+
+        contextMenu.addSeparator();
+    }
+
+    // Tweening actions - only show for keyframes and extended frames
+    if (frameType == FrameType::Keyframe || frameType == FrameType::ExtendedFrame) {
+
+        // Apply tweening action
+        if (!isFrameTweened && frameType == FrameType::Keyframe && hasNextKeyframe) {
+            QAction* applyTweeningAction = contextMenu.addAction("Apply Tweening");
+            applyTweeningAction->setIcon(QIcon(":/icons/play.png"));
+            connect(applyTweeningAction, &QAction::triggered, [this, canvas, frame]() {
+                int nextKeyframe = canvas->getNextKeyframeAfter(frame);
+                if (nextKeyframe != -1) {
+                    canvas->applyTweening(frame, nextKeyframe, "linear");
+                    updateLayersFromCanvas();
+                    m_mainWindow->updateFrameActions();
+                }
+                });
+
+            // Submenu for easing types
+            QMenu* easingMenu = applyTweeningAction->menu();
+            if (!easingMenu) {
+                easingMenu = new QMenu("Easing Type", &contextMenu);
+                applyTweeningAction->setMenu(easingMenu);
+            }
+
+            QStringList easingTypes = { "linear", "ease-in", "ease-out", "ease-in-out" };
+            for (const QString& easing : easingTypes) {
+                QAction* easingAction = easingMenu->addAction(easing);
+                connect(easingAction, &QAction::triggered, [this, canvas, frame, easing]() {
+                    int nextKeyframe = canvas->getNextKeyframeAfter(frame);
+                    if (nextKeyframe != -1) {
+                        canvas->applyTweening(frame, nextKeyframe, easing);
+                        updateLayersFromCanvas();
+                        m_mainWindow->updateFrameActions();
+                    }
+                    });
+            }
+        }
+
+        // Remove tweening action
+        if (isFrameTweened) {
+            QAction* removeTweeningAction = contextMenu.addAction("Remove Tweening");
+            removeTweeningAction->setIcon(QIcon(":/icons/stop.png"));
+            connect(removeTweeningAction, &QAction::triggered, [this, canvas, frame]() {
+                // Find the start frame of the tweening sequence
+                int startFrame = frame;
+                if (canvas->getFrameType(frame) == FrameType::ExtendedFrame) {
+                    startFrame = canvas->getSourceKeyframe(frame);
+                }
+                canvas->removeTweening(startFrame);
+                updateLayersFromCanvas();
+                m_mainWindow->updateFrameActions();
+                });
+        }
+
+        contextMenu.addSeparator();
+    }
+
+    // Convert to keyframe action (for extended frames without tweening)
+    if (frameType == FrameType::ExtendedFrame && !isFrameTweened) {
+        QAction* convertAction = contextMenu.addAction("Convert to Keyframe");
+        convertAction->setIcon(QIcon(":/icons/branch-open.png"));
+        connect(convertAction, &QAction::triggered, [this, canvas, frame]() {
+            canvas->createKeyframe(frame);
+            updateLayersFromCanvas();
+            m_mainWindow->updateFrameActions();
+            });
+
+        contextMenu.addSeparator();
+    }
+
+    // Clear frame action (only for frames with content, not extended or tweened)
+    if (canvas->hasContent(frame) && frameType != FrameType::ExtendedFrame && !isFrameTweened) {
+        QAction* clearAction = contextMenu.addAction("Clear Frame");
+        clearAction->setIcon(QIcon(":/icons/stop.png"));
+        connect(clearAction, &QAction::triggered, [this, canvas]() {
+            canvas->clearCurrentFrameContent();
+            updateLayersFromCanvas();
+            m_mainWindow->updateFrameActions();
+            });
+    }
+
+    // Show context menu
+    contextMenu.exec(globalPos);
 }
 
 void TimelineDrawingArea::mouseMoveEvent(QMouseEvent* event)
@@ -716,11 +865,13 @@ void Timeline::drawLayers(QPainter* painter, const QRect& rect)
     }
 }
 
-
 void Timeline::drawKeyframes(QPainter* painter, const QRect& rect)
 {
     // First draw frame extensions (background)
     drawFrameExtensions(painter, rect);
+
+    // NEW: Draw tweening indicators
+    drawTweeningIndicators(painter, rect);
 
     // Then draw keyframe symbols (foreground)
     Canvas* canvas = m_mainWindow->findChild<Canvas*>();
@@ -748,6 +899,42 @@ void Timeline::drawKeyframes(QPainter* painter, const QRect& rect)
     }
 }
 
+void Timeline::drawTweeningIndicators(QPainter* painter, const QRect& rect)
+{
+    Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+    if (!canvas) return;
+
+    int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
+    int startFrame = qMax(1, m_scrollX / frameWidth);
+    int endFrame = qMin(m_totalFrames, startFrame + rect.width() / frameWidth + 1);
+    int currentLayer = canvas->getCurrentLayer(); // FIX: Only draw for current layer
+
+    painter->setPen(QPen(QColor(100, 255, 100), 2));
+    painter->setBrush(Qt::NoBrush);
+
+    for (int frame = startFrame; frame <= endFrame; ++frame) {
+        if (canvas->hasFrameTweening(frame)) {
+            int tweeningEnd = canvas->getTweeningEndFrame(frame);
+            if (tweeningEnd > frame) {
+                // FIX: Only draw for current layer, not all layers
+                QRect layerRect = getLayerRect(currentLayer);
+                if (!layerRect.isEmpty()) {
+                    int startX = m_layerPanelWidth + (frame - 1) * frameWidth - m_scrollX + frameWidth / 2;
+                    int endX = m_layerPanelWidth + (tweeningEnd - 1) * frameWidth - m_scrollX + frameWidth / 2;
+                    int y = layerRect.center().y() + 5;
+
+                    painter->drawLine(startX, y, endX, y);
+
+                    QPolygon arrowHead;
+                    arrowHead << QPoint(endX, y) << QPoint(endX - 5, y - 3) << QPoint(endX - 5, y + 3);
+                    painter->setBrush(QBrush(QColor(100, 255, 100)));
+                    painter->drawPolygon(arrowHead);
+                    painter->setBrush(Qt::NoBrush);
+                }
+            }
+        }
+    }
+}
 
 // NEW: Draw frame extensions as orange lines
 void Timeline::drawFrameExtensions(QPainter* painter, const QRect& rect)

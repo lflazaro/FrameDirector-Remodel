@@ -15,6 +15,7 @@ ToolsPanel::ToolsPanel(MainWindow* parent)
     : QWidget(parent)
     , m_mainWindow(parent)
     , m_activeTool(MainWindow::SelectTool)
+    , m_toolsCurrentlyEnabled(true)
 {
     setupUI();
 }
@@ -70,6 +71,118 @@ void ToolsPanel::setupUI()
 
     // Set default tool
     m_selectButton->setChecked(true);
+}
+
+
+void ToolsPanel::setToolsEnabled(bool enabled)
+{
+    if (m_toolsCurrentlyEnabled == enabled) {
+        return; // No change needed
+    }
+
+    m_toolsCurrentlyEnabled = enabled;
+
+    if (!enabled) {
+        // Store original states before disabling
+        m_originalEnabledStates.clear();
+        m_originalEnabledStates[m_drawButton] = m_drawButton->isEnabled();
+        m_originalEnabledStates[m_lineButton] = m_lineButton->isEnabled();
+        m_originalEnabledStates[m_rectangleButton] = m_rectangleButton->isEnabled();
+        m_originalEnabledStates[m_ellipseButton] = m_ellipseButton->isEnabled();
+        m_originalEnabledStates[m_textButton] = m_textButton->isEnabled();
+        m_originalEnabledStates[m_bucketFillButton] = m_bucketFillButton->isEnabled();
+        m_originalEnabledStates[m_eraseButton] = m_eraseButton->isEnabled();
+
+        // Disable drawing tools (keep select tool enabled)
+        m_drawButton->setEnabled(false);
+        m_lineButton->setEnabled(false);
+        m_rectangleButton->setEnabled(false);
+        m_ellipseButton->setEnabled(false);
+        m_textButton->setEnabled(false);
+        m_bucketFillButton->setEnabled(false);
+        m_eraseButton->setEnabled(false);
+
+        // Apply visual styling to indicate disabled state
+        QString disabledStyle =
+            "QPushButton:disabled {"
+            "    background-color: #2A2A2A;"
+            "    color: #808080;"
+            "    border: 1px solid #404040;"
+            "}";
+
+        m_drawButton->setStyleSheet(m_drawButton->styleSheet() + disabledStyle);
+        m_lineButton->setStyleSheet(m_lineButton->styleSheet() + disabledStyle);
+        m_rectangleButton->setStyleSheet(m_rectangleButton->styleSheet() + disabledStyle);
+        m_ellipseButton->setStyleSheet(m_ellipseButton->styleSheet() + disabledStyle);
+        m_textButton->setStyleSheet(m_textButton->styleSheet() + disabledStyle);
+        m_bucketFillButton->setStyleSheet(m_bucketFillButton->styleSheet() + disabledStyle);
+        m_eraseButton->setStyleSheet(m_eraseButton->styleSheet() + disabledStyle);
+
+        // Force selection tool if current tool is now disabled
+        if (m_activeTool != MainWindow::SelectTool) {
+            setActiveTool(MainWindow::SelectTool);
+            if (m_mainWindow) {
+                m_mainWindow->setTool(MainWindow::SelectTool);
+            }
+        }
+    }
+    else {
+        // Restore original enabled states
+        if (m_originalEnabledStates.contains(m_drawButton)) {
+            m_drawButton->setEnabled(m_originalEnabledStates[m_drawButton]);
+        }
+        if (m_originalEnabledStates.contains(m_lineButton)) {
+            m_lineButton->setEnabled(m_originalEnabledStates[m_lineButton]);
+        }
+        if (m_originalEnabledStates.contains(m_rectangleButton)) {
+            m_rectangleButton->setEnabled(m_originalEnabledStates[m_rectangleButton]);
+        }
+        if (m_originalEnabledStates.contains(m_ellipseButton)) {
+            m_ellipseButton->setEnabled(m_originalEnabledStates[m_ellipseButton]);
+        }
+        if (m_originalEnabledStates.contains(m_textButton)) {
+            m_textButton->setEnabled(m_originalEnabledStates[m_textButton]);
+        }
+        if (m_originalEnabledStates.contains(m_bucketFillButton)) {
+            m_bucketFillButton->setEnabled(m_originalEnabledStates[m_bucketFillButton]);
+        }
+        if (m_originalEnabledStates.contains(m_eraseButton)) {
+            m_eraseButton->setEnabled(m_originalEnabledStates[m_eraseButton]);
+        }
+
+        // Reset styling
+        QString baseStyle =
+            "QPushButton {"
+            "    background-color: #4A4A4F;"
+            "    color: #FFFFFF;"
+            "    border: 1px solid #5A5A5C;"
+            "    border-radius: 3px;"
+            "    padding: 8px;"
+            "    min-width: 32px;"
+            "    min-height: 32px;"
+            "}"
+            "QPushButton:hover {"
+            "    background-color: #5A5A5F;"
+            "    border-color: #6A6A6C;"
+            "}"
+            "QPushButton:pressed {"
+            "    background-color: #3A3A3F;"
+            "}"
+            "QPushButton:checked {"
+            "    background-color: #007ACC;"
+            "    border-color: #0078D4;"
+            "}";
+
+        m_drawButton->setStyleSheet(baseStyle);
+        m_lineButton->setStyleSheet(baseStyle);
+        m_rectangleButton->setStyleSheet(baseStyle);
+        m_ellipseButton->setStyleSheet(baseStyle);
+        m_textButton->setStyleSheet(baseStyle);
+        m_bucketFillButton->setStyleSheet(baseStyle);
+        m_eraseButton->setStyleSheet(baseStyle);
+
+        m_originalEnabledStates.clear();
+    }
 }
 
 void ToolsPanel::createToolButton(const QString& iconPath, const QString& tooltip,
@@ -270,10 +383,35 @@ void ToolsPanel::handleQuickColor(const QString& colorName)
 
 void ToolsPanel::setActiveTool(MainWindow::ToolType tool)
 {
-    m_activeTool = tool;
-    QAbstractButton* button = m_toolButtonGroup->button(static_cast<int>(tool));
-    if (button) {
-        button->setChecked(true);
+    // Check if the tool can be activated
+    QPushButton* targetButton = nullptr;
+    switch (tool) {
+    case MainWindow::SelectTool: targetButton = m_selectButton; break;
+    case MainWindow::DrawTool: targetButton = m_drawButton; break;
+    case MainWindow::LineTool: targetButton = m_lineButton; break;
+    case MainWindow::RectangleTool: targetButton = m_rectangleButton; break;
+    case MainWindow::EllipseTool: targetButton = m_ellipseButton; break;
+    case MainWindow::TextTool: targetButton = m_textButton; break;
+    case MainWindow::BucketFillTool: targetButton = m_bucketFillButton; break;
+    case MainWindow::EraseTool: targetButton = m_eraseButton; break;
+    }
+
+    // If target tool is disabled, force select tool
+    if (targetButton && !targetButton->isEnabled() && tool != MainWindow::SelectTool) {
+        tool = MainWindow::SelectTool;
+        targetButton = m_selectButton;
+    }
+
+    if (m_activeTool != tool && targetButton) {
+        m_activeTool = tool;
+
+        // Update button states
+        for (int i = 0; i < m_toolButtonGroup->buttons().size(); ++i) {
+            QPushButton* btn = qobject_cast<QPushButton*>(m_toolButtonGroup->buttons()[i]);
+            if (btn) {
+                btn->setChecked(btn == targetButton);
+            }
+        }
     }
 }
 
@@ -282,12 +420,26 @@ MainWindow::ToolType ToolsPanel::getActiveTool() const
     return m_activeTool;
 }
 
+
 void ToolsPanel::onToolButtonClicked()
 {
     QPushButton* button = qobject_cast<QPushButton*>(sender());
-    if (button) {
-        int toolId = m_toolButtonGroup->id(button);
-        m_activeTool = static_cast<MainWindow::ToolType>(toolId);
-        emit toolSelected(m_activeTool);
+    if (!button || !button->isEnabled()) {
+        return; // Don't activate disabled tools
     }
+
+    // Find which tool was clicked
+    MainWindow::ToolType tool = MainWindow::SelectTool;
+
+    if (button == m_selectButton) tool = MainWindow::SelectTool;
+    else if (button == m_drawButton) tool = MainWindow::DrawTool;
+    else if (button == m_lineButton) tool = MainWindow::LineTool;
+    else if (button == m_rectangleButton) tool = MainWindow::RectangleTool;
+    else if (button == m_ellipseButton) tool = MainWindow::EllipseTool;
+    else if (button == m_textButton) tool = MainWindow::TextTool;
+    else if (button == m_bucketFillButton) tool = MainWindow::BucketFillTool;
+    else if (button == m_eraseButton) tool = MainWindow::EraseTool;
+
+    setActiveTool(tool);
+    emit toolChanged(tool);
 }

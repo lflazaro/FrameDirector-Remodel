@@ -106,11 +106,13 @@ public:
     void firstFrame();
     void lastFrame();
     void removeKeyframe();
+    void updateFrameActions();          // Enable/disable frame actions based on current state
     // Public member access for undo commands
     QUndoStack* m_undoStack;
 
 public slots:
     void alignObjects(AlignmentType alignment);
+    void setTool(ToolType tool);
     void bringToFront();
     void bringForward();
     void sendBackward();
@@ -172,7 +174,6 @@ private slots:
     void createBlankKeyframe();
 
     // Tool actions
-    void setTool(ToolType tool);
     void selectToolActivated();
     void drawToolActivated();
     void lineToolActivated();
@@ -219,6 +220,8 @@ private slots:
     void onLayerSelectionChanged();
     void onToolChanged(ToolType tool);
     void onCanvasMouseMove(QPointF position);
+    void applyTweening();
+    void removeTweening();
 
     // Playback
     void updatePlayback();
@@ -251,7 +254,6 @@ private:
     void updateUI();
     void updateStatusBar();
     void updateImportMenu();
-    void updateFrameActions();          // Enable/disable frame actions based on current state
     void showFrameTypeIndicator();      // Show current frame type in status bar
 
     // Tool management
@@ -272,8 +274,11 @@ private:
 
     // Animation helpers
     void createKeyframeAtCurrentFrame();
-    void interpolateFrames();
     void updateTimelineDisplay();
+
+    void createTweeningActions();
+    void connectTweeningSignals();
+    void updateToolAvailability();
 
     // Enhanced undo system
     void setupComprehensiveUndo();
@@ -382,6 +387,8 @@ private:
     QAction* m_insertBlankKeyframeAction;
     QAction* m_clearFrameAction;
     QAction* m_convertToKeyframeAction;    // Convert extended frame to keyframe
+    QAction* m_applyTweeningAction;        // Apply tweening between keyframes
+    QAction* m_removeTweeningAction;       // Remove tweening from frame span
 
     // Actions - Tool Menu
     QAction* m_selectToolAction;
