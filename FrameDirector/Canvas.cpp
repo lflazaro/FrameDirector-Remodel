@@ -1209,23 +1209,29 @@ void Canvas::rotateSelected(double angle)
         item->setRotation(item->rotation() + angle);
     }
     storeCurrentFrameState();
-}
-
-void Canvas::createExtendedFrame(int frame)
+}void Canvas::createExtendedFrame(int frame)
 {
     if (frame < 1) return;
-
     qDebug() << "Creating extended frame at frame" << frame;
 
     // Find the last keyframe before this frame
-    int sourceKeyframe = getLastKeyframeBefore(frame);
+    int sourceKeyframe = -1;
+    for (int i = frame - 1; i >= 1; i--) {
+        // Check if frame has content and is not an extended frame pointing to another source
+        auto itemsIt = m_frameItems.find(i);
+        if (itemsIt != m_frameItems.end() && !itemsIt->second.empty()) {
+            // This frame has content - treat it as a keyframe regardless of frameData
+            sourceKeyframe = i;
+            break;
+        }
+    }
+
     if (sourceKeyframe == -1) {
         // No previous keyframe, create as blank keyframe instead
         qDebug() << "No previous keyframe found, creating blank keyframe";
         createBlankKeyframe(frame);
         return;
     }
-
     qDebug() << "Source keyframe found at frame" << sourceKeyframe;
 
     // AUTOMATIC SPAN CALCULATION: Fill the gap between source keyframe and target frame
@@ -1235,13 +1241,10 @@ void Canvas::createExtendedFrame(int frame)
             qDebug() << "Frame" << f << "already has content, skipping";
             continue;
         }
-
         qDebug() << "Creating extended frame data for frame" << f;
-
         // Create extended frame data
         m_frameData[f].type = FrameType::ExtendedFrame;
         m_frameData[f].sourceKeyframe = sourceKeyframe;
-
         // PERFORMANCE FIX: Reference the source frame items for both data structures
         // This ensures compatibility with loadFrameState()
         if (m_frameItems.find(sourceKeyframe) != m_frameItems.end()) {
@@ -1249,18 +1252,14 @@ void Canvas::createExtendedFrame(int frame)
             m_frameData[f].items = m_frameItems[sourceKeyframe];
             m_frameItems[f] = m_frameItems[sourceKeyframe];  // CRITICAL: Update compatibility layer
         }
-
         // Copy item states for potential tweening
         if (m_frameData.find(sourceKeyframe) != m_frameData.end()) {
             m_frameData[f].itemStates = m_frameData[sourceKeyframe].itemStates;
         }
     }
-
     // Load the target frame to display the content
     setCurrentFrame(frame);
-
     qDebug() << "Extended frames created from" << sourceKeyframe + 1 << "to" << frame;
-
     // Single emit for the entire span
     emit frameExtended(sourceKeyframe, frame);
 }
