@@ -111,6 +111,14 @@ void SelectionTool::mouseReleaseEvent(QMouseEvent* event, const QPointF& scenePo
             m_initialPositions.clear();
         }
     }
+
+    if (m_canvas && event->button() == Qt::LeftButton) {
+        if (m_canvas->getFrameType(m_canvas->getCurrentFrame()) == FrameType::ExtendedFrame) {
+            m_canvas->convertCurrentExtendedFrameToKeyframe();
+        }
+        m_canvas->saveStateAfterTransform();
+    }
+
 }
 
 void SelectionTool::keyPressEvent(QKeyEvent* event)

@@ -73,7 +73,6 @@ void ToolsPanel::setupUI()
     m_selectButton->setChecked(true);
 }
 
-
 void ToolsPanel::setToolsEnabled(bool enabled)
 {
     if (m_toolsCurrentlyEnabled == enabled) {
@@ -102,21 +101,23 @@ void ToolsPanel::setToolsEnabled(bool enabled)
         m_bucketFillButton->setEnabled(false);
         m_eraseButton->setEnabled(false);
 
-        // Apply visual styling to indicate disabled state
-        QString disabledStyle =
-            "QPushButton:disabled {"
-            "    background-color: #2A2A2A;"
-            "    color: #808080;"
-            "    border: 1px solid #404040;"
-            "}";
+        // FIX: Apply visual styling using property instead of styleSheet
+        m_drawButton->setProperty("tweenDisabled", true);
+        m_lineButton->setProperty("tweenDisabled", true);
+        m_rectangleButton->setProperty("tweenDisabled", true);
+        m_ellipseButton->setProperty("tweenDisabled", true);
+        m_textButton->setProperty("tweenDisabled", true);
+        m_bucketFillButton->setProperty("tweenDisabled", true);
+        m_eraseButton->setProperty("tweenDisabled", true);
 
-        m_drawButton->setStyleSheet(m_drawButton->styleSheet() + disabledStyle);
-        m_lineButton->setStyleSheet(m_lineButton->styleSheet() + disabledStyle);
-        m_rectangleButton->setStyleSheet(m_rectangleButton->styleSheet() + disabledStyle);
-        m_ellipseButton->setStyleSheet(m_ellipseButton->styleSheet() + disabledStyle);
-        m_textButton->setStyleSheet(m_textButton->styleSheet() + disabledStyle);
-        m_bucketFillButton->setStyleSheet(m_bucketFillButton->styleSheet() + disabledStyle);
-        m_eraseButton->setStyleSheet(m_eraseButton->styleSheet() + disabledStyle);
+        // Force update
+        m_drawButton->update();
+        m_lineButton->update();
+        m_rectangleButton->update();
+        m_ellipseButton->update();
+        m_textButton->update();
+        m_bucketFillButton->update();
+        m_eraseButton->update();
 
         // Force selection tool if current tool is now disabled
         if (m_activeTool != MainWindow::SelectTool) {
@@ -150,40 +151,35 @@ void ToolsPanel::setToolsEnabled(bool enabled)
             m_eraseButton->setEnabled(m_originalEnabledStates[m_eraseButton]);
         }
 
-        // Reset styling
-        QString baseStyle =
-            "QPushButton {"
-            "    background-color: #4A4A4F;"
-            "    color: #FFFFFF;"
-            "    border: 1px solid #5A5A5C;"
-            "    border-radius: 3px;"
-            "    padding: 8px;"
-            "    min-width: 32px;"
-            "    min-height: 32px;"
-            "}"
-            "QPushButton:hover {"
-            "    background-color: #5A5A5F;"
-            "    border-color: #6A6A6C;"
-            "}"
-            "QPushButton:pressed {"
-            "    background-color: #3A3A3F;"
-            "}"
-            "QPushButton:checked {"
-            "    background-color: #007ACC;"
-            "    border-color: #0078D4;"
-            "}";
+        // FIX: Remove property and force size consistency
+        m_drawButton->setProperty("tweenDisabled", QVariant());
+        m_lineButton->setProperty("tweenDisabled", QVariant());
+        m_rectangleButton->setProperty("tweenDisabled", QVariant());
+        m_ellipseButton->setProperty("tweenDisabled", QVariant());
+        m_textButton->setProperty("tweenDisabled", QVariant());
+        m_bucketFillButton->setProperty("tweenDisabled", QVariant());
+        m_eraseButton->setProperty("tweenDisabled", QVariant());
 
-        m_drawButton->setStyleSheet(baseStyle);
-        m_lineButton->setStyleSheet(baseStyle);
-        m_rectangleButton->setStyleSheet(baseStyle);
-        m_ellipseButton->setStyleSheet(baseStyle);
-        m_textButton->setStyleSheet(baseStyle);
-        m_bucketFillButton->setStyleSheet(baseStyle);
-        m_eraseButton->setStyleSheet(baseStyle);
+        // Force size consistency and update
+        QSize buttonSize = m_selectButton->size();
+        m_drawButton->setFixedSize(buttonSize);
+        m_lineButton->setFixedSize(buttonSize);
+        m_rectangleButton->setFixedSize(buttonSize);
+        m_ellipseButton->setFixedSize(buttonSize);
+        m_textButton->setFixedSize(buttonSize);
+        m_bucketFillButton->setFixedSize(buttonSize);
+        m_eraseButton->setFixedSize(buttonSize);
 
-        m_originalEnabledStates.clear();
+        m_drawButton->update();
+        m_lineButton->update();
+        m_rectangleButton->update();
+        m_ellipseButton->update();
+        m_textButton->update();
+        m_bucketFillButton->update();
+        m_eraseButton->update();
     }
 }
+
 
 void ToolsPanel::createToolButton(const QString& iconPath, const QString& tooltip,
     MainWindow::ToolType tool, const QString& shortcut)
@@ -386,7 +382,6 @@ void ToolsPanel::setActiveTool(MainWindow::ToolType tool)
     // Check if the tool can be activated
     QPushButton* targetButton = nullptr;
     switch (tool) {
-    case MainWindow::SelectTool: targetButton = m_selectButton; break;
     case MainWindow::DrawTool: targetButton = m_drawButton; break;
     case MainWindow::LineTool: targetButton = m_lineButton; break;
     case MainWindow::RectangleTool: targetButton = m_rectangleButton; break;

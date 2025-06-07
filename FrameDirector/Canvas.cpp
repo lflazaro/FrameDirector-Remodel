@@ -502,47 +502,38 @@ void Canvas::saveFrameState(int frame)
     }
 }
 
+
 void Canvas::loadFrameState(int frame)
 {
-    // Clear current items first (from first implementation)
+    // Clear current layer from scene
+    QList<QGraphicsItem*> itemsToRemove;
     for (QGraphicsItem* item : scene()->items()) {
-        if (item != m_backgroundRect && item->zValue() > -999) {
-            scene()->removeItem(item);
+        if (item != m_backgroundRect && getItemLayerIndex(item) == m_currentLayerIndex) {
+            itemsToRemove.append(item);
         }
     }
-
-    // Also clear any interpolated items (from second implementation)
-    for (QGraphicsItem* item : m_interpolatedItems) {
-        if (item && scene()->items().contains(item)) {
-            scene()->removeItem(item);
-            delete item;
-        }
+    for (QGraphicsItem* item : itemsToRemove) {
+        scene()->removeItem(item);
     }
-    m_interpolatedItems.clear();
 
-    // Check if this is an extended frame (from first implementation)
-    auto frameDataIt = m_frameData.find(frame);
-    if (frameDataIt != m_frameData.end() && frameDataIt->second.type == FrameType::ExtendedFrame) {
-        // Load content from source keyframe
-        int sourceKeyframe = frameDataIt->second.sourceKeyframe;
-        auto sourceItemsIt = m_frameItems.find(sourceKeyframe);
-        if (sourceItemsIt != m_frameItems.end()) {
-            for (QGraphicsItem* item : sourceItemsIt->second) {
-                if (item && item != m_backgroundRect) {
-                    scene()->addItem(item);
-                    item->setVisible(true);
-                }
+    // Load frame data
+    auto it = m_frameData.find(frame);
+    if (it != m_frameData.end()) {
+        const QList<QGraphicsItem*>& frameItems = it->second.items;
+        for (QGraphicsItem* item : frameItems) {
+            if (item && !scene()->items().contains(item)) {
+                scene()->addItem(item);
             }
         }
+        qDebug() << "Loaded" << frameItems.size() << "items for frame" << frame;
     }
     else {
-        // Regular keyframe or empty frame - load from m_frameItems (from first implementation)
+        // Fallback to compatibility layer
         auto itemsIt = m_frameItems.find(frame);
         if (itemsIt != m_frameItems.end()) {
             for (QGraphicsItem* item : itemsIt->second) {
-                if (item && item != m_backgroundRect) {
+                if (item && !scene()->items().contains(item)) {
                     scene()->addItem(item);
-                    item->setVisible(true);
                 }
             }
         }
@@ -744,6 +735,19 @@ void Canvas::performInterpolation(int currentFrame, int startFrame, int endFrame
     // Calculate interpolation factor
     float t = (float)(currentFrame - startFrame) / (endFrame - startFrame);
 
+    // Apply easing curve
+    QString easingType = getFrameTweeningEasing(startFrame);
+    if (easingType == "ease-in") {
+        t = t * t;  // Quadratic ease-in
+    }
+    else if (easingType == "ease-out") {
+        t = 1 - (1 - t) * (1 - t);  // Quadratic ease-out
+    }
+    else if (easingType == "ease-in-out") {
+        t = t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t);  // Quadratic ease-in-out
+    }
+    // else linear (no change to t)
+
     // Get start and end frame data
     auto startIt = m_frameData.find(startFrame);
     auto endIt = m_frameData.find(endFrame);
@@ -765,19 +769,57 @@ void Canvas::performInterpolation(int currentFrame, int startFrame, int endFrame
         QGraphicsItem* interpolatedItem = cloneGraphicsItem(startItem);
         if (!interpolatedItem) continue;
 
-        // Interpolate properties
+        // FIX: Enhanced interpolation including rotation and scaling
+
+        // Interpolate position
         QPointF startPos = startItem->pos();
         QPointF endPos = endItem->pos();
-        interpolatedItem->setPos(startPos + t * (endPos - startPos));
+        QPointF interpolatedPos = startPos + t * (endPos - startPos);
+        interpolatedItem->setPos(interpolatedPos);
 
-        qreal startRot = startItem->rotation();
-        qreal endRot = endItem->rotation();
-        interpolatedItem->setRotation(startRot + t * (endRot - startRot));
+        // FIX: Interpolate rotation
+        qreal startRotation = startItem->rotation();
+        qreal endRotation = endItem->rotation();
 
+        // Handle rotation wrapping (shortest path)
+        qreal rotationDiff = endRotation - startRotation;
+        if (rotationDiff > 180) rotationDiff -= 360;
+        if (rotationDiff < -180) rotationDiff += 360;
+
+        qreal interpolatedRotation = startRotation + t * rotationDiff;
+        interpolatedItem->setRotation(interpolatedRotation);
+
+        // FIX: Interpolate scaling
+        QTransform startTransform = startItem->transform();
+        QTransform endTransform = endItem->transform();
+
+        qreal startScaleX = startTransform.m11();
+        qreal startScaleY = startTransform.m22();
+        qreal endScaleX = endTransform.m11();
+        qreal endScaleY = endTransform.m22();
+
+        qreal interpolatedScaleX = startScaleX + t * (endScaleX - startScaleX);
+        qreal interpolatedScaleY = startScaleY + t * (endScaleY - startScaleY);
+
+        QTransform interpolatedTransform;
+        interpolatedTransform.scale(interpolatedScaleX, interpolatedScaleY);
+        interpolatedItem->setTransform(interpolatedTransform);
+
+        // Interpolate opacity
         qreal startOpacity = startItem->opacity();
         qreal endOpacity = endItem->opacity();
-        interpolatedItem->setOpacity(startOpacity + t * (endOpacity - startOpacity));
+        qreal interpolatedOpacity = startOpacity + t * (endOpacity - startOpacity);
+        interpolatedItem->setOpacity(interpolatedOpacity);
 
+        // FIX: Preserve pen properties during interpolation to prevent thinning
+        if (auto startPath = qgraphicsitem_cast<QGraphicsPathItem*>(startItem)) {
+            if (auto interpPath = qgraphicsitem_cast<QGraphicsPathItem*>(interpolatedItem)) {
+                QPen startPen = startPath->pen();
+                interpPath->setPen(startPen);  // Preserve exact pen properties
+            }
+        }
+
+        // Add to scene and track
         scene()->addItem(interpolatedItem);
         m_interpolatedItems.append(interpolatedItem);
     }
@@ -811,41 +853,79 @@ void Canvas::createKeyframe(int frame)
     m_frameItems[frame] = clonedItems;
 }
 
+
 QGraphicsItem* Canvas::cloneGraphicsItem(QGraphicsItem* item)
 {
     if (!item) return nullptr;
 
-    // Clone different types of graphics items
+    QGraphicsItem* copy = nullptr;
+
     if (auto rectItem = qgraphicsitem_cast<QGraphicsRectItem*>(item)) {
-        QGraphicsRectItem* cloned = new QGraphicsRectItem(rectItem->rect());
-        cloned->setPen(rectItem->pen());
-        cloned->setBrush(rectItem->brush());
-        cloned->setPos(rectItem->pos());
-        cloned->setRotation(rectItem->rotation());
-        cloned->setOpacity(rectItem->opacity());
-        return cloned;
+        auto newRect = new QGraphicsRectItem(rectItem->rect());
+        // FIX: Explicitly preserve all pen properties
+        QPen originalPen = rectItem->pen();
+        newRect->setPen(originalPen);  // This preserves width, color, style
+        newRect->setBrush(rectItem->brush());
+        newRect->setTransform(rectItem->transform());
+        newRect->setPos(rectItem->pos());
+        newRect->setRotation(rectItem->rotation());
+        copy = newRect;
     }
     else if (auto ellipseItem = qgraphicsitem_cast<QGraphicsEllipseItem*>(item)) {
-        QGraphicsEllipseItem* cloned = new QGraphicsEllipseItem(ellipseItem->rect());
-        cloned->setPen(ellipseItem->pen());
-        cloned->setBrush(ellipseItem->brush());
-        cloned->setPos(ellipseItem->pos());
-        cloned->setRotation(ellipseItem->rotation());
-        cloned->setOpacity(ellipseItem->opacity());
-        return cloned;
+        auto newEllipse = new QGraphicsEllipseItem(ellipseItem->rect());
+        // FIX: Explicitly preserve all pen properties
+        QPen originalPen = ellipseItem->pen();
+        newEllipse->setPen(originalPen);
+        newEllipse->setBrush(ellipseItem->brush());
+        newEllipse->setTransform(ellipseItem->transform());
+        newEllipse->setPos(ellipseItem->pos());
+        newEllipse->setRotation(ellipseItem->rotation());
+        copy = newEllipse;
+    }
+    else if (auto lineItem = qgraphicsitem_cast<QGraphicsLineItem*>(item)) {
+        auto newLine = new QGraphicsLineItem(lineItem->line());
+        // FIX: Explicitly preserve all pen properties
+        QPen originalPen = lineItem->pen();
+        newLine->setPen(originalPen);
+        newLine->setTransform(lineItem->transform());
+        newLine->setPos(lineItem->pos());
+        newLine->setRotation(lineItem->rotation());
+        copy = newLine;
     }
     else if (auto pathItem = qgraphicsitem_cast<QGraphicsPathItem*>(item)) {
-        QGraphicsPathItem* cloned = new QGraphicsPathItem(pathItem->path());
-        cloned->setPen(pathItem->pen());
-        cloned->setBrush(pathItem->brush());
-        cloned->setPos(pathItem->pos());
-        cloned->setRotation(pathItem->rotation());
-        cloned->setOpacity(pathItem->opacity());
-        return cloned;
+        auto newPath = new QGraphicsPathItem(pathItem->path());
+        // FIX: Explicitly preserve all pen properties for path items (brush strokes)
+        QPen originalPen = pathItem->pen();
+        qDebug() << "Cloning path item with pen width:" << originalPen.widthF();
+        newPath->setPen(originalPen);  // This should preserve brush stroke width
+        newPath->setBrush(pathItem->brush());
+        newPath->setTransform(pathItem->transform());
+        newPath->setPos(pathItem->pos());
+        newPath->setRotation(pathItem->rotation());
+        copy = newPath;
+    }
+    else if (auto textItem = qgraphicsitem_cast<QGraphicsTextItem*>(item)) {
+        auto newText = new QGraphicsTextItem(textItem->toPlainText());
+        newText->setFont(textItem->font());
+        newText->setDefaultTextColor(textItem->defaultTextColor());
+        newText->setTransform(textItem->transform());
+        newText->setPos(textItem->pos());
+        newText->setRotation(textItem->rotation());
+        copy = newText;
     }
 
-    return nullptr;
+    if (copy) {
+        copy->setFlags(item->flags());
+        copy->setZValue(item->zValue());
+        copy->setOpacity(item->opacity());
+        copy->setVisible(item->isVisible());
+        copy->setEnabled(item->isEnabled());
+        copy->setSelected(item->isSelected());
+    }
+
+    return copy;
 }
+
 
 void Canvas::clearLayerFromScene(int layerIndex)
 {
@@ -1765,6 +1845,7 @@ void Canvas::removeTweening(int startFrame)
 }
 
 // NEW: Check if drawing is allowed on current frame
+
 bool Canvas::canDrawOnCurrentFrame() const
 {
     // Allow drawing on empty frames
@@ -1778,12 +1859,29 @@ bool Canvas::canDrawOnCurrentFrame() const
         return true;
     }
 
-    // Allow drawing on extended frames without tweening (will auto-convert)
+    // FIX: Allow drawing on extended frames without tweening (will auto-convert)
+    // AND allow interaction with converted keyframes in the end frame
     if (frameType == FrameType::ExtendedFrame && !isFrameTweened(m_currentFrame)) {
         return true;
     }
 
-    // Disallow drawing on tweened frames
+    // FIX: Special case for the end frame of a tweening sequence
+    // Check if this frame is the END of a tweening sequence, not in the middle
+    bool isEndFrame = false;
+    for (const auto& pair : m_frameData) {
+        const FrameData& frameData = pair.second;
+        if (frameData.hasTweening && frameData.tweeningEndFrame == m_currentFrame) {
+            isEndFrame = true;
+            break;
+        }
+    }
+
+    // Allow drawing on end frames of tweening (they should be keyframes)
+    if (isEndFrame && frameType == FrameType::Keyframe) {
+        return true;
+    }
+
+    // Disallow drawing on tweened intermediate frames
     return false;
 }
 
@@ -1856,24 +1954,159 @@ bool Canvas::shouldConvertExtendedFrame() const
 }
 
 // NEW: Convert current extended frame to keyframe
+
 void Canvas::convertCurrentExtendedFrameToKeyframe()
 {
     if (getFrameType(m_currentFrame) != FrameType::ExtendedFrame) {
         return;
     }
 
-    qDebug() << "Auto-converting extended frame" << m_currentFrame << "to keyframe due to drawing operation";
+    int sourceFrame = getSourceKeyframe(m_currentFrame);
+    qDebug() << "Converting extended frame" << m_currentFrame << "to keyframe, source:" << sourceFrame;
 
-    // Convert frame type
+    // Get current scene items that will be transformed
+    QList<QGraphicsItem*> originalSceneItems;
+    for (QGraphicsItem* item : scene()->items()) {
+        if (item != m_backgroundRect && getItemLayerIndex(item) == m_currentLayerIndex) {
+            originalSceneItems.append(item);
+        }
+    }
+
+    // CRITICAL: Find ALL frames that reference these same objects
+    QList<int> framesToUpdate;
+    for (const auto& pair : m_frameData) {
+        int frame = pair.first;
+        const FrameData& frameData = pair.second;
+
+        // Check if this frame references any of the original objects
+        for (QGraphicsItem* originalItem : originalSceneItems) {
+            if (frameData.items.contains(originalItem)) {
+                framesToUpdate.append(frame);
+                break;
+            }
+        }
+    }
+
+    qDebug() << "Frames sharing objects:" << framesToUpdate;
+
+    // Create independent copies for each frame that shares objects
+    for (int frame : framesToUpdate) {
+        QList<QGraphicsItem*> independentCopies;
+
+        for (QGraphicsItem* originalItem : originalSceneItems) {
+            QGraphicsItem* copy = cloneGraphicsItem(originalItem);
+            if (copy) {
+                independentCopies.append(copy);
+            }
+        }
+
+        // Update frame data with independent copies
+        m_frameData[frame].items = independentCopies;
+        m_frameItems[frame] = independentCopies;
+
+        qDebug() << "Created" << independentCopies.size() << "independent copies for frame" << frame;
+    }
+
+    // Remove ALL original shared objects from scene
+    for (QGraphicsItem* item : originalSceneItems) {
+        scene()->removeItem(item);
+    }
+
+    // Add the independent copies for current frame to scene
+    if (framesToUpdate.contains(m_currentFrame)) {
+        auto& currentFrameData = m_frameData[m_currentFrame];
+        for (QGraphicsItem* item : currentFrameData.items) {
+            scene()->addItem(item);
+        }
+    }
+
+    // Convert current frame to keyframe
     auto& frameData = m_frameData[m_currentFrame];
     frameData.type = FrameType::Keyframe;
     frameData.sourceKeyframe = -1;
-
-    // Add to keyframes set
     m_keyframes.insert(m_currentFrame);
 
-    // Emit frame change to update UI
+    qDebug() << "Converted frame" << m_currentFrame << "to independent keyframe";
     emit frameChanged(m_currentFrame);
+}
+
+void Canvas::saveStateAfterTransform()
+{
+    // Force save current frame state
+    QList<QGraphicsItem*> currentItems;
+    for (QGraphicsItem* item : scene()->items()) {
+        if (item != m_backgroundRect && getItemLayerIndex(item) == m_currentLayerIndex) {
+            currentItems.append(item);
+        }
+    }
+
+    auto& frameData = m_frameData[m_currentFrame];
+    frameData.items = currentItems;
+    m_frameItems[m_currentFrame] = currentItems;
+
+    if (frameData.type != FrameType::ExtendedFrame) {
+        frameData.type = FrameType::Keyframe;
+        m_keyframes.insert(m_currentFrame);
+    }
+
+    qDebug() << "Force saved state for frame" << m_currentFrame << "with" << currentItems.size() << "items";
+}
+
+// FIX: Add method to ensure object independence during transformations
+void Canvas::ensureObjectIndependence(QGraphicsItem* item)
+{
+    // This method is called before any transformation to ensure the object
+    // being transformed doesn't affect other frames
+
+    if (!item) return;
+
+    FrameType frameType = getFrameType(m_currentFrame);
+
+    // If we're on an extended frame, convert it to keyframe first
+    if (frameType == FrameType::ExtendedFrame) {
+        convertCurrentExtendedFrameToKeyframe();
+        return;
+    }
+
+    // If we're on a keyframe, ensure this item is unique to this frame
+    if (frameType == FrameType::Keyframe) {
+        // Check if this item appears in other frames
+        bool itemSharedWithOtherFrames = false;
+
+        for (const auto& pair : m_frameData) {
+            int frame = pair.first;
+            const FrameData& frameData = pair.second;
+
+            if (frame != m_currentFrame && frameData.items.contains(item)) {
+                itemSharedWithOtherFrames = true;
+                break;
+            }
+        }
+
+        if (itemSharedWithOtherFrames) {
+            // Create a new independent copy for this frame
+            QGraphicsItem* independentCopy = cloneGraphicsItem(item);
+            if (independentCopy) {
+                // Replace the shared item with the independent copy
+                auto& currentFrameData = m_frameData[m_currentFrame];
+                int itemIndex = currentFrameData.items.indexOf(item);
+                if (itemIndex >= 0) {
+                    currentFrameData.items[itemIndex] = independentCopy;
+                    m_frameItems[m_currentFrame][itemIndex] = independentCopy;
+
+                    // Replace in scene
+                    m_scene->removeItem(item);
+                    m_scene->addItem(independentCopy);
+
+                    // Transfer selection state
+                    if (item->isSelected()) {
+                        independentCopy->setSelected(true);
+                        item->setSelected(false);
+                    }
+                }
+            }
+        }
+    }
 }
 
 void Canvas::onDrawingStarted()

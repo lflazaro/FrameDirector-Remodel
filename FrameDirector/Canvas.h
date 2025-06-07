@@ -80,6 +80,8 @@ public:
     void setBackgroundColor(const QColor& color);
     QColor getBackgroundColor() const;
 
+    void convertCurrentExtendedFrameToKeyframe();
+
     // Layer management - Complete interface
     int addLayer(const QString& name = QString());  // Returns layer index
     void addLayerVoid(const QString& name = QString()); // Void version for compatibility
@@ -147,7 +149,9 @@ public:
     QColor getStrokeColor() const;
     QColor getFillColor() const;
     double getStrokeWidth() const;
-
+    void clearLayerFromScene(int layerIndex);
+    void ensureObjectIndependence(QGraphicsItem* item);
+    void saveStateAfterTransform();
     // Zoom and view
     void zoomIn();
     void zoomOut();
@@ -222,7 +226,6 @@ private:
     void setupDefaultLayers();
     void updateSceneRect();
     QGraphicsItem* cloneGraphicsItem(QGraphicsItem* item);
-    void clearLayerFromScene(int layerIndex);
     void clearFrameItems(int frame);
     // Drawing and rendering
     void drawGrid(QPainter* painter, const QRectF& rect);
@@ -246,7 +249,6 @@ private:
     void onDrawingStarted();
     void onItemAdded(QGraphicsItem* item);
     bool shouldConvertExtendedFrame() const;
-    void convertCurrentExtendedFrameToKeyframe();
 
     // Core components
     MainWindow* m_mainWindow;

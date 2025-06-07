@@ -624,27 +624,37 @@ void LayerManager::onAddLayerClicked()
 {
     Canvas* canvas = m_mainWindow->findChild<Canvas*>();
     if (canvas) {
-        QString layerName = QString("Layer %1").arg(canvas->getLayerCount() + 1);
-
-        // FIXED: Add layer without clearing existing states
+        // FIX: Store current frame state and check for tweening before adding layer
+        int currentFrame = canvas->getCurrentFrame();
+        bool wasTweened = canvas->isFrameTweened(currentFrame);
+        
+        // Clear any interpolated items from the scene first
+        canvas->clearLayerFromScene(canvas->getCurrentLayer());
+        
+        QString layerName = QString("Layer %1").arg(m_layerList->count() + 1);
         int newIndex = canvas->addLayer(layerName);
 
-        // Add the new layer item to the list without calling updateLayers()
-        LayerItem* newItem = new LayerItem(layerName, newIndex);
-        newItem->setVisible(true);      // Default visible
-        newItem->setLocked(false);      // Default unlocked  
-        newItem->setOpacity(100);       // Default full opacity
-        m_layerList->addItem(newItem);
+        LayerItem* item = new LayerItem(layerName, newIndex);
+        item->setVisible(true);
+        item->setLocked(false);
+        item->setOpacity(100);
+        m_layerList->addItem(item);
 
         // Select the new layer
         m_currentLayer = newIndex;
         m_layerList->setCurrentRow(m_currentLayer);
         canvas->setCurrentLayer(m_currentLayer);
 
+        // FIX: Initialize the new layer with empty frame data to prevent duplication
+        if (wasTweened) {
+            // Create empty frame data for the new layer at current frame
+            canvas->createBlankKeyframe(currentFrame);
+        }
+
         updateLayerControls();
         emit layerAdded();
-
-        qDebug() << "Added layer without resetting existing layer properties";
+        
+        qDebug() << "Added layer:" << layerName << "at frame" << currentFrame;
     }
 }
 
