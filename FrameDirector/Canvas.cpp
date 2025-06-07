@@ -1209,7 +1209,8 @@ void Canvas::rotateSelected(double angle)
         item->setRotation(item->rotation() + angle);
     }
     storeCurrentFrameState();
-}void Canvas::createExtendedFrame(int frame)
+}
+void Canvas::createExtendedFrame(int frame)
 {
     if (frame < 1) return;
     qDebug() << "Creating extended frame at frame" << frame;
