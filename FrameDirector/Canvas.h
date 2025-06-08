@@ -1,4 +1,4 @@
-// Canvas.h - Complete implementation with frame extension and tweening support
+// Canvas.h - Complete implementation with frame extension and layer-independent tweening support
 #ifndef CANVAS_H
 #define CANVAS_H
 
@@ -70,7 +70,6 @@ public:
     bool hasSelection() const;
     int getSelectionCount() const;
     void deleteSelected();
-    void performInterpolation(int currentFrame, int startFrame, int endFrame);
     QList<QGraphicsItem*> getSelectedItems() const;
 
     // Canvas size and background
@@ -120,15 +119,15 @@ public:
     // Frame type queries and navigation
     bool hasKeyframe(int frame) const;
     bool hasContent(int frame) const;
-    FrameType getFrameType(int frame) const;
-    int getSourceKeyframe(int frame) const;      // For extended frames
-    int getLastKeyframeBefore(int frame) const;  // Find previous keyframe
-    int getNextKeyframeAfter(int frame) const;   // Find next keyframe
     QList<int> getFrameSpan(int keyframe) const; // Get all frames extending from keyframe
     void storeCurrentFrameState();
     void clearFrameState();
 
-    // Tweening functionality
+    // Legacy tweening methods (for backward compatibility - use current layer)
+    FrameType getFrameType(int frame) const;
+    int getSourceKeyframe(int frame) const;      // For extended frames
+    int getLastKeyframeBefore(int frame) const;  // Find previous keyframe
+    int getNextKeyframeAfter(int frame) const;   // Find next keyframe
     bool hasFrameTweening(int frame) const;
     bool isFrameTweened(int frame) const;
     void applyTweening(int startFrame, int endFrame, const QString& easingType = "linear");
@@ -137,6 +136,14 @@ public:
     QString getFrameTweeningEasing(int frame) const;
     int getTweeningEndFrame(int frame) const;
     void interpolateFrame(int frame, int startFrame, int endFrame, float t);
+
+    // NEW: Layer-aware tweening methods (recommended for new code)
+    FrameType getFrameType(int frame, int layerIndex) const;
+    int getSourceKeyframe(int frame, int layerIndex) const;
+    bool hasFrameTweening(int frame, int layerIndex) const;
+    bool isFrameTweened(int frame, int layerIndex) const;
+    QString getFrameTweeningEasing(int frame, int layerIndex) const;
+    int getTweeningEndFrame(int frame, int layerIndex) const;
 
     // Tools and drawing
     void setCurrentTool(Tool* tool);
@@ -152,6 +159,7 @@ public:
     void clearLayerFromScene(int layerIndex);
     void ensureObjectIndependence(QGraphicsItem* item);
     void saveStateAfterTransform();
+
     // Zoom and view
     void zoomIn();
     void zoomOut();
@@ -181,9 +189,11 @@ public:
     void sendSelectedBackward();
     void sendSelectedToBack();
     void flipSelectedHorizontal();
+    void updateGlobalFrameItems(int frame);
     void flipSelectedVertical();
     void rotateSelected(double angle);
-    void cleanupInterpolatedItems();
+
+    QList<QGraphicsItem*> getFrameItems(int frame) const;
 
     // Item management
     void addItemToCurrentLayer(QGraphicsItem* item);
@@ -228,15 +238,19 @@ private:
     void updateSceneRect();
     QGraphicsItem* cloneGraphicsItem(QGraphicsItem* item);
     void clearFrameItems(int frame);
+
     // Drawing and rendering
     void drawGrid(QPainter* painter, const QRectF& rect);
     void drawGrid(QPainter* painter); // Alternative signature
     void drawRulers(QPainter* painter);
     void drawCanvasBounds(QPainter* painter, const QRectF& rect);
     void drawBackground(QPainter* painter);
-    QList<QGraphicsItem*> m_interpolatedItems;
-    bool m_isShowingInterpolatedFrame = false;
-    bool m_suppressFrameConversion = false;
+
+    // ENHANCED: Layer-aware tweening and interpolation methods
+    void cleanupInterpolatedItems();  // Global cleanup (all layers)
+    void cleanupInterpolatedItems(int layerIndex);  // Layer-specific cleanup
+    void performInterpolation(int currentFrame, int startFrame, int endFrame);  // Legacy
+    void performInterpolation(int currentFrame, int startFrame, int endFrame, int layerIndex);  // Layer-aware
 
     // Utility functions
     QPointF snapToGrid(const QPointF& point);
@@ -269,11 +283,21 @@ private:
     std::vector<LayerData> m_layersData; // Alternative storage
     int m_currentLayerIndex;
 
-    // Frame and keyframe management with extension support
+    // ENHANCED: Layer-specific tweening and animation data
+    QHash<int, QHash<int, FrameData>> m_layerFrameData;  // layerIndex -> frame -> FrameData
+    QHash<int, QList<QGraphicsItem*>> m_layerInterpolatedItems;  // layerIndex -> interpolated items
+    QHash<int, bool> m_layerShowingInterpolated;  // layerIndex -> isShowingInterpolated flag
+
+    // Frame and keyframe management with extension support (legacy - for compatibility)
     int m_currentFrame;
-    std::map<int, FrameData> m_frameData;        // Enhanced frame tracking
+    std::map<int, FrameData> m_frameData;        // Enhanced frame tracking (legacy global)
     std::map<int, QList<QGraphicsItem*>> m_frameItems; // Keep for compatibility
     std::set<int> m_keyframes;                   // Track keyframes specifically
+    QList<QGraphicsItem*> m_interpolatedItems;  // Legacy global interpolated items
+
+    // Tweening state flags
+    bool m_isShowingInterpolatedFrame = false;  // Legacy global flag
+    bool m_suppressFrameConversion = false;     // Prevents unwanted frame conversions
 
     // View properties
     double m_zoomFactor;

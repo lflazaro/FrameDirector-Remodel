@@ -134,41 +134,35 @@ Canvas::~Canvas()
 {
     qDebug() << "Canvas destructor called";
 
-    // Set flag to prevent any signal emissions
     m_destroying = true;
-
-    // Disconnect ALL signals immediately to prevent crashes during destruction
     disconnect();
 
-    // Disconnect scene signals specifically
     if (m_scene) {
         disconnect(m_scene, nullptr, this, nullptr);
     }
 
-    // CRITICAL: Clean up interpolated items first
-    cleanupInterpolatedItems();
+    // CRITICAL: Clean up all layer-specific interpolated items
+    cleanupInterpolatedItems();  // This cleans up all layers
 
-    // Clear all data structures that reference graphics items WITHOUT emitting signals
+    // Clear all data structures
     m_frameItems.clear();
     m_keyframes.clear();
+    m_layerFrameData.clear();
+    m_layerInterpolatedItems.clear();
+    m_layerShowingInterpolated.clear();
 
-    // Clear rubber band if it exists
+    // Clean up rubber band and layers...
     if (m_rubberBand) {
         delete m_rubberBand;
         m_rubberBand = nullptr;
     }
 
-    // Clean up layer data structures
     for (void* layerPtr : m_layers) {
         if (layerPtr) {
             LayerData* layer = static_cast<LayerData*>(layerPtr);
-
-            // Clear the item lists first (don't delete items, scene will handle that)
             layer->items.clear();
             layer->frameItems.clear();
             layer->allTimeItems.clear();
-
-            // Delete the layer data structure
             delete layer;
         }
     }
@@ -240,18 +234,31 @@ void Canvas::setupDefaultLayers()
         << "Drawing UUID:" << drawingLayer->uuid;
 }
 
+
 int Canvas::addLayer(const QString& name)
 {
     QString layerName = name.isEmpty() ? QString("Layer %1").arg(m_layers.size()) : name;
 
-    // ROBUST: Create new layer with unique identification
+    // Save current frame state before adding layer
+    if (m_currentLayerIndex >= 0) {
+        storeCurrentFrameState();
+    }
+
+    // Create new layer
     LayerData* newLayer = new LayerData(layerName);
     m_layers.push_back(newLayer);
 
     int newIndex = m_layers.size() - 1;
 
+    // Initialize layer-specific data structures (empty)
+    m_layerFrameData[newIndex] = QHash<int, FrameData>();
+    m_layerInterpolatedItems[newIndex] = QList<QGraphicsItem*>();
+    m_layerShowingInterpolated[newIndex] = false;
+
     qDebug() << "Added layer:" << layerName << "Index:" << newIndex << "UUID:" << newLayer->uuid;
-    emit layerChanged(newIndex);
+
+    emit layerChanged(m_currentLayerIndex); // Refresh current layer display
+
     return newIndex;
 }
 
@@ -304,15 +311,27 @@ void Canvas::removeLayer(int layerIndex)
 
 void Canvas::setCurrentLayer(int layerIndex)
 {
-    if (layerIndex >= 0 && layerIndex < m_layers.size()) {
+    if (layerIndex >= 0 && layerIndex < m_layers.size() && layerIndex != m_currentLayerIndex) {
+
+        qDebug() << "Switching from layer" << m_currentLayerIndex << "to layer" << layerIndex;
+
+        // Save current frame state for current layer
+        if (m_currentLayerIndex >= 0) {
+            storeCurrentFrameState();
+            cleanupInterpolatedItems(m_currentLayerIndex);
+        }
+
         LayerData* oldLayer = (m_currentLayerIndex >= 0 && m_currentLayerIndex < m_layers.size())
             ? static_cast<LayerData*>(m_layers[m_currentLayerIndex]) : nullptr;
         LayerData* newLayer = static_cast<LayerData*>(m_layers[layerIndex]);
 
         m_currentLayerIndex = layerIndex;
 
-        qDebug() << "Current layer changed from" << (oldLayer ? oldLayer->uuid : "none")
-            << "to" << newLayer->uuid << "index:" << layerIndex;
+        // Load the correct content for new layer on current frame
+        loadFrameState(m_currentFrame);
+
+        qDebug() << "Layer switch completed - from" << (oldLayer ? oldLayer->uuid : "none")
+            << "to" << newLayer->uuid;
 
         emit layerChanged(layerIndex);
     }
@@ -452,93 +471,112 @@ void Canvas::addItemToCurrentLayer(QGraphicsItem* item)
 
 void Canvas::saveFrameState(int frame)
 {
-    // Don't store state on tweened frames (they're computed)
-    if (isFrameTweened(frame) && getFrameType(frame) == FrameType::ExtendedFrame) {
-        return;
+    qDebug() << "Saving frame state for frame:" << frame << "layer:" << m_currentLayerIndex;
+
+    // Collect current layer items from scene
+    QList<QGraphicsItem*> currentLayerItems;
+    for (QGraphicsItem* item : m_scene->items()) {
+        if (item != m_backgroundRect && getItemLayerIndex(item) == m_currentLayerIndex) {
+            currentLayerItems.append(item);
+        }
     }
 
-    // ROBUST: Save frame state per layer to prevent cross-contamination
-    QHash<int, QList<QGraphicsItem*>> layerFrameItems;
-    for (int layerIndex = 0; layerIndex < m_layers.size(); ++layerIndex) {
-        LayerData* layer = static_cast<LayerData*>(m_layers[layerIndex]);
-        QList<QGraphicsItem*> frameItems = layer->getFrameItems(frame);
-        layerFrameItems[layerIndex] = frameItems;
-    }
-
-    // Store frame data with tweening support for current layer
-    auto& frameData = m_frameData[frame];
-    frameData.items = layerFrameItems[m_currentLayerIndex];
+    // Save ONLY to layer-specific storage
+    auto& layerFrameData = m_layerFrameData[m_currentLayerIndex];
+    auto& frameData = layerFrameData[frame];
+    frameData.items = currentLayerItems;
     frameData.itemStates.clear();
 
-    // Store item states for potential tweening (current layer only)
-    for (QGraphicsItem* item : layerFrameItems[m_currentLayerIndex]) {
-        QVariantMap state;
-        state["position"] = item->pos();
-        state["rotation"] = item->rotation();
-        state["scale"] = item->scale();
-        state["opacity"] = item->opacity();
-        frameData.itemStates[item] = state;
+    // Store item states for potential tweening
+    for (QGraphicsItem* item : currentLayerItems) {
+        if (item) {
+            QVariantMap state;
+            state["position"] = item->pos();
+            state["rotation"] = item->rotation();
+            state["scale"] = item->scale();
+            state["opacity"] = item->opacity();
+            frameData.itemStates[item] = state;
+        }
     }
 
     // Update frame type if needed
-    if (frameData.type == FrameType::Empty && !layerFrameItems[m_currentLayerIndex].isEmpty()) {
+    if (frameData.type == FrameType::Empty && !currentLayerItems.isEmpty()) {
         frameData.type = FrameType::Keyframe;
         m_keyframes.insert(frame);
     }
 
-    // Store in main frame tracking (for compatibility) - all layers combined
-    QList<QGraphicsItem*> allFrameItems;
-    for (const auto& layerItems : layerFrameItems) {
-        allFrameItems.append(layerItems);
+    // Update layer data structure
+    if (m_currentLayerIndex >= 0 && m_currentLayerIndex < m_layers.size()) {
+        LayerData* layer = static_cast<LayerData*>(m_layers[m_currentLayerIndex]);
+        layer->setFrameItems(frame, currentLayerItems);
     }
-    m_frameItems[frame] = allFrameItems;
 
-    qDebug() << "Saved frame state for frame:" << frame
-        << "Total items across all layers:" << allFrameItems.size();
-
-    // Debug layer state
-    for (int i = 0; i < m_layers.size(); ++i) {
-        LayerData* layer = static_cast<LayerData*>(m_layers[i]);
-        qDebug() << "  Layer" << i << "UUID:" << layer->uuid
-            << "Frame items:" << layerFrameItems[i].size();
-    }
+    qDebug() << "Saved frame state - Layer" << m_currentLayerIndex << "items:" << currentLayerItems.size();
 }
+
 
 
 void Canvas::loadFrameState(int frame)
 {
-    // Clear current layer from scene
-    QList<QGraphicsItem*> itemsToRemove;
-    for (QGraphicsItem* item : scene()->items()) {
-        if (item != m_backgroundRect && getItemLayerIndex(item) == m_currentLayerIndex) {
-            itemsToRemove.append(item);
+    qDebug() << "Loading frame state for frame:" << frame << "- managing ALL layers";
+
+    // CRITICAL: Clear ALL non-background items from scene first
+    QList<QGraphicsItem*> allItems;
+    for (QGraphicsItem* item : m_scene->items()) {
+        if (item != m_backgroundRect) {
+            allItems.append(item);
         }
-    }
-    for (QGraphicsItem* item : itemsToRemove) {
-        scene()->removeItem(item);
     }
 
-    // Load frame data
-    auto it = m_frameData.find(frame);
-    if (it != m_frameData.end()) {
-        const QList<QGraphicsItem*>& frameItems = it->second.items;
-        for (QGraphicsItem* item : frameItems) {
-            if (item && !scene()->items().contains(item)) {
-                scene()->addItem(item);
-            }
-        }
-        qDebug() << "Loaded" << frameItems.size() << "items for frame" << frame;
+    // Remove all items (we'll add back what should be visible)
+    for (QGraphicsItem* item : allItems) {
+        m_scene->removeItem(item);
     }
-    else {
-        // Fallback to compatibility layer
-        auto itemsIt = m_frameItems.find(frame);
-        if (itemsIt != m_frameItems.end()) {
-            for (QGraphicsItem* item : itemsIt->second) {
-                if (item && !scene()->items().contains(item)) {
-                    scene()->addItem(item);
-                }
+
+    // CRITICAL: Load correct items for ALL layers on this frame
+    for (int layerIndex = 0; layerIndex < m_layers.size(); ++layerIndex) {
+        LayerData* layer = static_cast<LayerData*>(m_layers[layerIndex]);
+
+        // Skip if layer is not visible
+        if (!layer->visible) {
+            continue;
+        }
+
+        QList<QGraphicsItem*> layerFrameItems;
+
+        // Try layer-specific frame data first
+        if (m_layerFrameData.contains(layerIndex)) {
+            auto& layerFrameData = m_layerFrameData[layerIndex];
+            if (layerFrameData.contains(frame)) {
+                layerFrameItems = layerFrameData[frame].items;
             }
         }
+
+        // Fallback to layer data structure
+        if (layerFrameItems.isEmpty()) {
+            layerFrameItems = layer->getFrameItems(frame);
+        }
+
+        // Add items for this layer to scene with proper Z-ordering
+        for (QGraphicsItem* item : layerFrameItems) {
+            if (item) {
+                m_scene->addItem(item);
+                // Ensure proper layer Z-ordering
+                item->setZValue(layerIndex * 1000 + static_cast<int>(item->zValue()) % 1000);
+                // Apply layer properties
+                item->setVisible(layer->visible);
+                item->setOpacity(item->data(0).toDouble() * layer->opacity);
+                item->setFlag(QGraphicsItem::ItemIsSelectable, !layer->locked);
+                item->setFlag(QGraphicsItem::ItemIsMovable, !layer->locked);
+            }
+        }
+
+        qDebug() << "Layer" << layerIndex << "frame" << frame << ":" << layerFrameItems.size() << "items";
+    }
+
+    // Ensure background is always visible and at bottom
+    if (m_backgroundRect && !m_scene->items().contains(m_backgroundRect)) {
+        m_scene->addItem(m_backgroundRect);
     }
 }
 
@@ -686,40 +724,40 @@ void Canvas::setCurrentFrame(int frame)
 {
     if (frame == m_currentFrame) return;
 
-    // CRITICAL FIX: Always clean up interpolated items before switching frames
-    cleanupInterpolatedItems();
+    // CRITICAL FIX: Clean up interpolated items for current layer only
+    cleanupInterpolatedItems(m_currentLayerIndex);
 
     m_currentFrame = frame;
 
-    // Check if this frame is part of a tweened sequence
-    if (isFrameTweened(frame)) {
-        m_isShowingInterpolatedFrame = true;
+    // Check if this frame is part of a tweened sequence ON THE CURRENT LAYER
+    if (isFrameTweened(frame, m_currentLayerIndex)) {
+        m_layerShowingInterpolated[m_currentLayerIndex] = true;
 
-        // Find the tweening start and end frames
+        // Find the tweening start and end frames for current layer
         int startFrame = frame;
         int endFrame = -1;
 
         // If this is an extended tweened frame, find the source keyframe
-        if (getFrameType(frame) == FrameType::ExtendedFrame) {
-            startFrame = getSourceKeyframe(frame);
+        if (getFrameType(frame, m_currentLayerIndex) == FrameType::ExtendedFrame) {
+            startFrame = getSourceKeyframe(frame, m_currentLayerIndex);
         }
 
-        // Get the end frame
-        if (hasFrameTweening(startFrame)) {
-            endFrame = getTweeningEndFrame(startFrame);
+        // Get the end frame for current layer
+        if (hasFrameTweening(startFrame, m_currentLayerIndex)) {
+            endFrame = getTweeningEndFrame(startFrame, m_currentLayerIndex);
         }
 
         // Handle keyframes vs interpolated frames differently
         if (frame == startFrame || frame == endFrame) {
             // Show actual keyframe content (start or end)
-            m_isShowingInterpolatedFrame = false;
+            m_layerShowingInterpolated[m_currentLayerIndex] = false;
             clearLayerFromScene(m_currentLayerIndex);
             loadFrameState(frame);
         }
         else if (startFrame != -1 && endFrame != -1 && frame > startFrame && frame < endFrame) {
             // Show interpolated content for in-between frames
             clearLayerFromScene(m_currentLayerIndex);
-            performInterpolation(frame, startFrame, endFrame);
+            performInterpolation(frame, startFrame, endFrame, m_currentLayerIndex);
         }
 
         emit frameChanged(frame);
@@ -727,42 +765,47 @@ void Canvas::setCurrentFrame(int frame)
     }
 
     // Normal frame loading
-    m_isShowingInterpolatedFrame = false;
+    m_layerShowingInterpolated[m_currentLayerIndex] = false;
     loadFrameState(frame);
     emit frameChanged(frame);
 }
 
 
-void Canvas::cleanupInterpolatedItems()
-{
-    if (m_interpolatedItems.isEmpty()) return;
 
-    qDebug() << "Cleaning up" << m_interpolatedItems.size() << "interpolated items";
+void Canvas::cleanupInterpolatedItems(int layerIndex)
+{
+    if (!m_layerInterpolatedItems.contains(layerIndex) ||
+        m_layerInterpolatedItems[layerIndex].isEmpty()) {
+        return;
+    }
+
+    qDebug() << "Cleaning up" << m_layerInterpolatedItems[layerIndex].size()
+        << "interpolated items for layer" << layerIndex;
 
     // Remove from scene and delete
-    for (QGraphicsItem* item : m_interpolatedItems) {
+    for (QGraphicsItem* item : m_layerInterpolatedItems[layerIndex]) {
         if (item && scene()->items().contains(item)) {
             scene()->removeItem(item);
             delete item;
         }
     }
-    m_interpolatedItems.clear();
-    m_isShowingInterpolatedFrame = false;
+    m_layerInterpolatedItems[layerIndex].clear();
+    m_layerShowingInterpolated[layerIndex] = false;
 }
 
 
-void Canvas::performInterpolation(int currentFrame, int startFrame, int endFrame)
+void Canvas::performInterpolation(int currentFrame, int startFrame, int endFrame, int layerIndex)
 {
     // CRITICAL FIX: Ensure complete cleanup before creating new interpolated items
-    cleanupInterpolatedItems();
+    cleanupInterpolatedItems(layerIndex);
 
-    m_isShowingInterpolatedFrame = true;
+    m_layerShowingInterpolated[layerIndex] = true;
 
     // Calculate interpolation factor
     float t = (float)(currentFrame - startFrame) / (endFrame - startFrame);
 
     // Apply easing curve
-    QString easingType = getFrameTweeningEasing(startFrame);
+    QString easingType = getFrameTweeningEasing(startFrame, layerIndex);
     if (easingType == "ease-in") {
         t = t * t;  // Quadratic ease-in
     }
@@ -774,18 +817,19 @@ void Canvas::performInterpolation(int currentFrame, int startFrame, int endFrame
     }
     // else linear (no change to t)
 
-    // Get start and end frame data
-    auto startIt = m_frameData.find(startFrame);
-    auto endIt = m_frameData.find(endFrame);
+    // Get start and end frame data for specific layer
+    auto& layerFrameData = m_layerFrameData[layerIndex];
+    auto startIt = layerFrameData.find(startFrame);
+    auto endIt = layerFrameData.find(endFrame);
 
-    if (startIt == m_frameData.end() || endIt == m_frameData.end()) {
-        m_isShowingInterpolatedFrame = false;
+    if (startIt == layerFrameData.end() || endIt == layerFrameData.end()) {
+        m_layerShowingInterpolated[layerIndex] = false;
         return;
     }
 
-    // Interpolate between keyframes
-    const QList<QGraphicsItem*>& startItems = startIt->second.items;
-    const QList<QGraphicsItem*>& endItems = endIt->second.items;
+    // Interpolate between keyframes on this layer only
+    const QList<QGraphicsItem*>& startItems = startIt.value().items;
+    const QList<QGraphicsItem*>& endItems = endIt.value().items;
 
     for (int i = 0; i < qMin(startItems.size(), endItems.size()); ++i) {
         QGraphicsItem* startItem = startItems[i];
@@ -796,7 +840,7 @@ void Canvas::performInterpolation(int currentFrame, int startFrame, int endFrame
         QGraphicsItem* interpolatedItem = cloneGraphicsItem(startItem);
         if (!interpolatedItem) continue;
 
-        // Interpolate position
+        // Interpolate properties... (same interpolation logic as before)
         QPointF startPos = startItem->pos();
         QPointF endPos = endItem->pos();
         QPointF interpolatedPos = startPos + t * (endPos - startPos);
@@ -805,27 +849,21 @@ void Canvas::performInterpolation(int currentFrame, int startFrame, int endFrame
         // Interpolate rotation
         qreal startRotation = startItem->rotation();
         qreal endRotation = endItem->rotation();
-
-        // Handle rotation wrapping (shortest path)
         qreal rotationDiff = endRotation - startRotation;
         if (rotationDiff > 180) rotationDiff -= 360;
         if (rotationDiff < -180) rotationDiff += 360;
-
         qreal interpolatedRotation = startRotation + t * rotationDiff;
         interpolatedItem->setRotation(interpolatedRotation);
 
         // Interpolate scaling
         QTransform startTransform = startItem->transform();
         QTransform endTransform = endItem->transform();
-
         qreal startScaleX = startTransform.m11();
         qreal startScaleY = startTransform.m22();
         qreal endScaleX = endTransform.m11();
         qreal endScaleY = endTransform.m22();
-
         qreal interpolatedScaleX = startScaleX + t * (endScaleX - startScaleX);
         qreal interpolatedScaleY = startScaleY + t * (endScaleY - startScaleY);
-
         QTransform interpolatedTransform;
         interpolatedTransform.scale(interpolatedScaleX, interpolatedScaleY);
         interpolatedItem->setTransform(interpolatedTransform);
@@ -836,40 +874,41 @@ void Canvas::performInterpolation(int currentFrame, int startFrame, int endFrame
         qreal interpolatedOpacity = startOpacity + t * (endOpacity - startOpacity);
         interpolatedItem->setOpacity(interpolatedOpacity);
 
-        // Preserve pen properties for paths to prevent thinning
+        // Preserve pen properties for paths
         if (auto startPath = qgraphicsitem_cast<QGraphicsPathItem*>(startItem)) {
             if (auto interpPath = qgraphicsitem_cast<QGraphicsPathItem*>(interpolatedItem)) {
                 QPen startPen = startPath->pen();
-                interpPath->setPen(startPen);  // Preserve exact pen properties
+                interpPath->setPen(startPen);
             }
         }
 
-        // CRITICAL: Mark interpolated items as non-selectable and non-movable
+        // CRITICAL: Mark interpolated items as non-selectable and set layer Z-value
         interpolatedItem->setFlag(QGraphicsItem::ItemIsSelectable, false);
         interpolatedItem->setFlag(QGraphicsItem::ItemIsMovable, false);
-
-        // Add special data flag to identify interpolated items
         interpolatedItem->setData(999, "interpolated");
+        interpolatedItem->setData(998, layerIndex);  // Store layer index
+        interpolatedItem->setZValue(layerIndex * 1000);  // Proper layer Z-ordering
 
-        // Add to scene and track
+        // Add to scene and track per layer
         scene()->addItem(interpolatedItem);
-        m_interpolatedItems.append(interpolatedItem);
+        m_layerInterpolatedItems[layerIndex].append(interpolatedItem);
     }
 
-    qDebug() << "Created" << m_interpolatedItems.size() << "interpolated items for frame" << currentFrame;
+    qDebug() << "Created" << m_layerInterpolatedItems[layerIndex].size()
+        << "interpolated items for layer" << layerIndex << "frame" << currentFrame;
 }
 
 int Canvas::getCurrentFrame() const { return m_currentFrame; }
 
+
 void Canvas::createKeyframe(int frame)
 {
-    // Clear any existing content for this frame
-    clearFrameItems(frame);
+    qDebug() << "Creating keyframe at frame" << frame << "on layer" << m_currentLayerIndex;
 
-    // Clone current scene items to make them independent
+    // Clone current scene items that belong to current layer
     QList<QGraphicsItem*> clonedItems;
-    for (QGraphicsItem* item : scene()->items()) {
-        if (getItemLayerIndex(item) == m_currentLayerIndex) {
+    for (QGraphicsItem* item : m_scene->items()) {
+        if (item != m_backgroundRect && getItemLayerIndex(item) == m_currentLayerIndex) {
             QGraphicsItem* clonedItem = cloneGraphicsItem(item);
             if (clonedItem) {
                 clonedItems.append(clonedItem);
@@ -877,14 +916,25 @@ void Canvas::createKeyframe(int frame)
         }
     }
 
-    // Store as keyframe
-    auto& frameData = m_frameData[frame];
+    // Store as keyframe ONLY in layer-specific data
+    auto& layerFrameData = m_layerFrameData[m_currentLayerIndex];
+    auto& frameData = layerFrameData[frame];
     frameData.type = FrameType::Keyframe;
     frameData.items = clonedItems;
     frameData.sourceKeyframe = -1;
+    frameData.hasTweening = false;
+    frameData.tweeningEndFrame = -1;
+    frameData.easingType = "linear";
+
+    // Update layer data structure
+    if (m_currentLayerIndex >= 0 && m_currentLayerIndex < m_layers.size()) {
+        LayerData* layer = static_cast<LayerData*>(m_layers[m_currentLayerIndex]);
+        layer->setFrameItems(frame, clonedItems);
+    }
 
     m_keyframes.insert(frame);
-    m_frameItems[frame] = clonedItems;
+
+    qDebug() << "Keyframe created with" << clonedItems.size() << "items";
 }
 
 
@@ -1014,17 +1064,19 @@ bool Canvas::hasKeyframe(int frame) const
     return m_keyframes.find(frame) != m_keyframes.end();
 }
 
+
 void Canvas::storeCurrentFrameState()
 {
     // CRITICAL FIX: Never store interpolated frame state
-    if (m_isShowingInterpolatedFrame) {
-        qDebug() << "Skipping frame state storage for interpolated frame" << m_currentFrame;
+    if (m_layerShowingInterpolated.value(m_currentLayerIndex, false)) {
+        qDebug() << "Skipping frame state storage for interpolated frame" << m_currentFrame
+            << "on layer" << m_currentLayerIndex;
         return;
     }
 
     if (m_currentFrame >= 1) {
         // Ensure interpolated items are cleaned up before storing
-        cleanupInterpolatedItems();
+        cleanupInterpolatedItems(m_currentLayerIndex);
         saveFrameState(m_currentFrame);
     }
 }
@@ -1661,23 +1713,34 @@ void Canvas::copyItemsToFrame(int fromFrame, int toFrame)
 
 // Add these methods to Canvas.cpp
 
+
 bool Canvas::hasContent(int frame) const
 {
-    auto it = m_frameData.find(frame);
-    if (it != m_frameData.end()) {
-        return !it->second.items.isEmpty();
+    // Check current layer for content
+    if (m_layerFrameData.contains(m_currentLayerIndex)) {
+        const auto& layerFrameData = m_layerFrameData[m_currentLayerIndex];
+        if (layerFrameData.contains(frame)) {
+            return !layerFrameData[frame].items.isEmpty();
+        }
     }
 
-    // Fallback: check compatibility frameItems map
-    auto itemsIt = m_frameItems.find(frame);
-    return itemsIt != m_frameItems.end() && !itemsIt->second.isEmpty();
+    // Fallback: check layer data structure
+    if (m_currentLayerIndex >= 0 && m_currentLayerIndex < m_layers.size()) {
+        LayerData* layer = static_cast<LayerData*>(m_layers[m_currentLayerIndex]);
+        return !layer->getFrameItems(frame).isEmpty();
+    }
+
+    return false;
 }
 
-FrameType Canvas::getFrameType(int frame) const
+FrameType Canvas::getFrameType(int frame, int layerIndex) const
 {
-    auto it = m_frameData.find(frame);
-    if (it != m_frameData.end()) {
-        return it->second.type;
+    if (!m_layerFrameData.contains(layerIndex)) return FrameType::Empty;
+
+    const auto& layerFrameData = m_layerFrameData[layerIndex];
+    auto it = layerFrameData.find(frame);
+    if (it != layerFrameData.end()) {
+        return it.value().type;
     }
 
     // Check if it's a keyframe
@@ -1685,19 +1748,18 @@ FrameType Canvas::getFrameType(int frame) const
         return FrameType::Keyframe;
     }
 
-    // Check if it has content (legacy compatibility)
-    if (hasContent(frame)) {
-        return FrameType::Keyframe; // Assume keyframe if has content but no frameData
-    }
-
     return FrameType::Empty;
 }
 
-int Canvas::getSourceKeyframe(int frame) const
+
+int Canvas::getSourceKeyframe(int frame, int layerIndex) const
 {
-    auto it = m_frameData.find(frame);
-    if (it != m_frameData.end() && it->second.type == FrameType::ExtendedFrame) {
-        return it->second.sourceKeyframe;
+    if (!m_layerFrameData.contains(layerIndex)) return -1;
+
+    const auto& layerFrameData = m_layerFrameData[layerIndex];
+    auto it = layerFrameData.find(frame);
+    if (it != layerFrameData.end() && it.value().type == FrameType::ExtendedFrame) {
+        return it.value().sourceKeyframe;
     }
 
     // If this frame is a keyframe, it's its own source
@@ -1787,28 +1849,36 @@ void Canvas::clearCurrentFrameContent()
     emit frameChanged(m_currentFrame);
 }
 
-bool Canvas::hasFrameTweening(int frame) const
+bool Canvas::hasFrameTweening(int frame, int layerIndex) const
 {
-    auto it = m_frameData.find(frame);
-    if (it != m_frameData.end()) {
-        return it->second.hasTweening;
+    if (!m_layerFrameData.contains(layerIndex)) return false;
+
+    const auto& layerFrameData = m_layerFrameData[layerIndex];
+    auto it = layerFrameData.find(frame);
+    if (it != layerFrameData.end()) {
+        return it.value().hasTweening;
     }
     return false;
 }
 
+
 // NEW: Check if a frame is part of a tweened sequence
-bool Canvas::isFrameTweened(int frame) const
+bool Canvas::isFrameTweened(int frame, int layerIndex) const
 {
+    if (!m_layerFrameData.contains(layerIndex)) return false;
+
+    const auto& layerFrameData = m_layerFrameData[layerIndex];
+
     // Check if this frame itself has tweening
-    if (hasFrameTweening(frame)) {
+    auto it = layerFrameData.find(frame);
+    if (it != layerFrameData.end() && it.value().hasTweening) {
         return true;
     }
 
-    // Check if this frame is within a tweening range from a previous frame
-    for (const auto& pair : m_frameData) {
-        const FrameData& frameData = pair.second;
+    for (auto it = layerFrameData.begin(); it != layerFrameData.end(); ++it) {
+        const FrameData& frameData = it.value();
         if (frameData.hasTweening &&
-            pair.first < frame &&
+            it.key() < frame &&
             frame <= frameData.tweeningEndFrame) {
             return true;
         }
@@ -1820,7 +1890,8 @@ bool Canvas::isFrameTweened(int frame) const
 // NEW: Apply tweening between two keyframes
 void Canvas::applyTweening(int startFrame, int endFrame, const QString& easingType)
 {
-    qDebug() << "Applying tweening from frame" << startFrame << "to" << endFrame;
+    qDebug() << "Applying tweening from frame" << startFrame << "to" << endFrame
+        << "on layer" << m_currentLayerIndex;
 
     // Validate frames
     if (startFrame >= endFrame || startFrame < 1) {
@@ -1828,7 +1899,7 @@ void Canvas::applyTweening(int startFrame, int endFrame, const QString& easingTy
         return;
     }
 
-    // Ensure both start and end frames are keyframes
+    // Ensure both start and end frames are keyframes on current layer
     if (!hasKeyframe(startFrame)) {
         qDebug() << "Start frame" << startFrame << "is not a keyframe, creating one";
         createKeyframe(startFrame);
@@ -1839,29 +1910,29 @@ void Canvas::applyTweening(int startFrame, int endFrame, const QString& easingTy
         createKeyframe(endFrame);
     }
 
-    // Set tweening data on start frame
-    auto& startFrameData = m_frameData[startFrame];
+    // Set tweening data on start frame for current layer
+    auto& layerFrameData = m_layerFrameData[m_currentLayerIndex];
+    auto& startFrameData = layerFrameData[startFrame];
     startFrameData.hasTweening = true;
     startFrameData.tweeningEndFrame = endFrame;
     startFrameData.easingType = easingType;
 
     // Convert all frames between start and end to extended frames with tweening
     for (int frame = startFrame + 1; frame < endFrame; frame++) {
-        auto& frameData = m_frameData[frame];
+        auto& frameData = layerFrameData[frame];
         frameData.type = FrameType::ExtendedFrame;
         frameData.sourceKeyframe = startFrame;
         frameData.hasTweening = true;
         frameData.tweeningEndFrame = endFrame;
         frameData.easingType = easingType;
 
-        // Clear any existing items in intermediate frames
+        // Clear any existing items in intermediate frames for this layer
         frameData.items.clear();
         frameData.itemStates.clear();
-        m_frameItems[frame].clear();
     }
 
     emit tweeningApplied(startFrame, endFrame);
-    qDebug() << "Tweening applied successfully";
+    qDebug() << "Tweening applied successfully on layer" << m_currentLayerIndex;
 }
 
 // NEW: Remove tweening from a frame span
@@ -1899,54 +1970,62 @@ void Canvas::removeTweening(int startFrame)
 bool Canvas::canDrawOnCurrentFrame() const
 {
     // Allow drawing on empty frames
-    FrameType frameType = getFrameType(m_currentFrame);
+    FrameType frameType = getFrameType(m_currentFrame, m_currentLayerIndex);
     if (frameType == FrameType::Empty) {
         return true;
     }
 
     // Allow drawing on regular keyframes
-    if (frameType == FrameType::Keyframe && !isFrameTweened(m_currentFrame)) {
+    if (frameType == FrameType::Keyframe && !isFrameTweened(m_currentFrame, m_currentLayerIndex)) {
         return true;
     }
 
     // Allow drawing on extended frames without tweening (will auto-convert)
-    if (frameType == FrameType::ExtendedFrame && !isFrameTweened(m_currentFrame)) {
+    if (frameType == FrameType::ExtendedFrame && !isFrameTweened(m_currentFrame, m_currentLayerIndex)) {
         return true;
     }
 
-    // CRITICAL FIX: Allow drawing on the END frame of a tweening sequence
-    // Check if this frame is the END of a tweening sequence
-    for (const auto& pair : m_frameData) {
-        const FrameData& frameData = pair.second;
+    // Allow drawing on the END frame of a tweening sequence
+    if (!m_layerFrameData.contains(m_currentLayerIndex)) return false;
+
+    const auto& layerFrameData = m_layerFrameData[m_currentLayerIndex];
+    for (auto it = layerFrameData.begin(); it != layerFrameData.end(); ++it) {
+        const FrameData& frameData = it.value();
         if (frameData.hasTweening && frameData.tweeningEndFrame == m_currentFrame) {
-            // This is an end frame of tweening, allow drawing
-            return true;
+            return true;  // This is an end frame of tweening, allow drawing
         }
     }
-
     // Disallow drawing on tweened intermediate frames
     return false;
 }
 
 // NEW: Get easing type for a frame
-QString Canvas::getFrameTweeningEasing(int frame) const
+QString Canvas::getFrameTweeningEasing(int frame, int layerIndex) const
 {
-    auto it = m_frameData.find(frame);
-    if (it != m_frameData.end()) {
-        return it->second.easingType;
+    if (!m_layerFrameData.contains(layerIndex)) return "linear";
+
+    const auto& layerFrameData = m_layerFrameData[layerIndex];
+    auto it = layerFrameData.find(frame);
+    if (it != layerFrameData.end()) {
+        return it.value().easingType;
     }
     return "linear";
 }
 
+
 // NEW: Get the end frame of tweening for a start frame
-int Canvas::getTweeningEndFrame(int frame) const
+int Canvas::getTweeningEndFrame(int frame, int layerIndex) const
 {
-    auto it = m_frameData.find(frame);
-    if (it != m_frameData.end() && it->second.hasTweening) {
-        return it->second.tweeningEndFrame;
+    if (!m_layerFrameData.contains(layerIndex)) return -1;
+
+    const auto& layerFrameData = m_layerFrameData[layerIndex];
+    auto it = layerFrameData.find(frame);
+    if (it != layerFrameData.end() && it.value().hasTweening) {
+        return it.value().tweeningEndFrame;
     }
     return -1;
 }
+
 
 // NEW: Interpolate frame content between two keyframes
 void Canvas::interpolateFrame(int frame, int startFrame, int endFrame, float t)
@@ -2164,4 +2243,78 @@ void Canvas::onDrawingStarted()
     if (shouldConvertExtendedFrame()) {
         convertCurrentExtendedFrameToKeyframe();
     }
+}
+
+// Add these legacy method implementations to Canvas.cpp:
+
+// Legacy methods that delegate to layer-aware versions
+bool Canvas::isFrameTweened(int frame) const
+{
+    return isFrameTweened(frame, m_currentLayerIndex);
+}
+
+FrameType Canvas::getFrameType(int frame) const
+{
+    return getFrameType(frame, m_currentLayerIndex);
+}
+
+int Canvas::getSourceKeyframe(int frame) const
+{
+    return getSourceKeyframe(frame, m_currentLayerIndex);
+}
+
+bool Canvas::hasFrameTweening(int frame) const
+{
+    return hasFrameTweening(frame, m_currentLayerIndex);
+}
+
+QString Canvas::getFrameTweeningEasing(int frame) const
+{
+    return getFrameTweeningEasing(frame, m_currentLayerIndex);
+}
+
+int Canvas::getTweeningEndFrame(int frame) const
+{
+    return getTweeningEndFrame(frame, m_currentLayerIndex);
+}
+
+// Also add the global cleanup method (calls all layers)
+void Canvas::cleanupInterpolatedItems()
+{
+    for (int layerIndex = 0; layerIndex < m_layers.size(); ++layerIndex) {
+        cleanupInterpolatedItems(layerIndex);
+    }
+
+    // Also clean up legacy interpolated items
+    for (QGraphicsItem* item : m_interpolatedItems) {
+        if (item && scene()->items().contains(item)) {
+            scene()->removeItem(item);
+            delete item;
+        }
+    }
+    m_interpolatedItems.clear();
+    m_isShowingInterpolatedFrame = false;
+}
+
+QList<QGraphicsItem*> Canvas::getFrameItems(int frame) const
+{
+    QList<QGraphicsItem*> allFrameItems;
+
+    // Combine items from all layers for this frame
+    for (int layerIndex = 0; layerIndex < m_layers.size(); ++layerIndex) {
+        if (m_layerFrameData.contains(layerIndex)) {
+            const auto& layerFrameData = m_layerFrameData[layerIndex];
+            if (layerFrameData.contains(frame)) {
+                allFrameItems.append(layerFrameData[frame].items);
+            }
+        }
+    }
+
+    return allFrameItems;
+}
+
+
+void Canvas::updateGlobalFrameItems(int frame)
+{
+    m_frameItems[frame] = getFrameItems(frame);
 }
