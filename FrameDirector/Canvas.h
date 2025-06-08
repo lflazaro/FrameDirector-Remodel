@@ -183,6 +183,7 @@ public:
     void flipSelectedHorizontal();
     void flipSelectedVertical();
     void rotateSelected(double angle);
+    void cleanupInterpolatedItems();
 
     // Item management
     void addItemToCurrentLayer(QGraphicsItem* item);
@@ -234,6 +235,8 @@ private:
     void drawCanvasBounds(QPainter* painter, const QRectF& rect);
     void drawBackground(QPainter* painter);
     QList<QGraphicsItem*> m_interpolatedItems;
+    bool m_isShowingInterpolatedFrame = false;
+    bool m_suppressFrameConversion = false;
 
     // Utility functions
     QPointF snapToGrid(const QPointF& point);

@@ -134,15 +134,21 @@ Canvas::~Canvas()
 {
     qDebug() << "Canvas destructor called";
 
-    // FIXED: Disconnect ALL signals immediately to prevent crashes during destruction
+    // Set flag to prevent any signal emissions
+    m_destroying = true;
+
+    // Disconnect ALL signals immediately to prevent crashes during destruction
     disconnect();
 
-    // FIXED: Disconnect scene signals specifically
+    // Disconnect scene signals specifically
     if (m_scene) {
         disconnect(m_scene, nullptr, this, nullptr);
     }
 
-    // FIXED: Clear all data structures that reference graphics items WITHOUT emitting signals
+    // CRITICAL: Clean up interpolated items first
+    cleanupInterpolatedItems();
+
+    // Clear all data structures that reference graphics items WITHOUT emitting signals
     m_frameItems.clear();
     m_keyframes.clear();
 
@@ -167,10 +173,6 @@ Canvas::~Canvas()
         }
     }
     m_layers.clear();
-
-    // FIXED: Don't call any methods that might emit signals
-    // The scene and its items will be cleaned up by Qt automatically
-    // when the QGraphicsView is destroyed
 
     qDebug() << "Canvas destructor completed";
 }
@@ -679,13 +681,20 @@ void Canvas::setCanvasSize(const QSize& size)
 
 QSize Canvas::getCanvasSize() const { return m_canvasSize; }
 QRectF Canvas::getCanvasRect() const { return m_canvasRect; }
+
 void Canvas::setCurrentFrame(int frame)
 {
     if (frame == m_currentFrame) return;
+
+    // CRITICAL FIX: Always clean up interpolated items before switching frames
+    cleanupInterpolatedItems();
+
     m_currentFrame = frame;
 
     // Check if this frame is part of a tweened sequence
     if (isFrameTweened(frame)) {
+        m_isShowingInterpolatedFrame = true;
+
         // Find the tweening start and end frames
         int startFrame = frame;
         int endFrame = -1;
@@ -703,6 +712,7 @@ void Canvas::setCurrentFrame(int frame)
         // Handle keyframes vs interpolated frames differently
         if (frame == startFrame || frame == endFrame) {
             // Show actual keyframe content (start or end)
+            m_isShowingInterpolatedFrame = false;
             clearLayerFromScene(m_currentLayerIndex);
             loadFrameState(frame);
         }
@@ -717,13 +727,19 @@ void Canvas::setCurrentFrame(int frame)
     }
 
     // Normal frame loading
+    m_isShowingInterpolatedFrame = false;
     loadFrameState(frame);
     emit frameChanged(frame);
 }
 
-void Canvas::performInterpolation(int currentFrame, int startFrame, int endFrame)
+
+void Canvas::cleanupInterpolatedItems()
 {
-    // Clean up previous interpolated items
+    if (m_interpolatedItems.isEmpty()) return;
+
+    qDebug() << "Cleaning up" << m_interpolatedItems.size() << "interpolated items";
+
+    // Remove from scene and delete
     for (QGraphicsItem* item : m_interpolatedItems) {
         if (item && scene()->items().contains(item)) {
             scene()->removeItem(item);
@@ -731,6 +747,16 @@ void Canvas::performInterpolation(int currentFrame, int startFrame, int endFrame
         }
     }
     m_interpolatedItems.clear();
+    m_isShowingInterpolatedFrame = false;
+}
+
+
+void Canvas::performInterpolation(int currentFrame, int startFrame, int endFrame)
+{
+    // CRITICAL FIX: Ensure complete cleanup before creating new interpolated items
+    cleanupInterpolatedItems();
+
+    m_isShowingInterpolatedFrame = true;
 
     // Calculate interpolation factor
     float t = (float)(currentFrame - startFrame) / (endFrame - startFrame);
@@ -753,6 +779,7 @@ void Canvas::performInterpolation(int currentFrame, int startFrame, int endFrame
     auto endIt = m_frameData.find(endFrame);
 
     if (startIt == m_frameData.end() || endIt == m_frameData.end()) {
+        m_isShowingInterpolatedFrame = false;
         return;
     }
 
@@ -769,15 +796,13 @@ void Canvas::performInterpolation(int currentFrame, int startFrame, int endFrame
         QGraphicsItem* interpolatedItem = cloneGraphicsItem(startItem);
         if (!interpolatedItem) continue;
 
-        // FIX: Enhanced interpolation including rotation and scaling
-
         // Interpolate position
         QPointF startPos = startItem->pos();
         QPointF endPos = endItem->pos();
         QPointF interpolatedPos = startPos + t * (endPos - startPos);
         interpolatedItem->setPos(interpolatedPos);
 
-        // FIX: Interpolate rotation
+        // Interpolate rotation
         qreal startRotation = startItem->rotation();
         qreal endRotation = endItem->rotation();
 
@@ -789,7 +814,7 @@ void Canvas::performInterpolation(int currentFrame, int startFrame, int endFrame
         qreal interpolatedRotation = startRotation + t * rotationDiff;
         interpolatedItem->setRotation(interpolatedRotation);
 
-        // FIX: Interpolate scaling
+        // Interpolate scaling
         QTransform startTransform = startItem->transform();
         QTransform endTransform = endItem->transform();
 
@@ -811,7 +836,7 @@ void Canvas::performInterpolation(int currentFrame, int startFrame, int endFrame
         qreal interpolatedOpacity = startOpacity + t * (endOpacity - startOpacity);
         interpolatedItem->setOpacity(interpolatedOpacity);
 
-        // FIX: Preserve pen properties during interpolation to prevent thinning
+        // Preserve pen properties for paths to prevent thinning
         if (auto startPath = qgraphicsitem_cast<QGraphicsPathItem*>(startItem)) {
             if (auto interpPath = qgraphicsitem_cast<QGraphicsPathItem*>(interpolatedItem)) {
                 QPen startPen = startPath->pen();
@@ -819,10 +844,19 @@ void Canvas::performInterpolation(int currentFrame, int startFrame, int endFrame
             }
         }
 
+        // CRITICAL: Mark interpolated items as non-selectable and non-movable
+        interpolatedItem->setFlag(QGraphicsItem::ItemIsSelectable, false);
+        interpolatedItem->setFlag(QGraphicsItem::ItemIsMovable, false);
+
+        // Add special data flag to identify interpolated items
+        interpolatedItem->setData(999, "interpolated");
+
         // Add to scene and track
         scene()->addItem(interpolatedItem);
         m_interpolatedItems.append(interpolatedItem);
     }
+
+    qDebug() << "Created" << m_interpolatedItems.size() << "interpolated items for frame" << currentFrame;
 }
 
 int Canvas::getCurrentFrame() const { return m_currentFrame; }
@@ -831,7 +865,7 @@ void Canvas::createKeyframe(int frame)
 {
     // Clear any existing content for this frame
     clearFrameItems(frame);
-    
+
     // Clone current scene items to make them independent
     QList<QGraphicsItem*> clonedItems;
     for (QGraphicsItem* item : scene()->items()) {
@@ -842,13 +876,13 @@ void Canvas::createKeyframe(int frame)
             }
         }
     }
-    
+
     // Store as keyframe
     auto& frameData = m_frameData[frame];
     frameData.type = FrameType::Keyframe;
     frameData.items = clonedItems;
     frameData.sourceKeyframe = -1;
-    
+
     m_keyframes.insert(frame);
     m_frameItems[frame] = clonedItems;
 }
@@ -982,16 +1016,15 @@ bool Canvas::hasKeyframe(int frame) const
 
 void Canvas::storeCurrentFrameState()
 {
-    if (m_currentFrame >= 1) {
-        // Clear interpolated items before storing
-        for (QGraphicsItem* item : m_interpolatedItems) {
-            if (item && scene()->items().contains(item)) {
-                scene()->removeItem(item);
-                delete item;
-            }
-        }
-        m_interpolatedItems.clear();
+    // CRITICAL FIX: Never store interpolated frame state
+    if (m_isShowingInterpolatedFrame) {
+        qDebug() << "Skipping frame state storage for interpolated frame" << m_currentFrame;
+        return;
+    }
 
+    if (m_currentFrame >= 1) {
+        // Ensure interpolated items are cleaned up before storing
+        cleanupInterpolatedItems();
         saveFrameState(m_currentFrame);
     }
 }
@@ -1005,6 +1038,7 @@ void Canvas::clearFrameState()
         }
     }
 }
+
 void Canvas::mousePressEvent(QMouseEvent* event)
 {
     if (!m_scene) {
@@ -1017,18 +1051,25 @@ void Canvas::mousePressEvent(QMouseEvent* event)
         scenePos = snapToGrid(scenePos);
     }
 
-    // NEW: Check tweening restrictions before any drawing operations
+    // CRITICAL FIX: Only trigger drawing logic for actual drawing tools that create content
     if (m_currentTool && event->button() == Qt::LeftButton) {
-        if (!canDrawOnCurrentFrame()) {
-            qDebug() << "Drawing blocked on tweened frame";
-            event->ignore();
-            return;
+        // Check if this is a tool that actually creates/modifies graphics content
+        SelectionTool* selectionTool = dynamic_cast<SelectionTool*>(m_currentTool);
+
+        // FIXED: Selection tool should NEVER trigger drawing logic or keyframe creation
+        if (!selectionTool) {
+            // For actual drawing tools, check permissions and convert frames if needed
+            if (!canDrawOnCurrentFrame()) {
+                qDebug() << "Drawing blocked on tweened frame";
+                event->ignore();
+                return;
+            }
+            onDrawingStarted(); // Auto-convert extended frames if needed
         }
-        onDrawingStarted(); // Auto-convert extended frames if needed
     }
 
+    // Handle rubber band selection for SelectionTool
     if (m_currentTool) {
-        // Existing rubber band selection logic for SelectionTool
         SelectionTool* selectionTool = dynamic_cast<SelectionTool*>(m_currentTool);
         if (selectionTool && event->button() == Qt::LeftButton) {
             QGraphicsItem* item = m_scene->itemAt(scenePos, transform());
@@ -1041,7 +1082,10 @@ void Canvas::mousePressEvent(QMouseEvent* event)
                 m_rubberBand->show();
                 m_rubberBandActive = true;
                 if (!(event->modifiers() & Qt::ControlModifier)) {
+                    // FIXED: Suppress frame conversion during selection clearing
+                    m_suppressFrameConversion = true;
                     m_scene->clearSelection();
+                    m_suppressFrameConversion = false;
                 }
             }
         }
@@ -1137,20 +1181,26 @@ void Canvas::selectAll()
 {
     if (m_scene) {
         QList<QGraphicsItem*> allItems = m_scene->items();
+        m_suppressFrameConversion = true;
         for (QGraphicsItem* item : allItems) {
             if (item != m_backgroundRect &&
-                (item->flags() & QGraphicsItem::ItemIsSelectable)) {
+                (item->flags() & QGraphicsItem::ItemIsSelectable) &&
+                item->data(999).toString() != "interpolated") { // Don't select interpolated items
                 item->setSelected(true);
             }
         }
+        m_suppressFrameConversion = false;
         emit selectionChanged();
     }
 }
 
+
 void Canvas::clearSelection()
 {
     if (m_scene) {
+        m_suppressFrameConversion = true;
         m_scene->clearSelection();
+        m_suppressFrameConversion = false;
         emit selectionChanged();
     }
 }
@@ -1228,7 +1278,7 @@ void Canvas::drawGrid(QPainter* painter, const QRectF& rect)
 
 void Canvas::onSceneSelectionChanged()
 {
-    if (!m_destroying) {
+    if (!m_destroying && !m_suppressFrameConversion) {
         emit selectionChanged();
     }
 }
@@ -1859,26 +1909,19 @@ bool Canvas::canDrawOnCurrentFrame() const
         return true;
     }
 
-    // FIX: Allow drawing on extended frames without tweening (will auto-convert)
-    // AND allow interaction with converted keyframes in the end frame
+    // Allow drawing on extended frames without tweening (will auto-convert)
     if (frameType == FrameType::ExtendedFrame && !isFrameTweened(m_currentFrame)) {
         return true;
     }
 
-    // FIX: Special case for the end frame of a tweening sequence
-    // Check if this frame is the END of a tweening sequence, not in the middle
-    bool isEndFrame = false;
+    // CRITICAL FIX: Allow drawing on the END frame of a tweening sequence
+    // Check if this frame is the END of a tweening sequence
     for (const auto& pair : m_frameData) {
         const FrameData& frameData = pair.second;
         if (frameData.hasTweening && frameData.tweeningEndFrame == m_currentFrame) {
-            isEndFrame = true;
-            break;
+            // This is an end frame of tweening, allow drawing
+            return true;
         }
-    }
-
-    // Allow drawing on end frames of tweening (they should be keyframes)
-    if (isEndFrame && frameType == FrameType::Keyframe) {
-        return true;
     }
 
     // Disallow drawing on tweened intermediate frames
@@ -2117,7 +2160,7 @@ void Canvas::onDrawingStarted()
         return;
     }
 
-    // Auto-convert extended frames to keyframes
+    // Auto-convert extended frames to keyframes only when actually drawing
     if (shouldConvertExtendedFrame()) {
         convertCurrentExtendedFrameToKeyframe();
     }
