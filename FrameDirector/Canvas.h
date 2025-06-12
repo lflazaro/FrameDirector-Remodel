@@ -204,6 +204,9 @@ public:
     QList<QGraphicsItem*> getCurrentLayerItems() const;
     QList<QGraphicsItem*> getLayerItems(int layerIndex) const;
 
+    void removeItemFromAllFrames(QGraphicsItem* item);
+    bool isValidItem(QGraphicsItem* item) const;
+
 signals:
     void selectionChanged();
     void mousePositionChanged(QPointF position);

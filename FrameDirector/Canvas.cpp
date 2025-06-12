@@ -67,13 +67,19 @@ struct LayerData {
             }
         }
     }
-
-    QList<QGraphicsItem*> getFrameItems(int frame) const {
-        return frameItems.value(frame, QList<QGraphicsItem*>());
+    void clearFrame(int frame) {
+        auto it = frameItems.find(frame);
+        if (it != frameItems.end()) {
+            it.value().clear();
+        }
     }
 
-    void clearFrame(int frame) {
-        frameItems.remove(frame);
+    QList<QGraphicsItem*> getFrameItems(int frame) const {
+        auto it = frameItems.find(frame);
+        if (it != frameItems.end()) {
+            return it.value();
+        }
+        return QList<QGraphicsItem*>();
     }
 
     void debugPrint() const {
@@ -81,6 +87,29 @@ struct LayerData {
             << "Items:" << items.size()
             << "Frames:" << frameItems.keys()
             << "AllTime:" << allTimeItems.size();
+    }
+    void removeItemFromAllFrames(QGraphicsItem* item) {
+        if (!item) return;
+
+        // Remove from main items list
+        items.removeAll(item);
+        allTimeItems.remove(item);
+
+        // Remove from all frame-specific data
+        for (auto& frameEntry : frameItems) {
+            frameEntry.removeAll(item);
+        }
+
+        qDebug() << "Removed item from all frames in layer" << uuid;
+    }
+
+    void removeItemFromFrame(int frame, QGraphicsItem* item) {
+        if (!item) return;
+
+        auto it = frameItems.find(frame);
+        if (it != frameItems.end()) {
+            it.value().removeAll(item);
+        }
     }
 };
 
@@ -515,51 +544,31 @@ void Canvas::saveFrameState(int frame)
 }
 
 
-
 void Canvas::loadFrameState(int frame)
 {
-    qDebug() << "Loading frame state for frame:" << frame << "- managing ALL layers";
+    qDebug() << "Loading frame state for frame:" << frame;
 
-    // CRITICAL: Clear ALL non-background items from scene first
-    QList<QGraphicsItem*> allItems;
-    for (QGraphicsItem* item : m_scene->items()) {
-        if (item != m_backgroundRect) {
-            allItems.append(item);
+    // Clear current items first
+    QList<QGraphicsItem*> currentItems;
+    for (QGraphicsItem* item : scene()->items()) {
+        if (item != m_backgroundRect && item->zValue() > -999) {
+            currentItems.append(item);
         }
     }
 
-    // Remove all items (we'll add back what should be visible)
-    for (QGraphicsItem* item : allItems) {
-        m_scene->removeItem(item);
+    for (QGraphicsItem* item : currentItems) {
+        scene()->removeItem(item);
     }
 
-    // CRITICAL: Load correct items for ALL layers on this frame
+    // Load items for each layer with VALIDATION
     for (int layerIndex = 0; layerIndex < m_layers.size(); ++layerIndex) {
         LayerData* layer = static_cast<LayerData*>(m_layers[layerIndex]);
+        QList<QGraphicsItem*> layerFrameItems = layer->getFrameItems(frame);
 
-        // Skip if layer is not visible
-        if (!layer->visible) {
-            continue;
-        }
-
-        QList<QGraphicsItem*> layerFrameItems;
-
-        // Try layer-specific frame data first
-        if (m_layerFrameData.contains(layerIndex)) {
-            auto& layerFrameData = m_layerFrameData[layerIndex];
-            if (layerFrameData.contains(frame)) {
-                layerFrameItems = layerFrameData[frame].items;
-            }
-        }
-
-        // Fallback to layer data structure
-        if (layerFrameItems.isEmpty()) {
-            layerFrameItems = layer->getFrameItems(frame);
-        }
-
-        // Add items for this layer to scene with proper Z-ordering
+        // Add items for this layer to scene with proper validation
         for (QGraphicsItem* item : layerFrameItems) {
-            if (item) {
+            // CRITICAL: Validate item pointer before using it
+            if (item && isValidItem(item)) {
                 m_scene->addItem(item);
                 // Ensure proper layer Z-ordering
                 item->setZValue(layerIndex * 1000 + static_cast<int>(item->zValue()) % 1000);
@@ -569,14 +578,31 @@ void Canvas::loadFrameState(int frame)
                 item->setFlag(QGraphicsItem::ItemIsSelectable, !layer->locked);
                 item->setFlag(QGraphicsItem::ItemIsMovable, !layer->locked);
             }
+            else {
+                qDebug() << "Invalid item detected in frame" << frame << "layer" << layerIndex
+                    << "- removing from data structures";
+                // Remove invalid item from layer data
+                layer->removeItemFromFrame(frame, item);
+            }
         }
-
-        qDebug() << "Layer" << layerIndex << "frame" << frame << ":" << layerFrameItems.size() << "items";
     }
 
-    // Ensure background is always visible and at bottom
-    if (m_backgroundRect && !m_scene->items().contains(m_backgroundRect)) {
-        m_scene->addItem(m_backgroundRect);
+    qDebug() << "Frame state loaded successfully for frame:" << frame;
+}
+
+
+bool Canvas::isValidItem(QGraphicsItem* item) const
+{
+    if (!item) return false;
+
+    // Check if the item pointer is valid by testing a simple property access
+    try {
+        // Try to access a basic property - this will crash if pointer is invalid
+        item->type();
+        return true;
+    }
+    catch (...) {
+        return false;
     }
 }
 
@@ -1609,17 +1635,14 @@ void Canvas::createExtendedFrame(int frame)
     // Find the last keyframe before this frame
     int sourceKeyframe = -1;
     for (int i = frame - 1; i >= 1; i--) {
-        // Check if frame has content and is not an extended frame pointing to another source
         auto itemsIt = m_frameItems.find(i);
         if (itemsIt != m_frameItems.end() && !itemsIt->second.empty()) {
-            // This frame has content - treat it as a keyframe regardless of frameData
             sourceKeyframe = i;
             break;
         }
     }
 
     if (sourceKeyframe == -1) {
-        // No previous keyframe, create as blank keyframe instead
         qDebug() << "No previous keyframe found, creating blank keyframe";
         createBlankKeyframe(frame);
         return;
@@ -1628,33 +1651,36 @@ void Canvas::createExtendedFrame(int frame)
 
     // AUTOMATIC SPAN CALCULATION: Fill the gap between source keyframe and target frame
     for (int f = sourceKeyframe + 1; f <= frame; f++) {
-        // Skip if frame already has content
         if (hasContent(f)) {
             qDebug() << "Frame" << f << "already has content, skipping";
             continue;
         }
         qDebug() << "Creating extended frame data for frame" << f;
+
         // Create extended frame data
         m_frameData[f].type = FrameType::ExtendedFrame;
         m_frameData[f].sourceKeyframe = sourceKeyframe;
-        // PERFORMANCE FIX: Reference the source frame items for both data structures
-        // This ensures compatibility with loadFrameState()
+
+        // Reference the source frame items
         if (m_frameItems.find(sourceKeyframe) != m_frameItems.end()) {
-            // Reference the same item list (no duplication)
             m_frameData[f].items = m_frameItems[sourceKeyframe];
-            m_frameItems[f] = m_frameItems[sourceKeyframe];  // CRITICAL: Update compatibility layer
+            m_frameItems[f] = m_frameItems[sourceKeyframe];
         }
+
         // Copy item states for potential tweening
         if (m_frameData.find(sourceKeyframe) != m_frameData.end()) {
             m_frameData[f].itemStates = m_frameData[sourceKeyframe].itemStates;
         }
+
+        // IMPORTANT: Emit signal for each individual extended frame
+        emit frameExtended(sourceKeyframe, f);
     }
+
     // Load the target frame to display the content
     setCurrentFrame(frame);
     qDebug() << "Extended frames created from" << sourceKeyframe + 1 << "to" << frame;
-    // Single emit for the entire span
-    emit frameExtended(sourceKeyframe, frame);
 }
+
 
 // ENHANCED: Also update copyItemsToFrame for better performance
 void Canvas::copyItemsToFrame(int fromFrame, int toFrame)
@@ -1818,26 +1844,43 @@ int Canvas::getNextKeyframeAfter(int frame) const
     return nextKeyframe;
 }
 
+
 void Canvas::clearCurrentFrameContent()
 {
-    // Clear all items from current frame
-    QList<QGraphicsItem*> frameItems = scene()->items();
+    qDebug() << "Clearing current frame content for frame:" << m_currentFrame;
 
-    // Remove items from current layer
-    for (QGraphicsItem* item : frameItems) {
-        if (getItemLayerIndex(item) == m_currentLayerIndex) {
-            scene()->removeItem(item);
+    // Get items to remove from current layer only
+    QList<QGraphicsItem*> itemsToRemove;
+    if (m_currentLayerIndex >= 0 && m_currentLayerIndex < m_layers.size()) {
+        LayerData* currentLayer = static_cast<LayerData*>(m_layers[m_currentLayerIndex]);
+        QList<QGraphicsItem*> currentFrameItems = currentLayer->getFrameItems(m_currentFrame);
+
+        for (QGraphicsItem* item : currentFrameItems) {
+            if (item && item != m_backgroundRect) {
+                itemsToRemove.append(item);
+            }
+        }
+    }
+
+    // Remove items from scene and delete them
+    for (QGraphicsItem* item : itemsToRemove) {
+        if (item && m_scene->items().contains(item)) {
+            m_scene->removeItem(item);
+
+            // CRITICAL: Remove item from ALL data structures before deletion
+            removeItemFromAllFrames(item);
+
             delete item;
         }
     }
 
-    // Update frame data
-    auto it = m_frameData.find(m_currentFrame);
-    if (it != m_frameData.end()) {
-        it->second.items.clear();
-        it->second.itemStates.clear();
-        it->second.type = FrameType::Empty;
-        it->second.sourceKeyframe = -1;
+    // Clear frame data for current frame
+    auto frameDataIt = m_frameData.find(m_currentFrame);
+    if (frameDataIt != m_frameData.end()) {
+        frameDataIt->second.items.clear();
+        frameDataIt->second.itemStates.clear();
+        frameDataIt->second.type = FrameType::Empty;
+        frameDataIt->second.sourceKeyframe = -1;
     }
 
     // Clear from frameItems map
@@ -1846,7 +1889,38 @@ void Canvas::clearCurrentFrameContent()
     // Remove from keyframes set if it was a keyframe
     m_keyframes.erase(m_currentFrame);
 
+    // Update current layer data
+    if (m_currentLayerIndex >= 0 && m_currentLayerIndex < m_layers.size()) {
+        LayerData* currentLayer = static_cast<LayerData*>(m_layers[m_currentLayerIndex]);
+        currentLayer->clearFrame(m_currentFrame);
+    }
+
     emit frameChanged(m_currentFrame);
+    qDebug() << "Frame content cleared successfully";
+}
+
+void Canvas::removeItemFromAllFrames(QGraphicsItem* item)
+{
+    if (!item) return;
+
+    // Remove from all m_frameItems entries
+    for (auto& frameEntry : m_frameItems) {
+        frameEntry.second.removeAll(item);
+    }
+
+    // Remove from all m_frameData entries
+    for (auto& frameEntry : m_frameData) {
+        frameEntry.second.items.removeAll(item);
+        frameEntry.second.itemStates.remove(item);
+    }
+
+    // Remove from all layer data
+    for (int i = 0; i < m_layers.size(); ++i) {
+        LayerData* layer = static_cast<LayerData*>(m_layers[i]);
+        layer->removeItemFromAllFrames(item);
+    }
+
+    qDebug() << "Removed item from all frame data structures";
 }
 
 bool Canvas::hasFrameTweening(int frame, int layerIndex) const
