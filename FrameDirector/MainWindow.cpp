@@ -614,6 +614,13 @@ void MainWindow::createActions()
     m_copyFrameAction->setStatusTip("Copy current frame content");
     connect(m_copyFrameAction, &QAction::triggered, this, &MainWindow::copyCurrentFrame);
 
+    m_pasteFrameAction = new QAction("&Paste Frame", this);
+    m_pasteFrameAction->setIcon(QIcon(":/icons/Paste.png"));
+    m_pasteFrameAction->setShortcut(QKeySequence("Ctrl+Shift+V"));
+    m_pasteFrameAction->setStatusTip("Paste copied frame content to current frame");
+    m_pasteFrameAction->setEnabled(false); // Initially disabled
+    connect(m_pasteFrameAction, &QAction::triggered, this, &MainWindow::pasteFrame);
+
     m_blankKeyframeAction = new QAction("Create &Blank Keyframe", this);
     m_blankKeyframeAction->setIcon(QIcon(":/icons/branch-closed.png"));
     m_blankKeyframeAction->setShortcut(QKeySequence("Ctrl+Shift+K"));
@@ -882,27 +889,22 @@ void MainWindow::createMenus()
 
     // Frame creation submenu - NEW: Enhanced frame management
     QMenu* frameMenu = m_animationMenu->addMenu("&Frames");
-    frameMenu->addAction(m_insertFrameAction);         // NEW: F5 - Insert extended frame
+    //frameMenu->addAction(m_insertFrameAction);         // NEW: F5 - Insert extended frame
     frameMenu->addAction(m_addKeyframeAction);         // ENHANCED: F6 - Insert keyframe (existing)
     frameMenu->addAction(m_insertBlankKeyframeAction); // NEW: F7 - Insert blank keyframe
     frameMenu->addSeparator();
     frameMenu->addAction(m_clearFrameAction);          // NEW: Shift+F5 - Clear frame
-    frameMenu->addAction(m_convertToKeyframeAction);   // NEW: F8 - Convert to keyframe
+    //frameMenu->addAction(m_convertToKeyframeAction);   // NEW: F8 - Convert to keyframe
     frameMenu->addSeparator();
     frameMenu->addAction(m_copyFrameAction);           // Existing: Copy frame content
-
-    // Keep existing actions for compatibility and quick access
-    m_animationMenu->addAction(m_addKeyframeAction);   // Keep for quick access
-    m_animationMenu->addAction(m_copyFrameAction);     // Keep existing
-    m_animationMenu->addAction(m_blankKeyframeAction); // Keep existing legacy action
+    frameMenu->addAction(m_pasteFrameAction);           // NEW: Paste frame content
 
     // Help Menu
     m_helpMenu = menuBar()->addMenu("&Help");
     m_helpMenu->addAction("&About", this, [this]() {
         QMessageBox::about(this, "About FrameDirector",
-            "FrameDirector v1.0\n\n"
-            "Vector animation tool with frame extension support\n"
-            "Built with Qt and C++");
+            "FrameDirector v1.0\n"
+            "https://intelligencecasino.neocities.org/");
         });
 }
 
@@ -952,14 +954,14 @@ void MainWindow::createToolBars()
     m_animationToolBar->addSeparator();
 
     // NEW: Enhanced frame creation tools
-    m_animationToolBar->addAction(m_insertFrameAction);         // NEW: F5 - Insert extended frame
+    //m_animationToolBar->addAction(m_insertFrameAction);         // NEW: F5 - Insert extended frame
     m_animationToolBar->addAction(m_addKeyframeAction);         // ENHANCED: F6 - Insert keyframe (existing)
     m_animationToolBar->addAction(m_insertBlankKeyframeAction); // NEW: F7 - Insert blank keyframe
 
     m_animationToolBar->addSeparator();
 
     // NEW: Additional frame operations
-    m_animationToolBar->addAction(m_convertToKeyframeAction);   // NEW: F8 - Convert to keyframe
+    //m_animationToolBar->addAction(m_convertToKeyframeAction);   // NEW: F8 - Convert to keyframe
     m_animationToolBar->addAction(m_clearFrameAction);          // NEW: Shift+F5 - Clear frame
 }
 
@@ -2115,17 +2117,210 @@ void MainWindow::connectTweeningSignals()
 
 void MainWindow::copyCurrentFrame()
 {
-    if (m_canvas && m_currentFrame > 1) {
-        // Check if there's content in the current frame
-        if (m_canvas->hasKeyframe(m_currentFrame)) {
-            // Copy current frame content to create a new keyframe
-            m_canvas->storeCurrentFrameState();
-            m_statusLabel->setText(QString("Frame %1 content saved").arg(m_currentFrame));
-        }
-        else {
-            m_statusLabel->setText("No content to copy in current frame");
+    if (!m_canvas) {
+        m_statusLabel->setText("No canvas available");
+        return;
+    }
+
+    // Clear previous clipboard data
+    m_frameClipboard.clear();
+
+    // Get current frame type and check if it has content
+    FrameType frameType = m_canvas->getFrameType(m_currentFrame);
+    if (frameType == FrameType::Empty) {
+        m_statusLabel->setText("Current frame is empty - nothing to copy");
+        return;
+    }
+
+    // Get items from current frame
+    QList<QGraphicsItem*> currentFrameItems;
+
+    // If it's an extended frame, get items from source keyframe
+    if (frameType == FrameType::ExtendedFrame) {
+        int sourceFrame = m_canvas->getSourceKeyframe(m_currentFrame);
+        if (sourceFrame != -1) {
+            // Get items from source keyframe
+            auto frameData = m_canvas->getFrameData(sourceFrame);
+            if (frameData.has_value()) {
+                currentFrameItems = frameData->items;
+            }
         }
     }
+    else {
+        // Get items directly from current frame
+        auto frameData = m_canvas->getFrameData(m_currentFrame);
+        if (frameData.has_value()) {
+            currentFrameItems = frameData->items;
+        }
+    }
+
+    if (currentFrameItems.isEmpty()) {
+        m_statusLabel->setText("Current frame has no content to copy");
+        return;
+    }
+
+    // Deep copy all items to clipboard
+    for (QGraphicsItem* item : currentFrameItems) {
+        if (!item || item == m_canvas->getBackgroundRect()) continue;
+
+        QGraphicsItem* copiedItem = duplicateGraphicsItem(item);
+        if (copiedItem) {
+            m_frameClipboard.items.append(copiedItem);
+
+            // Store item state for positioning and properties
+            QVariantMap state;
+            state["position"] = item->pos();
+            state["rotation"] = item->rotation();
+            state["scale"] = item->scale();
+            state["opacity"] = item->opacity();
+            state["zValue"] = item->zValue();
+            state["visible"] = item->isVisible();
+
+            m_frameClipboard.itemStates[copiedItem] = state;
+        }
+    }
+
+    m_frameClipboard.frameType = frameType;
+    m_frameClipboard.hasData = !m_frameClipboard.items.isEmpty();
+
+    // Enable paste action
+    m_pasteFrameAction->setEnabled(m_frameClipboard.hasData);
+
+    m_statusLabel->setText(QString("Copied frame %1 content (%2 items) to clipboard")
+        .arg(m_currentFrame)
+        .arg(m_frameClipboard.items.size()));
+
+    qDebug() << "Frame" << m_currentFrame << "copied to clipboard with"
+        << m_frameClipboard.items.size() << "items";
+}
+
+void MainWindow::pasteFrame()
+{
+    if (!m_canvas) {
+        m_statusLabel->setText("No canvas available");
+        return;
+    }
+
+    if (!m_frameClipboard.hasData || m_frameClipboard.items.isEmpty()) {
+        m_statusLabel->setText("No frame data in clipboard to paste");
+        return;
+    }
+
+    // Clear current frame content first
+    m_canvas->clearCurrentFrameContent();
+
+    // Create a new keyframe at current position
+    m_canvas->createKeyframe(m_currentFrame);
+
+    m_undoStack->beginMacro("Paste Frame");
+
+    QList<QGraphicsItem*> pastedItems;
+
+    // Paste all items from clipboard
+    for (int i = 0; i < m_frameClipboard.items.size(); ++i) {
+        QGraphicsItem* clipboardItem = m_frameClipboard.items[i];
+        if (!clipboardItem) continue;
+
+        // Create a new copy of the clipboard item
+        QGraphicsItem* pastedItem = duplicateGraphicsItem(clipboardItem);
+        if (!pastedItem) continue;
+
+        // Restore item state
+        if (m_frameClipboard.itemStates.contains(clipboardItem)) {
+            QVariantMap state = m_frameClipboard.itemStates[clipboardItem];
+            pastedItem->setPos(state["position"].toPointF());
+            pastedItem->setRotation(state["rotation"].toDouble());
+            pastedItem->setScale(state["scale"].toDouble());
+            pastedItem->setOpacity(state["opacity"].toDouble());
+            pastedItem->setZValue(state["zValue"].toDouble());
+            pastedItem->setVisible(state["visible"].toBool());
+        }
+
+        // Add to scene and canvas
+        m_canvas->scene()->addItem(pastedItem);
+        m_canvas->addItemToCurrentLayer(pastedItem);
+        pastedItems.append(pastedItem);
+    }
+
+    m_undoStack->endMacro();
+
+    // Update UI
+    if (m_timeline) {
+        m_timeline->updateLayersFromCanvas();
+    }
+
+    updateFrameActions();
+    showFrameTypeIndicator();
+
+    m_statusLabel->setText(QString("Pasted %1 items to frame %2")
+        .arg(pastedItems.size())
+        .arg(m_currentFrame));
+
+    m_isModified = true;
+
+    qDebug() << "Pasted" << pastedItems.size() << "items to frame" << m_currentFrame;
+}
+
+// 6. Add helper method for deep copying graphics items:
+
+QGraphicsItem* MainWindow::duplicateGraphicsItem(QGraphicsItem* item)
+{
+    if (!item) return nullptr;
+
+    QGraphicsItem* copy = nullptr;
+
+    // Handle different item types
+    if (auto rectItem = qgraphicsitem_cast<QGraphicsRectItem*>(item)) {
+        auto newRect = new QGraphicsRectItem(rectItem->rect());
+        newRect->setPen(rectItem->pen());
+        newRect->setBrush(rectItem->brush());
+        copy = newRect;
+    }
+    else if (auto ellipseItem = qgraphicsitem_cast<QGraphicsEllipseItem*>(item)) {
+        auto newEllipse = new QGraphicsEllipseItem(ellipseItem->rect());
+        newEllipse->setPen(ellipseItem->pen());
+        newEllipse->setBrush(ellipseItem->brush());
+        copy = newEllipse;
+    }
+    else if (auto lineItem = qgraphicsitem_cast<QGraphicsLineItem*>(item)) {
+        auto newLine = new QGraphicsLineItem(lineItem->line());
+        newLine->setPen(lineItem->pen());
+        copy = newLine;
+    }
+    else if (auto pathItem = qgraphicsitem_cast<QGraphicsPathItem*>(item)) {
+        auto newPath = new QGraphicsPathItem(pathItem->path());
+        newPath->setPen(pathItem->pen());
+        newPath->setBrush(pathItem->brush());
+        copy = newPath;
+    }
+    else if (auto textItem = qgraphicsitem_cast<QGraphicsTextItem*>(item)) {
+        auto newText = new QGraphicsTextItem(textItem->toPlainText());
+        newText->setFont(textItem->font());
+        newText->setDefaultTextColor(textItem->defaultTextColor());
+        copy = newText;
+    }
+    else if (auto simpleTextItem = qgraphicsitem_cast<QGraphicsSimpleTextItem*>(item)) {
+        auto newSimpleText = new QGraphicsSimpleTextItem(simpleTextItem->text());
+        newSimpleText->setFont(simpleTextItem->font());
+        newSimpleText->setBrush(simpleTextItem->brush());
+        newSimpleText->setPen(simpleTextItem->pen());
+        copy = newSimpleText;
+    }
+
+    if (copy) {
+        // Copy common properties
+        copy->setTransform(item->transform());
+        copy->setFlags(item->flags());
+        copy->setZValue(item->zValue());
+        copy->setOpacity(item->opacity());
+        copy->setVisible(item->isVisible());
+        copy->setEnabled(item->isEnabled());
+        copy->setPos(item->pos());
+        copy->setRotation(item->rotation());
+        copy->setScale(item->scale());
+    }
+
+    return copy;
 }
 
 void MainWindow::createBlankKeyframe()
@@ -2919,6 +3114,7 @@ void MainWindow::closeEvent(QCloseEvent* event)
         if (m_undoStack) {
             qDebug() << "Clearing undo stack before close...";
             m_undoStack->clear();
+            m_frameClipboard.clear();
         }
 
         // 4. Save settings
@@ -2943,7 +3139,7 @@ void MainWindow::keyPressEvent(QKeyEvent* event)
             clearCurrentFrame();
         }
         else {
-            insertFrame();
+            //insertFrame();
         }
         break;
     case Qt::Key_F6:
@@ -2952,8 +3148,17 @@ void MainWindow::keyPressEvent(QKeyEvent* event)
     case Qt::Key_F7:
         insertBlankKeyframe();
         break;
-    case Qt::Key_F8:
-        convertToKeyframe();
+    case Qt::Key_C:
+        if (event->modifiers() == (Qt::ControlModifier | Qt::ShiftModifier)) {
+            copyCurrentFrame();
+            return;
+        }
+        break;
+    case Qt::Key_V:
+        if (event->modifiers() == (Qt::ControlModifier | Qt::ShiftModifier)) {
+            pasteFrame();
+            return;
+        }
         break;
     case Qt::Key_Left:
         if (event->modifiers() & Qt::ControlModifier) {

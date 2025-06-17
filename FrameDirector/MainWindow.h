@@ -1,6 +1,6 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
-
+#include "Canvas.h"
 #include <QMainWindow>
 #include <QGraphicsScene>
 #include <QGraphicsView>
@@ -171,6 +171,7 @@ private slots:
     // Animation actions
     void setFrameRate(int fps);
     void copyCurrentFrame();
+    void pasteFrame();
     void createBlankKeyframe();
 
     // Tool actions
@@ -255,6 +256,26 @@ private:
     void updateStatusBar();
     void updateImportMenu();
     void showFrameTypeIndicator();      // Show current frame type in status bar
+
+
+    struct FrameClipboard {
+        QList<QGraphicsItem*> items;
+        QHash<QGraphicsItem*, QVariantMap> itemStates;
+        FrameType frameType;
+        bool hasData;
+
+        FrameClipboard() : frameType(FrameType::Empty), hasData(false) {}
+
+        void clear() {
+            // Clean up copied items
+            for (QGraphicsItem* item : items) {
+                delete item;
+            }
+            items.clear();
+            itemStates.clear();
+            hasData = false;
+        }
+    } m_frameClipboard;
 
     // Tool management
     void setupTools();
@@ -446,11 +467,13 @@ private:
     QLabel* m_frameLabel;
     QLabel* m_selectionLabel;
     QLabel* m_fpsLabel;
+    QAction* m_pasteFrameAction;
 
     // Recent files
     enum { MaxRecentFiles = 5 };
     QAction* m_recentFileActions[MaxRecentFiles];
     QAction* m_separatorAction;
+    QGraphicsItem* duplicateGraphicsItem(QGraphicsItem* item);
 };
 
 #endif // MAINWINDOW_H

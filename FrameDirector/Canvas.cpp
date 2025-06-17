@@ -2392,3 +2392,24 @@ void Canvas::updateGlobalFrameItems(int frame)
 {
     m_frameItems[frame] = getFrameItems(frame);
 }
+
+
+std::optional<FrameData> Canvas::getFrameData(int frame) const
+{
+    auto it = m_frameData.find(frame);
+    if (it != m_frameData.end()) {
+        return it->second;
+    }
+
+    // Check if frame has items in compatibility layer
+    auto itemsIt = m_frameItems.find(frame);
+    if (itemsIt != m_frameItems.end() && !itemsIt->second.isEmpty()) {
+        FrameData data;
+        data.items = itemsIt->second;
+        data.type = hasKeyframe(frame) ? FrameType::Keyframe : FrameType::ExtendedFrame;
+        data.sourceKeyframe = (data.type == FrameType::ExtendedFrame) ? getSourceKeyframe(frame) : -1;
+        return data;
+    }
+
+    return std::nullopt;
+}

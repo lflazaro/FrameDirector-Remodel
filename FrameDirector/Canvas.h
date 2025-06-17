@@ -71,6 +71,8 @@ public:
     int getSelectionCount() const;
     void deleteSelected();
     QList<QGraphicsItem*> getSelectedItems() const;
+    std::optional<FrameData> getFrameData(int frame) const;
+    QGraphicsRectItem* getBackgroundRect() const { return m_backgroundRect; }
 
     // Canvas size and background
     void setCanvasSize(const QSize& size);
