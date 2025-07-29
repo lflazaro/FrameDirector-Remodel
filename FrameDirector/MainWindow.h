@@ -107,6 +107,7 @@ public:
     void lastFrame();
     void removeKeyframe();
     void updateFrameActions();          // Enable/disable frame actions based on current state
+    void setTimelineLength();
     // Public member access for undo commands
     QUndoStack* m_undoStack;
 
@@ -473,6 +474,7 @@ private:
     enum { MaxRecentFiles = 5 };
     QAction* m_recentFileActions[MaxRecentFiles];
     QAction* m_separatorAction;
+    QAction* m_setTimelineLengthAction;
     QGraphicsItem* duplicateGraphicsItem(QGraphicsItem* item);
 };
 

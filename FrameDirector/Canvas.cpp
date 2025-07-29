@@ -1031,6 +1031,7 @@ QGraphicsItem* Canvas::cloneGraphicsItem(QGraphicsItem* item)
         copy->setVisible(item->isVisible());
         copy->setEnabled(item->isEnabled());
         copy->setSelected(item->isSelected());
+        copy->setData(0, item->opacity());  // Store original opacity as data
     }
 
     return copy;

@@ -54,6 +54,7 @@
 #include <QSvgWidget>
 #include <QDir>
 #include <QStandardPaths>
+#include <qinputdialog.h>
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
@@ -670,6 +671,10 @@ void MainWindow::createActions()
     m_prevKeyframeAction->setStatusTip("Go to previous keyframe");
     connect(m_prevKeyframeAction, &QAction::triggered, this, &MainWindow::previousKeyframe);
 
+    m_setTimelineLengthAction = new QAction("Set Timeline &Length...", this);
+    m_setTimelineLengthAction->setStatusTip("Set the total number of frames in the timeline");
+    connect(m_setTimelineLengthAction, &QAction::triggered, this, &MainWindow::setTimelineLength);
+
     // Tool Actions
     m_toolActionGroup = new QActionGroup(this);
 
@@ -898,6 +903,8 @@ void MainWindow::createMenus()
     frameMenu->addSeparator();
     frameMenu->addAction(m_copyFrameAction);           // Existing: Copy frame content
     frameMenu->addAction(m_pasteFrameAction);           // NEW: Paste frame content
+    m_animationMenu->addSeparator();
+    m_animationMenu->addAction(m_setTimelineLengthAction);  // FIX: Add timeline length setting
 
     // Help Menu
     m_helpMenu = menuBar()->addMenu("&Help");
@@ -2306,13 +2313,40 @@ QGraphicsItem* MainWindow::duplicateGraphicsItem(QGraphicsItem* item)
         newSimpleText->setPen(simpleTextItem->pen());
         copy = newSimpleText;
     }
+    // FIX: Add support for QGraphicsPixmapItem (images)
+    else if (auto pixmapItem = qgraphicsitem_cast<QGraphicsPixmapItem*>(item)) {
+        auto newPixmap = new QGraphicsPixmapItem(pixmapItem->pixmap());
+        newPixmap->setOffset(pixmapItem->offset());
+        newPixmap->setTransformationMode(pixmapItem->transformationMode());
+        copy = newPixmap;
+    }
+    // FIX: Add support for QGraphicsSvgItem (vectors)
+    else if (auto svgItem = qgraphicsitem_cast<QGraphicsSvgItem*>(item)) {
+        auto newSvg = new QGraphicsSvgItem();
+        newSvg->setSharedRenderer(svgItem->renderer());
+        newSvg->setElementId(svgItem->elementId());
+        copy = newSvg;
+    }
+    // FIX: Add support for QGraphicsItemGroup (grouped items)
+    else if (auto groupItem = qgraphicsitem_cast<QGraphicsItemGroup*>(item)) {
+        // For groups, we need to recursively copy all child items
+        auto newGroup = new QGraphicsItemGroup();
+        QList<QGraphicsItem*> childItems = groupItem->childItems();
+        for (QGraphicsItem* childItem : childItems) {
+            QGraphicsItem* childCopy = duplicateGraphicsItem(childItem);
+            if (childCopy) {
+                newGroup->addToGroup(childCopy);
+            }
+        }
+        copy = newGroup;
+    }
 
     if (copy) {
-        // Copy common properties
+        // Copy common properties (CRITICAL: Include opacity here)
         copy->setTransform(item->transform());
         copy->setFlags(item->flags());
         copy->setZValue(item->zValue());
-        copy->setOpacity(item->opacity());
+        copy->setOpacity(item->opacity());  // FIX: Ensure opacity is preserved
         copy->setVisible(item->isVisible());
         copy->setEnabled(item->isEnabled());
         copy->setPos(item->pos());
@@ -2321,6 +2355,29 @@ QGraphicsItem* MainWindow::duplicateGraphicsItem(QGraphicsItem* item)
     }
 
     return copy;
+}
+
+void MainWindow::setTimelineLength()
+{
+    bool ok;
+    int currentLength = m_timeline ? m_timeline->getTotalFrames() : 100;
+
+    int newLength = QInputDialog::getInt(this,
+        "Set Timeline Length",
+        "Enter the number of frames:",
+        currentLength,
+        1,
+        100000, // Maximum
+        1,
+        &ok);
+
+    if (ok && newLength > 0) {
+        if (m_timeline) {
+            m_timeline->setTotalFrames(newLength);
+            m_statusLabel->setText(QString("Timeline length set to %1 frames").arg(newLength));
+            m_isModified = true;
+        }
+    }
 }
 
 void MainWindow::createBlankKeyframe()

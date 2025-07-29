@@ -63,7 +63,7 @@ void PropertiesPanel::setupUI()
 
     setupTransformGroup();
     setupStyleGroup();
-    setupAnimationGroup();
+    //setupAnimationGroup();
 
     m_mainLayout->addStretch();
 
@@ -455,7 +455,7 @@ void PropertiesPanel::updateProperties(const QList<QGraphicsItem*>& selectedItem
     // Enable all controls
     m_transformGroup->setEnabled(true);
     m_styleGroup->setEnabled(true);
-    m_animationGroup->setEnabled(true);
+    //m_animationGroup->setEnabled(true);
 
     m_updating = false;
 }
@@ -468,7 +468,7 @@ void PropertiesPanel::clearProperties()
     // Disable all controls
     m_transformGroup->setEnabled(false);
     m_styleGroup->setEnabled(false);
-    m_animationGroup->setEnabled(false);
+    //m_animationGroup->setEnabled(false);
 
     // Reset values
     m_xSpinBox->setValue(0);
