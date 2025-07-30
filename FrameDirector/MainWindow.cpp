@@ -18,6 +18,7 @@
 #include "Commands/UndoCommands.h"
 #include "Animation/AnimationLayer.h"
 #include "Animation/AnimationKeyframe.h"
+#include "Animation/AnimationController.h"
 
 #include <QApplication>
 #include <QMenuBar>
@@ -1484,11 +1485,18 @@ void MainWindow::importAudio()
 void MainWindow::exportAnimation()
 {
     QString fileName = QFileDialog::getSaveFileName(this,
-        "Export Animation", "", "Video Files (*.mp4 *.avi);;GIF Files (*.gif)");
-    if (!fileName.isEmpty()) {
-        // Implementation for exporting animation
-        m_statusLabel->setText("Animation exported");
-    }
+        "Export Animation", "", "Video Files (*.mp4);;GIF Files (*.gif)");
+    if (fileName.isEmpty())
+        return;
+
+    QString format = QFileInfo(fileName).suffix();
+
+    AnimationController controller(this);
+    if (m_timeline)
+        controller.setTotalFrames(m_timeline->getTotalFrames());
+
+    controller.exportAnimation(fileName, format);
+    m_statusLabel->setText("Animation exported");
 }
 
 void MainWindow::exportFrame()
@@ -1593,6 +1601,22 @@ void MainWindow::copy()
             newText->setPos(textItem->pos());
             copy = newText;
         }
+        else if (auto pixmapItem = qgraphicsitem_cast<QGraphicsPixmapItem*>(item)) {
+            auto newPixmap = new QGraphicsPixmapItem(pixmapItem->pixmap());
+            newPixmap->setOffset(pixmapItem->offset());
+            newPixmap->setTransformationMode(pixmapItem->transformationMode());
+            newPixmap->setTransform(pixmapItem->transform());
+            newPixmap->setPos(pixmapItem->pos());
+            copy = newPixmap;
+        }
+        else if (auto svgItem = qgraphicsitem_cast<QGraphicsSvgItem*>(item)) {
+            auto newSvg = new QGraphicsSvgItem();
+            newSvg->setSharedRenderer(svgItem->renderer());
+            newSvg->setElementId(svgItem->elementId());
+            newSvg->setTransform(svgItem->transform());
+            newSvg->setPos(svgItem->pos());
+            copy = newSvg;
+        }
 
         if (copy) {
             copy->setFlags(item->flags());
@@ -1658,6 +1682,20 @@ void MainWindow::paste()
             newText->setDefaultTextColor(textItem->defaultTextColor());
             newText->setTransform(textItem->transform());
             pastedItem = newText;
+        }
+        else if (auto pixmapItem = qgraphicsitem_cast<QGraphicsPixmapItem*>(clipboardItem)) {
+            auto newPixmap = new QGraphicsPixmapItem(pixmapItem->pixmap());
+            newPixmap->setOffset(pixmapItem->offset());
+            newPixmap->setTransformationMode(pixmapItem->transformationMode());
+            newPixmap->setTransform(pixmapItem->transform());
+            pastedItem = newPixmap;
+        }
+        else if (auto svgItem = qgraphicsitem_cast<QGraphicsSvgItem*>(clipboardItem)) {
+            auto newSvg = new QGraphicsSvgItem();
+            newSvg->setSharedRenderer(svgItem->renderer());
+            newSvg->setElementId(svgItem->elementId());
+            newSvg->setTransform(svgItem->transform());
+            pastedItem = newSvg;
         }
 
         if (pastedItem) {

@@ -100,7 +100,7 @@ public:
     bool isLayerVisible(int index) const;
     bool isLayerLocked(int index) const;
     QString getLayerName(int index) const;
-    int getLayerOpacity(int index) const;
+    double getLayerOpacity(int index) const;
     void moveLayer(int fromIndex, int toIndex);
     int getItemLayerIndex(QGraphicsItem* item) const;
 
