@@ -68,6 +68,16 @@ void AnimationKeyframe::captureItemState(QGraphicsItem* item)
         state.fillColor = Qt::transparent;
         state.strokeWidth = 0;
     }
+    else if (qgraphicsitem_cast<QGraphicsPixmapItem*>(item)) {
+        state.strokeColor = Qt::transparent;
+        state.fillColor = Qt::transparent;
+        state.strokeWidth = 0;
+    }
+    else if (qgraphicsitem_cast<QGraphicsSvgItem*>(item)) {
+        state.strokeColor = Qt::transparent;
+        state.fillColor = Qt::transparent;
+        state.strokeWidth = 0;
+    }
     else {
         state.strokeColor = Qt::black;
         state.fillColor = Qt::transparent;
@@ -113,6 +123,12 @@ void AnimationKeyframe::applyItemState(QGraphicsItem* item) const
     }
     else if (auto textItem = qgraphicsitem_cast<QGraphicsTextItem*>(item)) {
         textItem->setDefaultTextColor(state.strokeColor);
+    }
+    else if (qgraphicsitem_cast<QGraphicsPixmapItem*>(item)) {
+        // No additional properties for pixmap items
+    }
+    else if (qgraphicsitem_cast<QGraphicsSvgItem*>(item)) {
+        // No additional properties for SVG items
     }
 }
 
@@ -181,7 +197,33 @@ void AnimationKeyframe::interpolateBetween(const AnimationKeyframe* from,
         rectItem->setPen(pen);
         rectItem->setBrush(QBrush(fillColor));
     }
-    // Similar implementation for other item types...
+    else if (auto ellipseItem = qgraphicsitem_cast<QGraphicsEllipseItem*>(item)) {
+        QColor strokeColor = interpolateColor(fromState.strokeColor, toState.strokeColor, easedT);
+        QColor fillColor = interpolateColor(fromState.fillColor, toState.fillColor, easedT);
+        double strokeWidth = interpolateValue(fromState.strokeWidth, toState.strokeWidth, easedT);
+
+        QPen pen = ellipseItem->pen();
+        pen.setColor(strokeColor);
+        pen.setWidthF(strokeWidth);
+        ellipseItem->setPen(pen);
+        ellipseItem->setBrush(QBrush(fillColor));
+    }
+    else if (auto pathItem = qgraphicsitem_cast<QGraphicsPathItem*>(item)) {
+        QColor strokeColor = interpolateColor(fromState.strokeColor, toState.strokeColor, easedT);
+        QColor fillColor = interpolateColor(fromState.fillColor, toState.fillColor, easedT);
+        double strokeWidth = interpolateValue(fromState.strokeWidth, toState.strokeWidth, easedT);
+
+        QPen pen = pathItem->pen();
+        pen.setColor(strokeColor);
+        pen.setWidthF(strokeWidth);
+        pathItem->setPen(pen);
+        pathItem->setBrush(QBrush(fillColor));
+    }
+    else if (auto textItem = qgraphicsitem_cast<QGraphicsTextItem*>(item)) {
+        QColor color = interpolateColor(fromState.strokeColor, toState.strokeColor, easedT);
+        textItem->setDefaultTextColor(color);
+    }
+    // Pixmap and SVG items do not require color interpolation
 }
 
 double AnimationKeyframe::interpolateValue(double from, double to, double t)

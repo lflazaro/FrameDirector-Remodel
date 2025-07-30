@@ -462,7 +462,7 @@ void Timeline::setupUI()
     // Scroll area for timeline
     m_scrollArea = new QScrollArea;
     m_scrollArea->setWidget(m_drawingArea);
-    m_scrollArea->setWidgetResizable(true);
+    m_scrollArea->setWidgetResizable(false);
     m_scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_scrollArea->setStyleSheet(
@@ -1326,7 +1326,7 @@ void Timeline::updateLayout()
     int totalWidth = m_totalFrames * frameWidth + 100;
     int totalHeight = m_rulerHeight + m_layers.size() * m_layerHeight + 50;
 
-    m_drawingArea->setMinimumSize(totalWidth, totalHeight);
+    m_drawingArea->setFixedSize(totalWidth, totalHeight);
 }
 
 void Timeline::onFrameSliderChanged(int value)

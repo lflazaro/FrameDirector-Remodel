@@ -151,7 +151,7 @@ void PropertiesPanel::setupTransformGroup()
     m_rotationSpinBox = new QDoubleSpinBox;
     m_rotationSpinBox->setRange(-360, 360);
     m_rotationSpinBox->setDecimals(1);
-    m_rotationSpinBox->setSuffix("°");
+    m_rotationSpinBox->setSuffix("Â°");
     m_rotationSpinBox->setStyleSheet(spinBoxStyle);
 
     QLabel* rotLabel = new QLabel("Rotation:");
@@ -631,8 +631,15 @@ void PropertiesPanel::onStyleChanged()
     }
 
     for (QGraphicsItem* item : m_selectedItems) {
-        // Update opacity
-        item->setOpacity(opacity);
+        Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+        double layerOpacity = 1.0;
+        if (canvas) {
+            int layerIdx = canvas->getItemLayerIndex(item);
+            layerOpacity = canvas->getLayerOpacity(layerIdx);
+        }
+        item->setData(0, opacity);
+        item->setOpacity(opacity * layerOpacity);
+
 
         // Update pen and brush based on item type
         if (auto rectItem = qgraphicsitem_cast<QGraphicsRectItem*>(item)) {

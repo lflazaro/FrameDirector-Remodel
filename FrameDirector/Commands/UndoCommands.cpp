@@ -343,6 +343,7 @@ void StyleChangeCommand::applyStyle(QGraphicsItem* item, const QString& property
         }
     }
     else if (property == "opacity") {
+        item->setData(0, value.toDouble());
         item->setOpacity(value.toDouble());
     }
 }
@@ -498,6 +499,7 @@ void PropertyChangeCommand::applyProperty(QGraphicsItem* item, const QString& pr
         item->setTransform(transform);
     }
     else if (property == "opacity") {
+        item->setData(0, value.toDouble());
         item->setOpacity(value.toDouble());
     }
     else if (property == "zValue") {

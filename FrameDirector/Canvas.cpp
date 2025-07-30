@@ -2414,3 +2414,12 @@ std::optional<FrameData> Canvas::getFrameData(int frame) const
 
     return std::nullopt;
 }
+
+double Canvas::getLayerOpacity(int index) const
+{
+    if (index >= 0 && index < m_layers.size()) {
+        LayerData* layer = static_cast<LayerData*>(m_layers[index]);
+        return layer->opacity;
+    }
+    return 1.0;
+}
