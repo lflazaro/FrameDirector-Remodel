@@ -21,6 +21,8 @@
 #include <QFont>
 #include <QRubberBand>
 #include <QTimer>
+#include <QJsonObject>
+#include <QJsonArray>
 #include <memory>
 #include <vector>
 #include <map>
@@ -117,6 +119,15 @@ public:
     void clearCurrentFrameContent();
     void copyFrame(int fromFrame, int toFrame);
     void deleteFrame(int frame);
+
+    // Serialization
+    QJsonObject toJson() const;
+    bool fromJson(const QJsonObject& json);
+
+    // Frame data helpers for undo/redo
+    FrameData exportFrameData(int layerIndex, int frame);
+    void importFrameData(int layerIndex, int frame, const FrameData& data);
+    void removeKeyframe(int layerIndex, int frame);
 
     // Frame type queries and navigation
     bool hasKeyframe(int frame) const;
@@ -243,6 +254,8 @@ private:
     void updateSceneRect();
     QGraphicsItem* cloneGraphicsItem(QGraphicsItem* item);
     void clearFrameItems(int frame);
+    QJsonObject serializeGraphicsItem(QGraphicsItem* item) const;
+    QGraphicsItem* deserializeGraphicsItem(const QJsonObject& json) const;
 
     // Drawing and rendering
     void drawGrid(QPainter* painter, const QRectF& rect);

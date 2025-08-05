@@ -15,6 +15,7 @@
 #include <memory>
 
 class Canvas;
+struct FrameData;
 
 // Base command for graphics items
 class GraphicsItemCommand : public QUndoCommand
@@ -180,6 +181,37 @@ public:
 private:
     QGraphicsItem* m_item;
     bool m_itemAdded;
+};
+
+// Keyframe commands
+class AddKeyframeCommand : public QUndoCommand
+{
+public:
+    AddKeyframeCommand(Canvas* canvas, int layer, int frame, QUndoCommand* parent = nullptr);
+    ~AddKeyframeCommand();
+    void undo() override;
+    void redo() override;
+
+private:
+    Canvas* m_canvas;
+    int m_layer;
+    int m_frame;
+    FrameData m_previous;
+};
+
+class RemoveKeyframeCommand : public QUndoCommand
+{
+public:
+    RemoveKeyframeCommand(Canvas* canvas, int layer, int frame, QUndoCommand* parent = nullptr);
+    ~RemoveKeyframeCommand();
+    void undo() override;
+    void redo() override;
+
+private:
+    Canvas* m_canvas;
+    int m_layer;
+    int m_frame;
+    FrameData m_removed;
 };
 
 #endif // UNDOCOMMANDS_H
