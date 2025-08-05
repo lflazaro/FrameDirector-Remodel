@@ -8,6 +8,7 @@
 #include <QPen>        // Add this
 #include <QBrush>      // Add this
 #include <QPainter>    // Add this
+#include <qgraphicssvgitem.h>
 
 
 AnimationKeyframe::AnimationKeyframe(int frame)
