@@ -1494,6 +1494,13 @@ void Canvas::groupSelectedItems()
         group->setFlag(QGraphicsItem::ItemIsSelectable, true);
         group->setFlag(QGraphicsItem::ItemIsMovable, true);
         addItemToCurrentLayer(group);
+
+        // Ensure the new group becomes the active selection so subsequent
+        // operations (move, transform, etc.) operate on the group rather than
+        // the previously selected individual items.
+        m_scene->clearSelection();
+        group->setSelected(true);
+
         if (!m_destroying) {
             emit selectionChanged();
         }
@@ -1507,7 +1514,11 @@ void Canvas::ungroupSelectedItems()
     for (QGraphicsItem* item : selectedItems) {
         QGraphicsItemGroup* group = qgraphicsitem_cast<QGraphicsItemGroup*>(item);
         if (group) {
+            QList<QGraphicsItem*> children = group->childItems();
             m_scene->destroyItemGroup(group);
+            for (QGraphicsItem* child : children) {
+                child->setSelected(true);
+            }
         }
     }
     if (!m_destroying) {

@@ -462,7 +462,13 @@ void Timeline::setupUI()
     // Scroll area for timeline
     m_scrollArea = new QScrollArea;
     m_scrollArea->setWidget(m_drawingArea);
-    m_scrollArea->setWidgetResizable(true);
+    // The timeline needs a fixed virtual width so that frames beyond the
+    // window edge remain visible via the horizontal scrollbar. Using
+    // setWidgetResizable(true) caused the drawing area to always match the
+    // viewport width which prevented scrolling past the window boundary. By
+    // disabling widget resizability the drawing area keeps the minimum size set
+    // in updateLayout() and the scrollbars behave as expected.
+    m_scrollArea->setWidgetResizable(false);
     m_scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_scrollArea->setStyleSheet(

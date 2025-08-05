@@ -10,9 +10,9 @@
 #include <QEasingCurve>
 #include <QFileDialog>
 #include <QMessageBox>
-#include <QProgressDialog>
 #include <QApplication>
 #include <QRegularExpression>
+#include <QFileInfo>
 #include <QGraphicsScene>
 #include <QGraphicsItem>
 #include <QPainter>
@@ -334,10 +334,6 @@ void AnimationController::exportAnimation(const QString& filename, const QString
         return;
     }
 
-    QProgressDialog progress("Exporting Animation...", "Cancel", 0, m_totalFrames, m_mainWindow);
-    progress.setWindowModality(Qt::WindowModal);
-    progress.show();
-
     // Get canvas for rendering
     Canvas* canvas = m_mainWindow->findChild<Canvas*>();
     if (!canvas || !canvas->scene()) {
@@ -357,14 +353,11 @@ void AnimationController::exportAnimation(const QString& filename, const QString
 
     QStringList frameFiles;
 
+    emit exportProgress(0, m_totalFrames);
+
     // Render each frame
     for (int frame = 1; frame <= m_totalFrames; ++frame) {
-        if (progress.wasCanceled()) {
-            break;
-        }
-
-        progress.setValue(frame);
-        progress.setLabelText(QString("Rendering frame %1 of %2...").arg(frame).arg(m_totalFrames));
+        emit exportProgress(frame, m_totalFrames);
         QApplication::processEvents();
 
         // Set animation to this frame
@@ -391,32 +384,30 @@ void AnimationController::exportAnimation(const QString& filename, const QString
         setCurrentFrame(originalFrame);
     }
 
-    progress.close();
-
-    if (progress.wasCanceled()) {
-        // Clean up temp files
-        for (const QString& file : frameFiles) {
-            QFile::remove(file);
-        }
-        return;
-    }
+    bool success = false;
 
     // Convert frames to final format
     if (format.toLower() == "gif") {
-        exportToGif(frameFiles, filename);
+        success = exportToGif(frameFiles, filename);
     }
     else if (format.toLower() == "mp4") {
-        exportToMp4(frameFiles, filename);
+        success = exportToMp4(frameFiles, filename);
     }
     else {
         QMessageBox::warning(m_mainWindow, "Export Error", "Unsupported export format: " + format);
     }
 
-    // Clean up temp files
-    for (const QString& file : frameFiles) {
-        QFile::remove(file);
+    emit exportProgress(m_totalFrames, m_totalFrames);
+
+    // Clean up temp files only when export succeeded
+    if (success) {
+        for (const QString& file : frameFiles) {
+            QFile::remove(file);
+        }
+        QDir().rmdir(tempDir);
+    } else {
+        QMessageBox::warning(m_mainWindow, "Export Error", "Export failed. Frames have been left in:\n" + tempDir);
     }
-    QDir().rmdir(tempDir);
 }
 
 void AnimationController::exportFrame(int frame, const QString& filename)
@@ -501,48 +492,45 @@ void AnimationController::updateLayerAtFrame(AnimationLayer* layer, int frame)
     }
 }
 
-void AnimationController::exportToGif(const QStringList& frameFiles, const QString& filename)
+bool AnimationController::exportToGif(const QStringList& frameFiles, const QString& filename)
 {
-    // This would require an external tool like ImageMagick or a GIF library
-    // For now, show a message about the requirement
-
+    // This requires an external tool like ImageMagick
     QMessageBox::information(m_mainWindow, "GIF Export",
         "GIF export requires ImageMagick to be installed.\n\n"
         "Individual frames have been saved. You can use ImageMagick with:\n"
         "convert -delay " + QString::number(100 / m_frameRate) + " frame_*.png " + filename);
 
-    // Try to use ImageMagick if available
     QProcess process;
     QStringList arguments;
     arguments << "-delay" << QString::number(100 / m_frameRate);
     arguments << frameFiles;
     arguments << filename;
+    process.setWorkingDirectory(QFileInfo(frameFiles.first()).absolutePath());
 
     process.start("convert", arguments);
-    if (process.waitForStarted(3000)) {
-        process.waitForFinished(30000);
-        if (process.exitCode() == 0) {
-            QMessageBox::information(m_mainWindow, "Export Complete",
-                "GIF animation exported successfully to:\n" + filename);
-        }
-        else {
-            QMessageBox::warning(m_mainWindow, "Export Error",
-                "ImageMagick conversion failed:\n" + process.readAllStandardError());
-        }
+    if (!process.waitForStarted(3000)) {
+        QMessageBox::warning(m_mainWindow, "Export Error", "ImageMagick (convert) not found.");
+        return false;
     }
+    process.waitForFinished(-1);
+    if (process.exitCode() == 0) {
+        QMessageBox::information(m_mainWindow, "Export Complete",
+            "GIF animation exported successfully to:\n" + filename);
+        return true;
+    }
+    QMessageBox::warning(m_mainWindow, "Export Error",
+        "ImageMagick conversion failed:\n" + process.readAllStandardError());
+    return false;
 }
 
-void AnimationController::exportToMp4(const QStringList& frameFiles, const QString& filename)
+bool AnimationController::exportToMp4(const QStringList& frameFiles, const QString& filename)
 {
-    // This would require FFmpeg for video encoding
-    // For now, show a message about the requirement
-
+    // This requires FFmpeg
     QMessageBox::information(m_mainWindow, "MP4 Export",
         "MP4 export requires FFmpeg to be installed.\n\n"
         "Individual frames have been saved. You can use FFmpeg with:\n"
         "ffmpeg -framerate " + QString::number(m_frameRate) + " -i frame_%04d.png -c:v libx264 -pix_fmt yuv420p " + filename);
 
-    // Try to use FFmpeg if available
     QProcess process;
     QStringList arguments;
     arguments << "-framerate" << QString::number(m_frameRate);
@@ -553,31 +541,22 @@ void AnimationController::exportToMp4(const QStringList& frameFiles, const QStri
     arguments << "-pix_fmt" << "yuv420p";
     arguments << "-y"; // Overwrite output file
     arguments << filename;
+    process.setWorkingDirectory(QFileInfo(frameFiles.first()).absolutePath());
 
     process.start("ffmpeg", arguments);
-    if (process.waitForStarted(3000)) {
-        QProgressDialog progress("Encoding video...", "Cancel", 0, 0, m_mainWindow);
-        progress.setWindowModality(Qt::WindowModal);
-        progress.show();
-
-        while (process.state() != QProcess::NotRunning) {
-            QApplication::processEvents();
-            if (progress.wasCanceled()) {
-                process.kill();
-                break;
-            }
-            process.waitForFinished(100);
-        }
-
-        progress.close();
-
-        if (process.exitCode() == 0) {
-            QMessageBox::information(m_mainWindow, "Export Complete",
-                "MP4 video exported successfully to:\n" + filename);
-        }
-        else {
-            QMessageBox::warning(m_mainWindow, "Export Error",
-                "FFmpeg encoding failed:\n" + process.readAllStandardError());
-        }
+    if (!process.waitForStarted(3000)) {
+        QMessageBox::warning(m_mainWindow, "Export Error", "FFmpeg not found.");
+        return false;
     }
+
+    // Wait until encoding finishes
+    process.waitForFinished(-1);
+    if (process.exitCode() == 0) {
+        QMessageBox::information(m_mainWindow, "Export Complete",
+            "MP4 video exported successfully to:\n" + filename);
+        return true;
+    }
+    QMessageBox::warning(m_mainWindow, "Export Error",
+        "FFmpeg encoding failed:\n" + process.readAllStandardError());
+    return false;
 }
