@@ -37,6 +37,7 @@
 #include <QFontDialog>
 #include <QFileDialog>
 #include <QMessageBox>
+#include <QProgressDialog>
 #include <QSettings>
 #include <QCloseEvent>
 #include <QKeyEvent>
@@ -1492,10 +1493,17 @@ void MainWindow::exportAnimation()
     QString format = QFileInfo(fileName).suffix();
 
     AnimationController controller(this);
+    int totalFrames = m_timeline ? m_timeline->getTotalFrames() : 0;
     if (m_timeline)
-        controller.setTotalFrames(m_timeline->getTotalFrames());
+        controller.setTotalFrames(totalFrames);
+
+    QProgressDialog progress("Exporting animation...", "Cancel", 0, totalFrames, this);
+    progress.setWindowModality(Qt::WindowModal);
+    connect(&controller, &AnimationController::exportProgress, &progress, &QProgressDialog::setValue);
+    progress.show();
 
     controller.exportAnimation(fileName, format);
+    progress.close();
     m_statusLabel->setText("Animation exported");
 }
 

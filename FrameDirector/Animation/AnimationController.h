@@ -66,6 +66,8 @@ signals:
     void layerRemoved(int index);
     void keyframeAdded(int layer, int frame);
     void keyframeRemoved(int layer, int frame);
+    // Emitted during export to allow external progress UI
+    void exportProgress(int value, int maximum);
 
 private slots:
     void onPlaybackTimer();
@@ -73,8 +75,8 @@ private slots:
 private:
     void updateAllLayers();
     void updateLayerAtFrame(AnimationLayer* layer, int frame);
-    void exportToGif(const QStringList& frameFiles, const QString& filename);
-    void exportToMp4(const QStringList& frameFiles, const QString& filename);
+    bool exportToGif(const QStringList& frameFiles, const QString& filename);
+    bool exportToMp4(const QStringList& frameFiles, const QString& filename);
     MainWindow* m_mainWindow;
     Timeline* m_timeline;
 
