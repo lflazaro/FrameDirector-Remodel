@@ -559,3 +559,78 @@ void DrawCommand::redo()
         m_canvas->storeCurrentFrameState();
     }
 }
+
+// Keyframe command implementations
+
+AddKeyframeCommand::AddKeyframeCommand(Canvas* canvas, int layer, int frame, QUndoCommand* parent)
+    : QUndoCommand("Add Keyframe", parent)
+    , m_canvas(canvas)
+    , m_layer(layer)
+    , m_frame(frame)
+{
+    if (m_canvas) {
+        m_previous = m_canvas->exportFrameData(layer, frame);
+    }
+}
+
+AddKeyframeCommand::~AddKeyframeCommand()
+{
+    for (QGraphicsItem* item : m_previous.items) {
+        if (item && !item->scene()) {
+            delete item;
+        }
+    }
+}
+
+void AddKeyframeCommand::redo()
+{
+    if (m_canvas) {
+        m_canvas->setCurrentLayer(m_layer);
+        m_canvas->createKeyframe(m_frame);
+        m_canvas->storeCurrentFrameState();
+    }
+}
+
+void AddKeyframeCommand::undo()
+{
+    if (m_canvas) {
+        m_canvas->importFrameData(m_layer, m_frame, m_previous);
+        m_canvas->storeCurrentFrameState();
+    }
+}
+
+RemoveKeyframeCommand::RemoveKeyframeCommand(Canvas* canvas, int layer, int frame, QUndoCommand* parent)
+    : QUndoCommand("Remove Keyframe", parent)
+    , m_canvas(canvas)
+    , m_layer(layer)
+    , m_frame(frame)
+{
+    if (m_canvas) {
+        m_removed = m_canvas->exportFrameData(layer, frame);
+    }
+}
+
+RemoveKeyframeCommand::~RemoveKeyframeCommand()
+{
+    for (QGraphicsItem* item : m_removed.items) {
+        if (item && !item->scene()) {
+            delete item;
+        }
+    }
+}
+
+void RemoveKeyframeCommand::redo()
+{
+    if (m_canvas) {
+        m_canvas->removeKeyframe(m_layer, m_frame);
+        m_canvas->storeCurrentFrameState();
+    }
+}
+
+void RemoveKeyframeCommand::undo()
+{
+    if (m_canvas) {
+        m_canvas->importFrameData(m_layer, m_frame, m_removed);
+        m_canvas->storeCurrentFrameState();
+    }
+}

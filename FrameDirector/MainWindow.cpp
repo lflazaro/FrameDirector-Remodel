@@ -38,6 +38,9 @@
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QProgressDialog>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QSettings>
 #include <QCloseEvent>
 #include <QKeyEvent>
@@ -1880,8 +1883,12 @@ void MainWindow::lastFrame()
 void MainWindow::addKeyframe()
 {
     if (m_canvas) {
-        // Use new enhanced createKeyframe method
-        m_canvas->createKeyframe(m_currentFrame);
+        int layer = m_canvas->getCurrentLayer();
+        if (m_undoStack) {
+            m_undoStack->push(new AddKeyframeCommand(m_canvas, layer, m_currentFrame));
+        } else {
+            m_canvas->createKeyframe(m_currentFrame);
+        }
 
         if (m_timeline) {
             m_timeline->updateLayersFromCanvas();
@@ -2444,8 +2451,20 @@ void MainWindow::createBlankKeyframe()
 
 void MainWindow::removeKeyframe()
 {
-    // Implementation for removing keyframe at current frame
-    m_statusLabel->setText("Keyframe removed");
+    if (m_canvas) {
+        int layer = m_canvas->getCurrentLayer();
+        if (m_undoStack) {
+            m_undoStack->push(new RemoveKeyframeCommand(m_canvas, layer, m_currentFrame));
+        } else {
+            m_canvas->removeKeyframe(layer, m_currentFrame);
+        }
+        if (m_timeline) {
+            m_timeline->updateLayersFromCanvas();
+        }
+        updateFrameActions();
+        m_statusLabel->setText("Keyframe removed");
+        m_isModified = true;
+    }
 }
 
 void MainWindow::setFrameRate(int fps)
@@ -3146,14 +3165,48 @@ bool MainWindow::maybeSave()
 
 void MainWindow::loadFile(const QString& fileName)
 {
-    // Implementation for loading project file
+    QFile file(fileName);
+    if (!file.open(QIODevice::ReadOnly)) {
+        QMessageBox::warning(this, "Error", "Unable to open file");
+        return;
+    }
+    QByteArray data = file.readAll();
+    file.close();
+
+    QJsonDocument doc = QJsonDocument::fromJson(data);
+    if (!doc.isObject()) {
+        QMessageBox::warning(this, "Error", "Invalid project file");
+        return;
+    }
+
+    if (m_canvas) {
+        m_canvas->fromJson(doc.object());
+        if (m_timeline) {
+            m_timeline->updateLayersFromCanvas();
+        }
+    }
+
     setCurrentFile(fileName);
+    m_isModified = false;
     m_statusLabel->setText("File loaded");
 }
 
 bool MainWindow::saveFile(const QString& fileName)
 {
-    // Implementation for saving project file
+    if (!m_canvas)
+        return false;
+
+    QJsonObject obj = m_canvas->toJson();
+    QJsonDocument doc(obj);
+
+    QFile file(fileName);
+    if (!file.open(QIODevice::WriteOnly)) {
+        QMessageBox::warning(this, "Error", "Unable to save file");
+        return false;
+    }
+    file.write(doc.toJson());
+    file.close();
+
     setCurrentFile(fileName);
     m_isModified = false;
     m_statusLabel->setText("File saved");

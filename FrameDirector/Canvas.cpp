@@ -15,6 +15,8 @@
 #include <QApplication>
 #include <QtMath>
 #include <QDebug>
+#include <QJsonObject>
+#include <QJsonArray>
 
 // ROBUST: Enhanced layer data structure with better state management
 struct LayerData {
@@ -2433,4 +2435,288 @@ double Canvas::getLayerOpacity(int index) const
         return layer->opacity;
     }
     return 1.0;
+}
+
+// -------- Serialization and frame data helpers --------
+
+FrameData Canvas::exportFrameData(int layerIndex, int frame)
+{
+    FrameData result;
+    auto layerIt = m_layerFrameData.find(layerIndex);
+    if (layerIt != m_layerFrameData.end()) {
+        auto frameIt = layerIt->find(frame);
+        if (frameIt != layerIt->end()) {
+            const FrameData& existing = frameIt.value();
+            result = existing;
+            result.items = duplicateItems(existing.items);
+        }
+    }
+    return result;
+}
+
+void Canvas::removeKeyframe(int layerIndex, int frame)
+{
+    auto layerIt = m_layerFrameData.find(layerIndex);
+    if (layerIt != m_layerFrameData.end()) {
+        auto frameIt = layerIt->find(frame);
+        if (frameIt != layerIt->end()) {
+            for (QGraphicsItem* item : frameIt.value().items) {
+                if (item) {
+                    if (item->scene())
+                        m_scene->removeItem(item);
+                    delete item;
+                }
+            }
+            layerIt->remove(frame);
+        }
+    }
+
+    m_keyframes.erase(frame);
+
+    if (layerIndex >= 0 && layerIndex < m_layers.size()) {
+        LayerData* layer = static_cast<LayerData*>(m_layers[layerIndex]);
+        layer->clearFrame(frame);
+    }
+}
+
+void Canvas::importFrameData(int layerIndex, int frame, const FrameData& data)
+{
+    removeKeyframe(layerIndex, frame);
+
+    FrameData copy = data;
+    copy.items = duplicateItems(data.items);
+
+    for (QGraphicsItem* item : copy.items) {
+        if (item && !item->scene())
+            m_scene->addItem(item);
+    }
+
+    m_layerFrameData[layerIndex][frame] = copy;
+
+    if (layerIndex >= 0 && layerIndex < m_layers.size()) {
+        LayerData* layer = static_cast<LayerData*>(m_layers[layerIndex]);
+        layer->setFrameItems(frame, copy.items);
+    }
+
+    if (copy.type == FrameType::Keyframe)
+        m_keyframes.insert(frame);
+}
+
+QJsonObject Canvas::serializeGraphicsItem(QGraphicsItem* item) const
+{
+    QJsonObject json;
+    if (!item)
+        return json;
+
+    if (auto rectItem = qgraphicsitem_cast<QGraphicsRectItem*>(item)) {
+        json["class"] = "rect";
+        QRectF r = rectItem->rect();
+        json["x"] = r.x();
+        json["y"] = r.y();
+        json["w"] = r.width();
+        json["h"] = r.height();
+        json["pen"] = rectItem->pen().color().name();
+        json["penWidth"] = rectItem->pen().widthF();
+        json["brush"] = rectItem->brush().color().name();
+    }
+    else if (auto ellipseItem = qgraphicsitem_cast<QGraphicsEllipseItem*>(item)) {
+        json["class"] = "ellipse";
+        QRectF r = ellipseItem->rect();
+        json["x"] = r.x();
+        json["y"] = r.y();
+        json["w"] = r.width();
+        json["h"] = r.height();
+        json["pen"] = ellipseItem->pen().color().name();
+        json["penWidth"] = ellipseItem->pen().widthF();
+        json["brush"] = ellipseItem->brush().color().name();
+    }
+    else if (auto lineItem = qgraphicsitem_cast<QGraphicsLineItem*>(item)) {
+        json["class"] = "line";
+        QLineF l = lineItem->line();
+        json["x1"] = l.x1();
+        json["y1"] = l.y1();
+        json["x2"] = l.x2();
+        json["y2"] = l.y2();
+        json["pen"] = lineItem->pen().color().name();
+        json["penWidth"] = lineItem->pen().widthF();
+    }
+    else if (auto pathItem = qgraphicsitem_cast<QGraphicsPathItem*>(item)) {
+        json["class"] = "path";
+        QPainterPath path = pathItem->path();
+        QJsonArray points;
+        for (int i = 0; i < path.elementCount(); ++i) {
+            QPainterPath::Element e = path.elementAt(i);
+            QJsonObject p; p["x"] = e.x; p["y"] = e.y; points.append(p);
+        }
+        json["points"] = points;
+        json["pen"] = pathItem->pen().color().name();
+        json["penWidth"] = pathItem->pen().widthF();
+        json["brush"] = pathItem->brush().color().name();
+    }
+
+    json["posX"] = item->pos().x();
+    json["posY"] = item->pos().y();
+    json["rotation"] = item->rotation();
+    json["scaleX"] = item->scale();
+    return json;
+}
+
+QGraphicsItem* Canvas::deserializeGraphicsItem(const QJsonObject& json) const
+{
+    QString cls = json["class"].toString();
+    QGraphicsItem* item = nullptr;
+    if (cls == "rect") {
+        QRectF r(json["x"].toDouble(), json["y"].toDouble(), json["w"].toDouble(), json["h"].toDouble());
+        auto rectItem = new QGraphicsRectItem(r);
+        rectItem->setPen(QPen(QColor(json["pen"].toString("#000000")), json["penWidth"].toDouble(1.0)));
+        rectItem->setBrush(QBrush(QColor(json["brush"].toString("#ffffff"))));
+        item = rectItem;
+    }
+    else if (cls == "ellipse") {
+        QRectF r(json["x"].toDouble(), json["y"].toDouble(), json["w"].toDouble(), json["h"].toDouble());
+        auto ellipseItem = new QGraphicsEllipseItem(r);
+        ellipseItem->setPen(QPen(QColor(json["pen"].toString("#000000")), json["penWidth"].toDouble(1.0)));
+        ellipseItem->setBrush(QBrush(QColor(json["brush"].toString("#ffffff"))));
+        item = ellipseItem;
+    }
+    else if (cls == "line") {
+        QLineF l(json["x1"].toDouble(), json["y1"].toDouble(), json["x2"].toDouble(), json["y2"].toDouble());
+        auto lineItem = new QGraphicsLineItem(l);
+        lineItem->setPen(QPen(QColor(json["pen"].toString("#000000")), json["penWidth"].toDouble(1.0)));
+        item = lineItem;
+    }
+    else if (cls == "path") {
+        QPainterPath path;
+        QJsonArray points = json["points"].toArray();
+        for (int i = 0; i < points.size(); ++i) {
+            QJsonObject p = points[i].toObject();
+            if (i == 0)
+                path.moveTo(p["x"].toDouble(), p["y"].toDouble());
+            else
+                path.lineTo(p["x"].toDouble(), p["y"].toDouble());
+        }
+        auto pathItem = new QGraphicsPathItem(path);
+        pathItem->setPen(QPen(QColor(json["pen"].toString("#000000")), json["penWidth"].toDouble(1.0)));
+        pathItem->setBrush(QBrush(QColor(json["brush"].toString("#ffffff"))));
+        item = pathItem;
+    }
+
+    if (item) {
+        item->setPos(json["posX"].toDouble(), json["posY"].toDouble());
+        item->setRotation(json["rotation"].toDouble());
+        double s = json["scaleX"].toDouble(1.0);
+        item->setScale(s);
+    }
+
+    return item;
+}
+
+QJsonObject Canvas::toJson() const
+{
+    QJsonObject json;
+    json["width"] = m_canvasSize.width();
+    json["height"] = m_canvasSize.height();
+    json["background"] = m_backgroundColor.name();
+
+    QJsonArray layers;
+    for (int i = 0; i < m_layers.size(); ++i) {
+        LayerData* layer = static_cast<LayerData*>(m_layers[i]);
+        QJsonObject layerJson;
+        layerJson["name"] = layer->name;
+        layerJson["visible"] = layer->visible;
+        layerJson["locked"] = layer->locked;
+        layerJson["opacity"] = layer->opacity;
+
+        QJsonObject frames;
+        auto layerFrames = m_layerFrameData.value(i);
+        for (auto it = layerFrames.begin(); it != layerFrames.end(); ++it) {
+            const FrameData& f = it.value();
+            QJsonObject frameJson;
+            frameJson["type"] = static_cast<int>(f.type);
+            frameJson["source"] = f.sourceKeyframe;
+            frameJson["hasTween"] = f.hasTweening;
+            frameJson["tweenEnd"] = f.tweeningEndFrame;
+            frameJson["easing"] = f.easingType;
+
+            QJsonArray itemsArray;
+            for (QGraphicsItem* item : f.items) {
+                itemsArray.append(serializeGraphicsItem(item));
+            }
+            frameJson["items"] = itemsArray;
+            frames[QString::number(it.key())] = frameJson;
+        }
+
+        layerJson["frames"] = frames;
+        layers.append(layerJson);
+    }
+
+    json["layers"] = layers;
+    json["currentFrame"] = m_currentFrame;
+    json["currentLayer"] = m_currentLayerIndex;
+
+    return json;
+}
+
+bool Canvas::fromJson(const QJsonObject& json)
+{
+    if (json.isEmpty())
+        return false;
+
+    setCanvasSize(QSize(json["width"].toInt(800), json["height"].toInt(600)));
+    setBackgroundColor(QColor(json["background"].toString("#ffffff")));
+
+    clear();
+    m_layerFrameData.clear();
+    m_layers.clear();
+
+    QJsonArray layers = json["layers"].toArray();
+    for (int i = 0; i < layers.size(); ++i) {
+        QJsonObject layerJson = layers[i].toObject();
+        QString name = layerJson["name"].toString(QString("Layer %1").arg(i + 1));
+        int idx = addLayer(name);
+        setLayerVisible(idx, layerJson["visible"].toBool(true));
+        setLayerLocked(idx, layerJson["locked"].toBool(false));
+        setLayerOpacity(idx, layerJson["opacity"].toDouble(1.0));
+
+        QJsonObject frames = layerJson["frames"].toObject();
+        for (auto it = frames.begin(); it != frames.end(); ++it) {
+            int frame = it.key().toInt();
+            QJsonObject frameJson = it.value().toObject();
+            FrameData data;
+            data.type = static_cast<FrameType>(frameJson["type"].toInt());
+            data.sourceKeyframe = frameJson["source"].toInt(-1);
+            data.hasTweening = frameJson["hasTween"].toBool(false);
+            data.tweeningEndFrame = frameJson["tweenEnd"].toInt(-1);
+            data.easingType = frameJson["easing"].toString("linear");
+
+            QJsonArray itemsArray = frameJson["items"].toArray();
+            for (const QJsonValue& v : itemsArray) {
+                QGraphicsItem* item = deserializeGraphicsItem(v.toObject());
+                if (item)
+                    data.items.append(item);
+            }
+
+            m_layerFrameData[idx][frame] = data;
+            LayerData* layer = static_cast<LayerData*>(m_layers[idx]);
+            layer->setFrameItems(frame, data.items);
+
+            if (data.type == FrameType::Keyframe)
+                m_keyframes.insert(frame);
+        }
+    }
+
+    m_currentFrame = json["currentFrame"].toInt(1);
+    m_currentLayerIndex = json["currentLayer"].toInt(0);
+
+    for (int layerIndex = 0; layerIndex < m_layers.size(); ++layerIndex) {
+        auto frames = m_layerFrameData.value(layerIndex);
+        for (auto it = frames.begin(); it != frames.end(); ++it) {
+            for (QGraphicsItem* item : it.value().items) {
+                if (item && !item->scene())
+                    m_scene->addItem(item);
+            }
+        }
+    }
+
+    return true;
 }
