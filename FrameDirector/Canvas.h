@@ -2,57 +2,26 @@
 #ifndef CANVAS_H
 #define CANVAS_H
 
+#include "Common/FrameTypes.h"
+#include "Common/CommonIncludes.h"
 #include <QGraphicsView>
-#include <QGraphicsScene>
-#include <QGraphicsItem>
-#include <QGraphicsRectItem>
-#include <QGraphicsEllipseItem>
-#include <QGraphicsLineItem>
-#include <QGraphicsTextItem>
-#include <QGraphicsPathItem>
-#include <QGraphicsItemGroup>
 #include <QMouseEvent>
 #include <QKeyEvent>
 #include <QWheelEvent>
-#include <QPainter>
-#include <QPen>
-#include <QBrush>
-#include <QColor>
 #include <QFont>
 #include <QRubberBand>
 #include <QTimer>
 #include <QJsonObject>
 #include <QJsonArray>
-#include <memory>
-#include <vector>
-#include <map>
 #include <set>
+#include <optional>
 
-class Tool;
+using namespace FrameDirector;
+
 class VectorGraphicsItem;
-class MainWindow;
 class AnimationLayer;
-
-// Enhanced frame type tracking
-enum class FrameType {
-    Empty,        // No content, no keyframe
-    Keyframe,     // Contains unique content/state
-    ExtendedFrame // Extends from previous keyframe
-};
-
-struct FrameData {
-    FrameType type;
-    int sourceKeyframe;  // For extended frames, which keyframe they extend from
-    QList<QGraphicsItem*> items;
-    QMap<QGraphicsItem*, QVariant> itemStates; // Store item states for tweening
-
-    // Tweening support
-    bool hasTweening;          // Whether this frame span has tweening applied
-    int tweeningEndFrame;      // The end frame of the tween (if this is start frame)
-    QString easingType;        // Easing curve type ("linear", "ease-in", "ease-out", etc.)
-
-    FrameData() : type(FrameType::Empty), sourceKeyframe(-1), hasTweening(false), tweeningEndFrame(-1), easingType("linear") {}
-};
+class Tool;
+class MainWindow;
 
 // Forward declaration for layer data
 struct LayerData;

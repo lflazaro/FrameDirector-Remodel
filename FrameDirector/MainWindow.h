@@ -1,5 +1,7 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
+
+#include "Common/FrameTypes.h"
 #include "Canvas.h"
 #include <QMainWindow>
 #include <QGraphicsScene>

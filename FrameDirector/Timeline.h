@@ -2,6 +2,7 @@
 #ifndef TIMELINE_H
 #define TIMELINE_H
 
+#include "Common/FrameTypes.h"
 #include <QWidget>
 #include <QScrollArea>
 #include <QHBoxLayout>

@@ -153,6 +153,8 @@
     <ClInclude Include="Animation\AnimationLayer.h" />
     <QtMoc Include="BucketFillTool.h" />
     <ClInclude Include="Commands\UndoCommands.h" />
+    <ClInclude Include="Common\CommonIncludes.h" />
+    <ClInclude Include="Common\FrameTypes.h" />
     <ClInclude Include="resource.h" />
     <QtMoc Include="Tools\EraseTool.h" />
     <ClInclude Include="VectorGraphics\VectorGraphicsItem.h" />

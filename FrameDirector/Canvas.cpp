@@ -1678,7 +1678,7 @@ void Canvas::createExtendedFrame(int frame)
         // Reference the source frame items
         if (m_frameItems.find(sourceKeyframe) != m_frameItems.end()) {
             m_frameData[f].items = m_frameItems[sourceKeyframe];
-            m_frameItems[f] = m_frameItems[sourceKeyframe];
+            m_frameItems[f] = m_frameItems[sourceKeyframe];  // Update compatibility layer
         }
 
         // Copy item states for potential tweening
@@ -1975,7 +1975,7 @@ bool Canvas::isFrameTweened(int frame, int layerIndex) const
     return false;
 }
 
-// NEW: Apply tweening between two keyframes
+// NEW: Apply tweening from one keyframe to another
 void Canvas::applyTweening(int startFrame, int endFrame, const QString& easingType)
 {
     qDebug() << "Applying tweening from frame" << startFrame << "to" << endFrame
@@ -2260,6 +2260,26 @@ void Canvas::saveStateAfterTransform()
     }
 
     qDebug() << "Force saved state for frame" << m_currentFrame << "with" << currentItems.size() << "items";
+}
+
+void Canvas::setBackgroundColor(const QColor& color) {
+    m_backgroundColor = color;
+    if (m_backgroundRect) {
+        m_backgroundRect->setBrush(QBrush(color));
+    }
+}
+
+QList<QGraphicsItem*> Canvas::duplicateItems(const QList<QGraphicsItem*>& items) {
+    QList<QGraphicsItem*> duplicates;
+    for (QGraphicsItem* item : items) {
+        if (item) {
+            QGraphicsItem* clone = cloneGraphicsItem(item);
+            if (clone) {
+                duplicates.append(clone);
+            }
+        }
+    }
+    return duplicates;
 }
 
 // FIX: Add method to ensure object independence during transformations

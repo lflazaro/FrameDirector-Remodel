@@ -2,20 +2,13 @@
 #ifndef UNDOCOMMANDS_H
 #define UNDOCOMMANDS_H
 
+#include "../Common/FrameTypes.h"
 #include <QUndoCommand>
 #include <QGraphicsItem>
-#include <QGraphicsItemGroup>
-#include <QPointF>
-#include <QSizeF>
-#include <QTransform>
-#include <QVariant>
-#include <QColor>
-#include <QList>
-#include <QString>
-#include <memory>
 
 class Canvas;
-struct FrameData;
+
+using namespace FrameDirector;
 
 // Base command for graphics items
 class GraphicsItemCommand : public QUndoCommand

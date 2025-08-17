@@ -1,13 +1,9 @@
 // Tools/SelectionTool.cpp - Enhanced with comprehensive undo support
 #include "SelectionTool.h"
+#include "../Common/FrameTypes.h"
 #include "../MainWindow.h"
 #include "../Canvas.h"
 #include "../Commands/UndoCommands.h"
-#include <QGraphicsScene>
-#include <QGraphicsItem>
-#include <QApplication>
-#include <QUndoStack>
-#include <QDebug>
 
 SelectionTool::SelectionTool(MainWindow* mainWindow, QObject* parent)
     : Tool(mainWindow, parent)
@@ -113,7 +109,7 @@ void SelectionTool::mouseReleaseEvent(QMouseEvent* event, const QPointF& scenePo
     }
 
     if (m_canvas && event->button() == Qt::LeftButton) {
-        if (m_canvas->getFrameType(m_canvas->getCurrentFrame()) == FrameType::ExtendedFrame) {
+        if (m_canvas->getFrameType(m_canvas->getCurrentFrame()) == FrameDirector::FrameType::ExtendedFrame) {
             m_canvas->convertCurrentExtendedFrameToKeyframe();
         }
         m_canvas->saveStateAfterTransform();
