@@ -504,6 +504,18 @@ void Timeline::setupUI()
         "    background-color: #707070;"
         "}"
     );
+    connect(m_scrollArea->horizontalScrollBar(), &QScrollBar::valueChanged,
+        this, [this](int value) {
+            m_scrollX = value;
+            if (m_drawingArea)
+                m_drawingArea->update();
+        });
+    connect(m_scrollArea->verticalScrollBar(), &QScrollBar::valueChanged,
+        this, [this](int value) {
+            m_scrollY = value;
+            if (m_drawingArea)
+                m_drawingArea->update();
+        });
 
     timelineLayout->addWidget(m_scrollArea);
 
@@ -1330,9 +1342,11 @@ void Timeline::updateLayout()
 
     int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
     int totalWidth = m_totalFrames * frameWidth + 100;
-    int totalHeight = m_rulerHeight + m_layers.size() * m_layerHeight + 50;
-
-    m_drawingArea->setMinimumSize(totalWidth, totalHeight);
+    int totalHeight = m_rulerHeight + m_layers.size() * m_layerHeight + 100;
+    int currentHeight = qMax(totalHeight, m_drawingArea->height());
+    m_drawingArea->setMinimumHeight(totalHeight);
+    m_drawingArea->resize(totalWidth, currentHeight);
+    m_drawingArea->updateGeometry();
 }
 
 void Timeline::onFrameSliderChanged(int value)
