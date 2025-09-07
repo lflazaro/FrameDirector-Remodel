@@ -505,6 +505,26 @@ void Timeline::setupUI()
         "}"
     );
 
+    // Synchronize scroll offsets with the drawing area's paint logic.
+    // Without these connections the internal m_scrollX/m_scrollY values
+    // remain at zero, so when the user scrolls the timeline, the drawing
+    // code still assumes the view is at the origin and stops painting
+    // frames beyond the initial window width. By updating the offsets on
+    // scrollbar movement, drawing routines correctly calculate visible
+    // frame ranges and render content for all frames.
+    connect(m_scrollArea->horizontalScrollBar(), &QScrollBar::valueChanged,
+            this, [this](int value) {
+                m_scrollX = value;
+                if (m_drawingArea)
+                    m_drawingArea->update();
+            });
+    connect(m_scrollArea->verticalScrollBar(), &QScrollBar::valueChanged,
+            this, [this](int value) {
+                m_scrollY = value;
+                if (m_drawingArea)
+                    m_drawingArea->update();
+            });
+
     timelineLayout->addWidget(m_scrollArea);
 
     m_mainLayout->addLayout(timelineLayout, 1);
