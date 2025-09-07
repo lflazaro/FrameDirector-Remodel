@@ -184,8 +184,6 @@ private:
     int m_frameRate;
     bool m_isPlaying;
     double m_zoomLevel;
-    int m_scrollX;
-    int m_scrollY;
 
     // Layout properties
     int m_frameWidth;
