@@ -827,7 +827,9 @@ void Timeline::drawTimelineBackground(QPainter* painter, const QRect& rect)
 
 void Timeline::drawFrameRuler(QPainter* painter, const QRect& rect)
 {
-    QRect rulerRect(m_layerPanelWidth, 0, rect.width() - m_layerPanelWidth, m_rulerHeight);
+    // Ensure the ruler background covers the newly exposed area when scrolling
+    int left = qMax(rect.left(), m_layerPanelWidth);
+    QRect rulerRect(left, 0, rect.right() - left + 1, m_rulerHeight);
 
     // Fill ruler background
     painter->fillRect(rulerRect, m_rulerColor);
@@ -842,7 +844,7 @@ void Timeline::drawFrameRuler(QPainter* painter, const QRect& rect)
 
     int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
     int startFrame = qMax(1, (rect.left() - m_layerPanelWidth) / frameWidth + 1);
-    int endFrame = qMin(m_totalFrames, startFrame + rulerRect.width() / frameWidth + 1);
+    int endFrame = qMin(m_totalFrames, startFrame + rect.width() / frameWidth + 1);
 
     for (int frame = startFrame; frame <= endFrame; ++frame) {
         int x = m_layerPanelWidth + (frame - 1) * frameWidth;
@@ -867,9 +869,10 @@ void Timeline::drawFrameRuler(QPainter* painter, const QRect& rect)
 void Timeline::drawLayers(QPainter* painter, const QRect& rect)
 {
     for (int i = 0; i < m_layers.size(); ++i) {
-        QRect layerRect = getLayerRect(i);
-        layerRect.setLeft(m_layerPanelWidth);
-        layerRect.setRight(rect.width());
+        // Build a rect that spans the currently repainted horizontal region
+        QRect base = getLayerRect(i);
+        int left = qMax(rect.left(), m_layerPanelWidth);
+        QRect layerRect(left, base.top(), rect.right() - left + 1, base.height());
 
         // Alternate layer colors
         QColor layerBg = (i % 2 == 0) ? m_layerColor : m_alternateLayerColor;
