@@ -1136,7 +1136,7 @@ void Timeline::addBlankKeyframe(int layer, int frame)
         emit keyframeAdded(layer, frame);
     }
 }
-
+//todo
 void Timeline::drawPlayhead(QPainter* painter, const QRect& rect)
 {
     int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
