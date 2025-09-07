@@ -282,8 +282,6 @@ Timeline::Timeline(MainWindow* parent)
     , m_frameRate(24)
     , m_isPlaying(false)
     , m_zoomLevel(1.0)
-    , m_scrollX(0)
-    , m_scrollY(0)
     , m_frameWidth(12)
     , m_layerHeight(22)
     , m_rulerHeight(32)
@@ -504,18 +502,18 @@ void Timeline::setupUI()
         "    background-color: #707070;"
         "}"
     );
+
+    // Ensure newly exposed regions repaint when the user scrolls.
     connect(m_scrollArea->horizontalScrollBar(), &QScrollBar::valueChanged,
-        this, [this](int value) {
-            m_scrollX = value;
-            if (m_drawingArea)
-                m_drawingArea->update();
-        });
+            this, [this](int) {
+                if (m_drawingArea)
+                    m_drawingArea->update();
+            });
     connect(m_scrollArea->verticalScrollBar(), &QScrollBar::valueChanged,
-        this, [this](int value) {
-            m_scrollY = value;
-            if (m_drawingArea)
-                m_drawingArea->update();
-        });
+            this, [this](int) {
+                if (m_drawingArea)
+                    m_drawingArea->update();
+            });
 
     timelineLayout->addWidget(m_scrollArea);
 
@@ -843,11 +841,11 @@ void Timeline::drawFrameRuler(QPainter* painter, const QRect& rect)
     painter->setFont(QFont("Arial", 9));
 
     int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
-    int startFrame = qMax(1, m_scrollX / frameWidth);
+    int startFrame = qMax(1, (rect.left() - m_layerPanelWidth) / frameWidth + 1);
     int endFrame = qMin(m_totalFrames, startFrame + rulerRect.width() / frameWidth + 1);
 
     for (int frame = startFrame; frame <= endFrame; ++frame) {
-        int x = m_layerPanelWidth + (frame - 1) * frameWidth - m_scrollX;
+        int x = m_layerPanelWidth + (frame - 1) * frameWidth;
 
         if (frame % 5 == 1 || frame == 1) {
             // Major tick and number
@@ -896,7 +894,7 @@ void Timeline::drawKeyframes(QPainter* painter, const QRect& rect)
     if (!canvas) return;
 
     int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
-    int startFrame = qMax(1, m_scrollX / frameWidth);
+    int startFrame = qMax(1, (rect.left() - m_layerPanelWidth) / frameWidth + 1);
     int endFrame = qMin(m_totalFrames, startFrame + rect.width() / frameWidth + 1);
 
     for (int frame = startFrame; frame <= endFrame; ++frame) {
@@ -907,7 +905,7 @@ void Timeline::drawKeyframes(QPainter* painter, const QRect& rect)
                 QRect layerRect = getLayerRect(layerIndex);
                 if (layerRect.isEmpty()) continue;
 
-                int x = m_layerPanelWidth + (frame - 1) * frameWidth - m_scrollX;
+                int x = m_layerPanelWidth + (frame - 1) * frameWidth;
                 int y = layerRect.center().y();
 
                 bool selected = (frame == m_currentFrame);
@@ -923,7 +921,7 @@ void Timeline::drawTweeningIndicators(QPainter* painter, const QRect& rect)
     if (!canvas) return;
 
     int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
-    int startFrame = qMax(1, m_scrollX / frameWidth);
+    int startFrame = qMax(1, (rect.left() - m_layerPanelWidth) / frameWidth + 1);
     int endFrame = qMin(m_totalFrames, startFrame + rect.width() / frameWidth + 1);
     int currentLayer = canvas->getCurrentLayer(); // FIX: Only draw for current layer
 
@@ -937,8 +935,8 @@ void Timeline::drawTweeningIndicators(QPainter* painter, const QRect& rect)
                 // FIX: Only draw for current layer, not all layers
                 QRect layerRect = getLayerRect(currentLayer);
                 if (!layerRect.isEmpty()) {
-                    int startX = m_layerPanelWidth + (frame - 1) * frameWidth - m_scrollX + frameWidth / 2;
-                    int endX = m_layerPanelWidth + (tweeningEnd - 1) * frameWidth - m_scrollX + frameWidth / 2;
+                    int startX = m_layerPanelWidth + (frame - 1) * frameWidth + frameWidth / 2;
+                    int endX = m_layerPanelWidth + (tweeningEnd - 1) * frameWidth + frameWidth / 2;
                     int y = layerRect.center().y() + 5;
 
                     painter->drawLine(startX, y, endX, y);
@@ -961,7 +959,7 @@ void Timeline::drawFrameExtensions(QPainter* painter, const QRect& rect)
     if (!canvas) return;
 
     int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
-    int startFrame = qMax(1, m_scrollX / frameWidth);
+    int startFrame = qMax(1, (rect.left() - m_layerPanelWidth) / frameWidth + 1);
     int endFrame = qMin(m_totalFrames, startFrame + rect.width() / frameWidth + 1);
 
     // Draw frame spans for each layer
@@ -1017,8 +1015,8 @@ void Timeline::drawFrameSpan(QPainter* painter, int layer, int startFrame, int e
     if (layerRect.isEmpty()) return;
 
     int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
-    int startX = m_layerPanelWidth + (startFrame - 1) * frameWidth - m_scrollX + frameWidth / 2;
-    int endX = m_layerPanelWidth + (endFrame - 1) * frameWidth - m_scrollX + frameWidth / 2;
+    int startX = m_layerPanelWidth + (startFrame - 1) * frameWidth + frameWidth / 2;
+    int endX = m_layerPanelWidth + (endFrame - 1) * frameWidth + frameWidth / 2;
     int y = layerRect.center().y();
 
     // Draw thick orange line for frame extension
@@ -1152,7 +1150,7 @@ void Timeline::addBlankKeyframe(int layer, int frame)
 void Timeline::drawPlayhead(QPainter* painter, const QRect& rect)
 {
     int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
-    int x = m_layerPanelWidth + (m_currentFrame - 1) * frameWidth - m_scrollX;
+    int x = m_layerPanelWidth + (m_currentFrame - 1) * frameWidth;
 
     // Draw playhead line
     painter->setPen(QPen(m_playheadColor, 2));
@@ -1186,7 +1184,7 @@ void Timeline::drawSelection(QPainter* painter, const QRect& rect)
 QRect Timeline::getFrameRect(int frame) const
 {
     int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
-    int x = m_layerPanelWidth + (frame - 1) * frameWidth - m_scrollX;
+    int x = m_layerPanelWidth + (frame - 1) * frameWidth;
     return QRect(x, m_rulerHeight, frameWidth, height() - m_rulerHeight);
 }
 
@@ -1194,7 +1192,7 @@ QRect Timeline::getLayerRect(int layer) const
 {
     if (layer < 0 || layer >= m_layers.size()) return QRect();
 
-    int y = m_rulerHeight + layer * m_layerHeight - m_scrollY;
+    int y = m_rulerHeight + layer * m_layerHeight;
     return QRect(0, y, width(), m_layerHeight);
 }
 
@@ -1206,13 +1204,13 @@ QRect Timeline::getDrawingAreaRect() const
 int Timeline::getFrameFromX(int x) const
 {
     int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
-    int adjustedX = x - m_layerPanelWidth + m_scrollX;
+    int adjustedX = x - m_layerPanelWidth;
     return qMax(1, qMin(m_totalFrames, adjustedX / frameWidth + 1));
 }
 
 int Timeline::getLayerFromY(int y) const
 {
-    int adjustedY = y - m_rulerHeight + m_scrollY;
+    int adjustedY = y - m_rulerHeight;
     int layer = adjustedY / m_layerHeight;
     return qMax(0, qMin(static_cast<int>(m_layers.size()) - 1, layer));
 }
@@ -1342,7 +1340,12 @@ void Timeline::updateLayout()
 
     int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
     int totalWidth = m_totalFrames * frameWidth + 100;
-    int totalHeight = m_rulerHeight + m_layers.size() * m_layerHeight + 100;
+    int totalHeight = m_rulerHeight + m_layers.size() * m_layerHeight + 50;
+
+    // Expand the drawing area's width when the frame count grows so the
+    // horizontal scrollbar range reflects the new timeline length. Preserve
+    // the current height unless more layers require additional space to avoid
+    // shrinking the visible timeline area.
     int currentHeight = qMax(totalHeight, m_drawingArea->height());
     m_drawingArea->setMinimumHeight(totalHeight);
     m_drawingArea->resize(totalWidth, currentHeight);
