@@ -1351,13 +1351,14 @@ void Timeline::updateLayout()
     int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
     int totalWidth = m_totalFrames * frameWidth + 100;
     int totalHeight = m_rulerHeight + m_layers.size() * m_layerHeight + 50;
-    // Ensure the drawing area's actual size reflects the new timeline length.
-    // Previously only the minimum size was updated, so increasing the total
-    // number of frames left the widget at its old width and the scrollbars
-    // never expanded, leaving new frames unrendered. Resizing forces the
-    // scroll area to recalculate its ranges and makes the new frames visible.
-    m_drawingArea->setMinimumSize(totalWidth, totalHeight);
-    m_drawingArea->resize(totalWidth, totalHeight);
+
+    // Expand the drawing area's width when the frame count grows so the
+    // horizontal scrollbar range reflects the new timeline length. Preserve
+    // the current height unless more layers require additional space to avoid
+    // shrinking the visible timeline area.
+    int currentHeight = qMax(totalHeight, m_drawingArea->height());
+    m_drawingArea->setMinimumHeight(totalHeight);
+    m_drawingArea->resize(totalWidth, currentHeight);
     m_drawingArea->updateGeometry();
 }
 
