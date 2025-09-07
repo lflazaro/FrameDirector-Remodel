@@ -560,6 +560,8 @@ void Timeline::setupUI()
     updateLayout();
 }
 
+//Fixed timeline resizing issue!
+
 void Timeline::updateLayersFromCanvas()
 {
     Canvas* canvas = m_mainWindow->findChild<Canvas*>();
