@@ -6,6 +6,7 @@
 #include "Tools/SelectionTool.h"
 #include <QGraphicsScene>
 #include <QGraphicsItem>
+#include <QGraphicsPathItem>
 #include <QMouseEvent>
 #include <QWheelEvent>
 #include <QKeyEvent>
@@ -820,7 +821,19 @@ void Canvas::setCurrentFrame(int frame)
         else if (startFrame != -1 && endFrame != -1 && frame > startFrame && frame < endFrame) {
             // Show interpolated content for in-between frames
             clearLayerFromScene(m_currentLayerIndex);
-            performInterpolation(frame, startFrame, endFrame, m_currentLayerIndex);
+            // Compute interpolation factor and apply easing before interpolating
+            float t = static_cast<float>(frame - startFrame) / (endFrame - startFrame);
+            QString easingType = getFrameTweeningEasing(startFrame, m_currentLayerIndex);
+            if (easingType == "ease-in") {
+                t = t * t;  // Quadratic ease-in
+            }
+            else if (easingType == "ease-out") {
+                t = 1 - (1 - t) * (1 - t);  // Quadratic ease-out
+            }
+            else if (easingType == "ease-in-out") {
+                t = t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t);  // Quadratic ease-in-out
+            }
+            interpolateFrame(frame, startFrame, endFrame, t, m_currentLayerIndex);
         }
 
         emit frameChanged(frame);
@@ -857,28 +870,12 @@ void Canvas::cleanupInterpolatedItems(int layerIndex)
 }
 
 
-void Canvas::performInterpolation(int currentFrame, int startFrame, int endFrame, int layerIndex)
+void Canvas::interpolateFrame(int currentFrame, int startFrame, int endFrame, float t, int layerIndex)
 {
-    // CRITICAL FIX: Ensure complete cleanup before creating new interpolated items
+    // Ensure we don't leave stale interpolated items behind
     cleanupInterpolatedItems(layerIndex);
 
     m_layerShowingInterpolated[layerIndex] = true;
-
-    // Calculate interpolation factor
-    float t = (float)(currentFrame - startFrame) / (endFrame - startFrame);
-
-    // Apply easing curve
-    QString easingType = getFrameTweeningEasing(startFrame, layerIndex);
-    if (easingType == "ease-in") {
-        t = t * t;  // Quadratic ease-in
-    }
-    else if (easingType == "ease-out") {
-        t = 1 - (1 - t) * (1 - t);  // Quadratic ease-out
-    }
-    else if (easingType == "ease-in-out") {
-        t = t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t);  // Quadratic ease-in-out
-    }
-    // else linear (no change to t)
 
     // Get start and end frame data for specific layer
     auto& layerFrameData = m_layerFrameData[layerIndex];
@@ -903,7 +900,7 @@ void Canvas::performInterpolation(int currentFrame, int startFrame, int endFrame
         QGraphicsItem* interpolatedItem = cloneGraphicsItem(startItem);
         if (!interpolatedItem) continue;
 
-        // Interpolate properties... (same interpolation logic as before)
+        // Interpolate position
         QPointF startPos = startItem->pos();
         QPointF endPos = endItem->pos();
         QPointF interpolatedPos = startPos + t * (endPos - startPos);
@@ -945,7 +942,7 @@ void Canvas::performInterpolation(int currentFrame, int startFrame, int endFrame
             }
         }
 
-        // CRITICAL: Mark interpolated items as non-selectable and set layer Z-value
+        // Mark interpolated items as non-selectable and set layer Z-value
         interpolatedItem->setFlag(QGraphicsItem::ItemIsSelectable, false);
         interpolatedItem->setFlag(QGraphicsItem::ItemIsMovable, false);
         interpolatedItem->setData(999, "interpolated");
@@ -2148,33 +2145,6 @@ int Canvas::getTweeningEndFrame(int frame, int layerIndex) const
         return it.value().tweeningEndFrame;
     }
     return -1;
-}
-
-
-// NEW: Interpolate frame content between two keyframes
-void Canvas::interpolateFrame(int frame, int startFrame, int endFrame, float t)
-{
-    // This method would handle the actual interpolation of item properties
-    // For now, we'll keep it simple and just show the start frame content
-
-    auto startIt = m_frameData.find(startFrame);
-    auto endIt = m_frameData.find(endFrame);
-
-    if (startIt == m_frameData.end() || endIt == m_frameData.end()) {
-        return;
-    }
-
-    // Clear current scene
-    scene()->clear();
-
-    // For basic implementation, just show start frame content
-    // In a full implementation, this would interpolate positions, rotations, opacity, etc.
-    const QList<QGraphicsItem*>& startItems = startIt->second.items;
-    for (QGraphicsItem* item : startItems) {
-        // Clone and add item to scene
-        // This is a simplified version - full implementation would interpolate properties
-        scene()->addItem(item);
-    }
 }
 
 void Canvas::onItemAdded(QGraphicsItem* item)

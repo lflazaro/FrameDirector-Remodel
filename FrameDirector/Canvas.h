@@ -241,8 +241,6 @@ private:
     // ENHANCED: Layer-aware tweening and interpolation methods
     void cleanupInterpolatedItems();  // Global cleanup (all layers)
     void cleanupInterpolatedItems(int layerIndex);  // Layer-specific cleanup
-    void performInterpolation(int currentFrame, int startFrame, int endFrame);  // Legacy
-    void performInterpolation(int currentFrame, int startFrame, int endFrame, int layerIndex);  // Layer-aware
 
     // Utility functions
     QPointF snapToGrid(const QPointF& point);
