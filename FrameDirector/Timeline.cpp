@@ -560,7 +560,7 @@ void Timeline::setupUI()
     updateLayout();
 }
 
-//Fixed timeline resizing issue!
+//Fixed timeline resizing issue!!
 
 void Timeline::updateLayersFromCanvas()
 {
