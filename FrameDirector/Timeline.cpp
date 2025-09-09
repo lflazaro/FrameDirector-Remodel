@@ -105,10 +105,11 @@ void Timeline::showFrameContextMenu(int frame, int layer, const QPoint& globalPo
 
     // Set current frame and layer for context
     setCurrentFrame(frame);
+    canvas->setCurrentLayer(layer);
 
-    FrameType frameType = canvas->getFrameType(frame);
-    bool isFrameTweened = canvas->isFrameTweened(frame);
-    bool hasNextKeyframe = canvas->getNextKeyframeAfter(frame) != -1;
+    FrameType frameType = canvas->getFrameType(frame, layer);
+    bool isFrameTweened = canvas->isFrameTweened(frame, layer);
+    bool hasNextKeyframe = canvas->getNextKeyframeAfter(frame, layer) != -1;
 
     QMenu contextMenu;
     contextMenu.setStyleSheet(
@@ -159,8 +160,9 @@ void Timeline::showFrameContextMenu(int frame, int layer, const QPoint& globalPo
         if (!isFrameTweened && frameType == FrameType::Keyframe && hasNextKeyframe) {
             QAction* applyTweeningAction = contextMenu.addAction("Apply Tweening");
             applyTweeningAction->setIcon(QIcon(":/icons/play.png"));
-            connect(applyTweeningAction, &QAction::triggered, [this, canvas, frame]() {
-                int nextKeyframe = canvas->getNextKeyframeAfter(frame);
+            connect(applyTweeningAction, &QAction::triggered, [this, canvas, frame, layer]() {
+                canvas->setCurrentLayer(layer);
+                int nextKeyframe = canvas->getNextKeyframeAfter(frame, layer);
                 if (nextKeyframe != -1) {
                     canvas->applyTweening(frame, nextKeyframe, "linear");
                     updateLayersFromCanvas();
@@ -178,8 +180,9 @@ void Timeline::showFrameContextMenu(int frame, int layer, const QPoint& globalPo
             QStringList easingTypes = { "linear", "ease-in", "ease-out", "ease-in-out" };
             for (const QString& easing : easingTypes) {
                 QAction* easingAction = easingMenu->addAction(easing);
-                connect(easingAction, &QAction::triggered, [this, canvas, frame, easing]() {
-                    int nextKeyframe = canvas->getNextKeyframeAfter(frame);
+                connect(easingAction, &QAction::triggered, [this, canvas, frame, easing, layer]() {
+                    canvas->setCurrentLayer(layer);
+                    int nextKeyframe = canvas->getNextKeyframeAfter(frame, layer);
                     if (nextKeyframe != -1) {
                         canvas->applyTweening(frame, nextKeyframe, easing);
                         updateLayersFromCanvas();
@@ -193,11 +196,11 @@ void Timeline::showFrameContextMenu(int frame, int layer, const QPoint& globalPo
         if (isFrameTweened) {
             QAction* removeTweeningAction = contextMenu.addAction("Remove Tweening");
             removeTweeningAction->setIcon(QIcon(":/icons/stop.png"));
-            connect(removeTweeningAction, &QAction::triggered, [this, canvas, frame]() {
-                // Find the start frame of the tweening sequence
+            connect(removeTweeningAction, &QAction::triggered, [this, canvas, frame, layer]() {
+                canvas->setCurrentLayer(layer);
                 int startFrame = frame;
-                if (canvas->getFrameType(frame) == FrameType::ExtendedFrame) {
-                    startFrame = canvas->getSourceKeyframe(frame);
+                if (canvas->getFrameType(frame, layer) == FrameType::ExtendedFrame) {
+                    startFrame = canvas->getSourceKeyframe(frame, layer);
                 }
                 canvas->removeTweening(startFrame);
                 updateLayersFromCanvas();
@@ -212,7 +215,8 @@ void Timeline::showFrameContextMenu(int frame, int layer, const QPoint& globalPo
     if (frameType == FrameType::ExtendedFrame && !isFrameTweened) {
         QAction* convertAction = contextMenu.addAction("Convert to Keyframe");
         convertAction->setIcon(QIcon(":/icons/branch-open.png"));
-        connect(convertAction, &QAction::triggered, [this, canvas, frame]() {
+            connect(convertAction, &QAction::triggered, [this, canvas, frame, layer]() {
+            canvas->setCurrentLayer(layer);
             canvas->createKeyframe(frame);
             updateLayersFromCanvas();
             m_mainWindow->updateFrameActions();
@@ -222,10 +226,11 @@ void Timeline::showFrameContextMenu(int frame, int layer, const QPoint& globalPo
     }
 
     // Clear frame action (only for frames with content, not extended or tweened)
-    if (canvas->hasContent(frame) && frameType != FrameType::ExtendedFrame && !isFrameTweened) {
+    if (canvas->hasContent(frame, layer) && frameType != FrameType::ExtendedFrame && !isFrameTweened) {
         QAction* clearAction = contextMenu.addAction("Clear Frame");
         clearAction->setIcon(QIcon(":/icons/stop.png"));
-        connect(clearAction, &QAction::triggered, [this, canvas]() {
+        connect(clearAction, &QAction::triggered, [this, canvas, layer]() {
+            canvas->setCurrentLayer(layer);
             canvas->clearCurrentFrameContent();
             updateLayersFromCanvas();
             m_mainWindow->updateFrameActions();
@@ -342,9 +347,9 @@ void Timeline::toggleKeyframe(int layer, int frame)
 {
     Canvas* canvas = m_mainWindow->findChild<Canvas*>();
     if (canvas) {
-        if (canvas->hasKeyframe(frame)) {
+        canvas->setCurrentLayer(layer);
+        if (canvas->hasKeyframe(frame, layer)) {
             // Remove keyframe (implement if needed)
-            // For now, just create if doesn't exist
         }
         else {
             canvas->createKeyframe(frame);
@@ -934,8 +939,8 @@ void Timeline::drawTweeningIndicators(QPainter* painter, const QRect& rect)
     painter->setBrush(Qt::NoBrush);
 
     for (int frame = startFrame; frame <= endFrame; ++frame) {
-        if (canvas->hasFrameTweening(frame)) {
-            int tweeningEnd = canvas->getTweeningEndFrame(frame);
+        if (canvas->hasFrameTweening(frame, currentLayer)) {
+            int tweeningEnd = canvas->getTweeningEndFrame(frame, currentLayer);
             if (tweeningEnd > frame) {
                 // FIX: Only draw for current layer, not all layers
                 QRect layerRect = getLayerRect(currentLayer);
@@ -1106,15 +1111,14 @@ FrameVisualType Timeline::getFrameVisualType(int layer, int frame) const
     Canvas* canvas = m_mainWindow->findChild<Canvas*>();
     if (!canvas) return FrameVisualType::Empty;
 
-    if (canvas->hasKeyframe(frame)) {
+    if (canvas->hasKeyframe(frame, layer)) {
         return FrameVisualType::Keyframe;
     }
-    else if (canvas->hasContent(frame)) {
-        // Check if this is an extended frame
-        if (canvas->getFrameType(frame) == FrameType::ExtendedFrame) {
+    else if (canvas->hasContent(frame, layer)) {
+        if (canvas->getFrameType(frame, layer) == FrameType::ExtendedFrame) {
             return FrameVisualType::ExtendedFrame;
         }
-        return FrameVisualType::Keyframe; // Fallback
+        return FrameVisualType::Keyframe;
     }
 
     return FrameVisualType::Empty;
@@ -1124,7 +1128,7 @@ FrameVisualType Timeline::getFrameVisualType(int layer, int frame) const
 bool Timeline::hasContent(int layer, int frame) const
 {
     Canvas* canvas = m_mainWindow->findChild<Canvas*>();
-    return canvas ? canvas->hasContent(frame) : false;
+    return canvas ? canvas->hasContent(frame, layer) : false;
 }
 
 
@@ -1132,6 +1136,7 @@ void Timeline::addExtendedFrame(int layer, int frame)
 {
     Canvas* canvas = m_mainWindow->findChild<Canvas*>();
     if (canvas && frame >= 1 && frame <= m_totalFrames) {
+        if (layer >= 0) canvas->setCurrentLayer(layer);
         canvas->createExtendedFrame(frame);
         if (m_drawingArea) {
             m_drawingArea->update();
@@ -1144,6 +1149,7 @@ void Timeline::addBlankKeyframe(int layer, int frame)
 {
     Canvas* canvas = m_mainWindow->findChild<Canvas*>();
     if (canvas && frame >= 1 && frame <= m_totalFrames) {
+        if (layer >= 0) canvas->setCurrentLayer(layer);
         canvas->createBlankKeyframe(frame);
         if (m_drawingArea) {
             m_drawingArea->update();
@@ -1317,7 +1323,7 @@ void Timeline::removeKeyframe(int layer, int frame)
 bool Timeline::hasKeyframe(int layer, int frame) const
 {
     Canvas* canvas = m_mainWindow->findChild<Canvas*>();
-    return canvas ? canvas->hasKeyframe(frame) : false;
+    return canvas ? canvas->hasKeyframe(frame, layer) : false;
 }
 
 int Timeline::getLayerCount() const
