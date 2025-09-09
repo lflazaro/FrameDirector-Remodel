@@ -15,6 +15,8 @@
 #include <QJsonArray>
 #include <set>
 #include <optional>
+#include <QHash>
+#include <QSet>
 
 using namespace FrameDirector;
 
@@ -99,33 +101,36 @@ public:
     void removeKeyframe(int layerIndex, int frame);
 
     // Frame type queries and navigation
-    bool hasKeyframe(int frame) const;
-    bool hasContent(int frame) const;
-    QList<int> getFrameSpan(int keyframe) const; // Get all frames extending from keyframe
+    bool hasKeyframe(int frame, int layerIndex) const;
+    bool hasContent(int frame, int layerIndex) const;
     void storeCurrentFrameState();
     void clearFrameState();
 
-    // Legacy tweening methods (for backward compatibility - use current layer)
-    FrameType getFrameType(int frame) const;
-    int getSourceKeyframe(int frame) const;      // For extended frames
-    int getLastKeyframeBefore(int frame) const;  // Find previous keyframe
-    int getNextKeyframeAfter(int frame) const;   // Find next keyframe
-    bool hasFrameTweening(int frame) const;
-    bool isFrameTweened(int frame) const;
+    // Layer-aware tweening and navigation
+    FrameType getFrameType(int frame, int layerIndex) const;
+    int getSourceKeyframe(int frame, int layerIndex) const;      // For extended frames
+    int getLastKeyframeBefore(int frame, int layerIndex) const;  // Find previous keyframe
+    int getNextKeyframeAfter(int frame, int layerIndex) const;   // Find next keyframe
+    bool hasFrameTweening(int frame, int layerIndex) const;
+    bool isFrameTweened(int frame, int layerIndex) const;
     void applyTweening(int startFrame, int endFrame, const QString& easingType = "linear");
     void removeTweening(int startFrame);
     bool canDrawOnCurrentFrame() const;
-    QString getFrameTweeningEasing(int frame) const;
-    int getTweeningEndFrame(int frame) const;
-    void interpolateFrame(int frame, int startFrame, int endFrame, float t);
-
-    // NEW: Layer-aware tweening methods (recommended for new code)
-    FrameType getFrameType(int frame, int layerIndex) const;
-    int getSourceKeyframe(int frame, int layerIndex) const;
-    bool hasFrameTweening(int frame, int layerIndex) const;
-    bool isFrameTweened(int frame, int layerIndex) const;
     QString getFrameTweeningEasing(int frame, int layerIndex) const;
     int getTweeningEndFrame(int frame, int layerIndex) const;
+    void interpolateFrame(int frame, int startFrame, int endFrame, float t, int layerIndex);
+
+    // Convenience wrappers for current layer
+    bool hasKeyframe(int frame) const { return hasKeyframe(frame, m_currentLayerIndex); }
+    bool hasContent(int frame) const { return hasContent(frame, m_currentLayerIndex); }
+    FrameType getFrameType(int frame) const { return getFrameType(frame, m_currentLayerIndex); }
+    int getSourceKeyframe(int frame) const { return getSourceKeyframe(frame, m_currentLayerIndex); }
+    int getLastKeyframeBefore(int frame) const { return getLastKeyframeBefore(frame, m_currentLayerIndex); }
+    int getNextKeyframeAfter(int frame) const { return getNextKeyframeAfter(frame, m_currentLayerIndex); }
+    bool hasFrameTweening(int frame) const { return hasFrameTweening(frame, m_currentLayerIndex); }
+    bool isFrameTweened(int frame) const { return isFrameTweened(frame, m_currentLayerIndex); }
+    QString getFrameTweeningEasing(int frame) const { return getFrameTweeningEasing(frame, m_currentLayerIndex); }
+    int getTweeningEndFrame(int frame) const { return getTweeningEndFrame(frame, m_currentLayerIndex); }
 
     // Tools and drawing
     void setCurrentTool(Tool* tool);
@@ -279,7 +284,7 @@ private:
     int m_currentFrame;
     std::map<int, FrameData> m_frameData;        // Enhanced frame tracking (legacy global)
     std::map<int, QList<QGraphicsItem*>> m_frameItems; // Keep for compatibility
-    std::set<int> m_keyframes;                   // Track keyframes specifically
+    QHash<int, QSet<int>> m_layerKeyframes;      // layerIndex -> keyframe set
     QList<QGraphicsItem*> m_interpolatedItems;  // Legacy global interpolated items
 
     // Tweening state flags
