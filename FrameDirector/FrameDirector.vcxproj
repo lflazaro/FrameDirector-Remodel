@@ -167,6 +167,9 @@
     <QtMoc Include="Tools\DrawingTool.h" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="..\..\32x32-free-design-icons\png\32x32\tool-gradient.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
     <Image Include="resources\icons\arrow-right.png">
       <DeploymentContent>true</DeploymentContent>
     </Image>

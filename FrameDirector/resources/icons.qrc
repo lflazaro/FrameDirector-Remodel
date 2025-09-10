@@ -50,6 +50,7 @@
         <file>icons/tool-eyedropper.png</file>
         <file>icons/tool-zoom.png</file>
         <file>icons/tool-hand.png</file>
+        <file>icons/tool-gradient.png</file>
 
         <!-- View Operation Icons (24x24) -->
         <file>icons/zoom-in.png</file>

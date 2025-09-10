@@ -344,6 +344,9 @@
     <Image Include="resources\icons\zoom-out.png">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="..\..\32x32-free-design-icons\png\32x32\tool-gradient.png">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\styles\dark-theme.qss">
