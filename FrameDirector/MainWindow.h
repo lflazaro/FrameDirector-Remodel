@@ -117,6 +117,7 @@ public:
     void removeKeyframe();
     void updateFrameActions();          // Enable/disable frame actions based on current state
     void setTimelineLength();
+    QString getAudioFile() const;
     // Public member access for undo commands
     QUndoStack* m_undoStack;
 

@@ -528,12 +528,20 @@ bool AnimationController::exportToGif(const QStringList& frameFiles, const QStri
 
 bool AnimationController::exportToMp4(const QStringList& frameFiles, const QString& filename, int quality)
 {
+    QString audioFile;
+    if (m_mainWindow)
+        audioFile = m_mainWindow->getAudioFile();
+
     // This requires FFmpeg
+    QString ffmpegCmd = "ffmpeg -framerate " + QString::number(m_frameRate) +
+        " -i frame_%04d.png";
+    if (!audioFile.isEmpty())
+        ffmpegCmd += " -i \"" + audioFile + "\" -c:a aac -shortest";
+    ffmpegCmd += " -vf pad=ceil(iw/2)*2:ceil(ih/2)*2 -c:v libx264 -pix_fmt yuv420p " + filename;
     QMessageBox::information(m_mainWindow, "MP4 Export",
         "MP4 export requires FFmpeg to be installed.\n\n"
-        "Individual frames have been saved. You can use FFmpeg with:\n"
-        "ffmpeg -framerate " + QString::number(m_frameRate) +
-        " -i frame_%04d.png -vf pad=ceil(iw/2)*2:ceil(ih/2)*2 -c:v libx264 -pix_fmt yuv420p " + filename);
+        "Individual frames have been saved. You can use FFmpeg with:\n" +
+        ffmpegCmd);
 
     QProcess process;
     QStringList arguments;
@@ -541,11 +549,15 @@ bool AnimationController::exportToMp4(const QStringList& frameFiles, const QStri
     QString pattern = frameFiles.first();
     pattern.replace(QRegularExpression("frame_\\d{4}\\.png"), "frame_%04d.png");
     arguments << "-i" << pattern;
+    if (!audioFile.isEmpty())
+        arguments << "-i" << audioFile;
     arguments << "-vf" << "pad=ceil(iw/2)*2:ceil(ih/2)*2";
     arguments << "-c:v" << "libx264";
     int crf = 51 - (quality * 51) / 100;
     arguments << "-crf" << QString::number(crf);
     arguments << "-pix_fmt" << "yuv420p";
+    if (!audioFile.isEmpty())
+        arguments << "-c:a" << "aac" << "-shortest";
     arguments << "-y"; // Overwrite output file
     arguments << filename;
     process.setWorkingDirectory(QFileInfo(frameFiles.first()).absolutePath());

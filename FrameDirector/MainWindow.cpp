@@ -1513,6 +1513,11 @@ void MainWindow::importAudio()
     }
 }
 
+QString MainWindow::getAudioFile() const
+{
+    return m_audioFile;
+}
+
 void MainWindow::onAudioDurationChanged(qint64 duration)
 {
     if (duration <= 0)
