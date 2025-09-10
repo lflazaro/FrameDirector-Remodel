@@ -80,7 +80,7 @@ MainWindow::MainWindow(QWidget* parent)
     , m_currentFile("")
     , m_isModified(false)
     , m_currentFrame(1)
-    , m_totalFrames(100)
+    , m_totalFrames(500)
     , m_currentZoom(1.0)
     , m_frameRate(24)
     , m_isPlaying(false)
@@ -1206,7 +1206,7 @@ void MainWindow::newFile()
         m_layers.clear();
         m_keyframes.clear();
         m_currentFrame = 1;
-        m_totalFrames = 100;
+        m_totalFrames = 500;
         m_currentFile.clear();
         m_isModified = false;
         addLayer();
