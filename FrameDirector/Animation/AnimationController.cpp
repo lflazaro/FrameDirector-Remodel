@@ -328,17 +328,17 @@ void AnimationController::moveKeyframe(int fromFrame, int toFrame)
     }
 }
 
-void AnimationController::exportAnimation(const QString& filename, const QString& format)
+bool AnimationController::exportAnimation(const QString& filename, const QString& format, int quality, bool loop)
 {
-    if (filename.isEmpty() || m_layers.empty()) {
-        return;
+    if (filename.isEmpty()) {
+        return false;
     }
 
     // Get canvas for rendering
     Canvas* canvas = m_mainWindow->findChild<Canvas*>();
     if (!canvas || !canvas->scene()) {
         QMessageBox::warning(m_mainWindow, "Export Error", "Cannot access canvas for export.");
-        return;
+        return false;
     }
 
     QGraphicsScene* scene = canvas->scene();
@@ -388,10 +388,10 @@ void AnimationController::exportAnimation(const QString& filename, const QString
 
     // Convert frames to final format
     if (format.toLower() == "gif") {
-        success = exportToGif(frameFiles, filename);
+        success = exportToGif(frameFiles, filename, loop);
     }
     else if (format.toLower() == "mp4") {
-        success = exportToMp4(frameFiles, filename);
+        success = exportToMp4(frameFiles, filename, quality);
     }
     else {
         QMessageBox::warning(m_mainWindow, "Export Error", "Unsupported export format: " + format);
@@ -408,6 +408,8 @@ void AnimationController::exportAnimation(const QString& filename, const QString
     } else {
         QMessageBox::warning(m_mainWindow, "Export Error", "Export failed. Frames have been left in:\n" + tempDir);
     }
+
+    return success;
 }
 
 void AnimationController::exportFrame(int frame, const QString& filename)
@@ -492,7 +494,7 @@ void AnimationController::updateLayerAtFrame(AnimationLayer* layer, int frame)
     }
 }
 
-bool AnimationController::exportToGif(const QStringList& frameFiles, const QString& filename)
+bool AnimationController::exportToGif(const QStringList& frameFiles, const QString& filename, bool loop)
 {
     // This requires an external tool like ImageMagick
     QMessageBox::information(m_mainWindow, "GIF Export",
@@ -503,6 +505,7 @@ bool AnimationController::exportToGif(const QStringList& frameFiles, const QStri
     QProcess process;
     QStringList arguments;
     arguments << "-delay" << QString::number(100 / m_frameRate);
+    arguments << "-loop" << (loop ? "0" : "1");
     arguments << frameFiles;
     arguments << filename;
     process.setWorkingDirectory(QFileInfo(frameFiles.first()).absolutePath());
@@ -523,7 +526,7 @@ bool AnimationController::exportToGif(const QStringList& frameFiles, const QStri
     return false;
 }
 
-bool AnimationController::exportToMp4(const QStringList& frameFiles, const QString& filename)
+bool AnimationController::exportToMp4(const QStringList& frameFiles, const QString& filename, int quality)
 {
     // This requires FFmpeg
     QMessageBox::information(m_mainWindow, "MP4 Export",
@@ -538,6 +541,8 @@ bool AnimationController::exportToMp4(const QStringList& frameFiles, const QStri
     pattern.replace(QRegularExpression("frame_\\d{4}\\.png"), "frame_%04d.png");
     arguments << "-i" << pattern;
     arguments << "-c:v" << "libx264";
+    int crf = 51 - (quality * 51) / 100;
+    arguments << "-crf" << QString::number(crf);
     arguments << "-pix_fmt" << "yuv420p";
     arguments << "-y"; // Overwrite output file
     arguments << filename;
