@@ -532,7 +532,8 @@ bool AnimationController::exportToMp4(const QStringList& frameFiles, const QStri
     QMessageBox::information(m_mainWindow, "MP4 Export",
         "MP4 export requires FFmpeg to be installed.\n\n"
         "Individual frames have been saved. You can use FFmpeg with:\n"
-        "ffmpeg -framerate " + QString::number(m_frameRate) + " -i frame_%04d.png -c:v libx264 -pix_fmt yuv420p " + filename);
+        "ffmpeg -framerate " + QString::number(m_frameRate) +
+        " -i frame_%04d.png -vf pad=ceil(iw/2)*2:ceil(ih/2)*2 -c:v libx264 -pix_fmt yuv420p " + filename);
 
     QProcess process;
     QStringList arguments;
@@ -540,6 +541,7 @@ bool AnimationController::exportToMp4(const QStringList& frameFiles, const QStri
     QString pattern = frameFiles.first();
     pattern.replace(QRegularExpression("frame_\\d{4}\\.png"), "frame_%04d.png");
     arguments << "-i" << pattern;
+    arguments << "-vf" << "pad=ceil(iw/2)*2:ceil(ih/2)*2";
     arguments << "-c:v" << "libx264";
     int crf = 51 - (quality * 51) / 100;
     arguments << "-crf" << QString::number(crf);
