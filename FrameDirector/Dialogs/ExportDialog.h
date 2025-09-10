@@ -8,8 +8,6 @@
 #include <QLabel>
 #include <QCheckBox>
 
-//wip
-
 class ExportDialog : public QDialog
 {
     Q_OBJECT
