@@ -21,6 +21,7 @@
 #include <QPaintEvent>
 #include <QApplication>
 #include <QStyle>
+#include <algorithm>
 
 // TimelineDrawingArea implementation
 TimelineDrawingArea::TimelineDrawingArea(QWidget* parent)
@@ -1212,16 +1213,23 @@ void Timeline::drawAudioTrack(QPainter* painter, const QRect& rect)
     painter->drawLine(trackRect.topLeft(), trackRect.topRight());
     painter->drawLine(trackRect.bottomLeft(), trackRect.bottomRight());
 
-    // Visualize audio length
-    if (m_audioTrackFrames > 0) {
-        int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
-        int width = m_audioTrackFrames * frameWidth;
-        QRect audioBar(m_layerPanelWidth, base.top(), width, base.height());
-        painter->fillRect(audioBar, QColor(100, 100, 150));
+    // Draw waveform
+    if (!m_audioWaveform.empty()) {
+        painter->setPen(QPen(QColor(100, 200, 255), 1));
+        int midY = trackRect.center().y();
+        for (int x = 0; x < trackRect.width(); ++x) {
+            int index = static_cast<int>((static_cast<double>(x) / trackRect.width()) * m_audioWaveform.size());
+            index = std::clamp(index, 0, static_cast<int>(m_audioWaveform.size()) - 1);
+            float value = m_audioWaveform[index];
+            int y = static_cast<int>(value * (trackRect.height() / 2));
+            int px = trackRect.x() + x;
+            painter->drawLine(px, midY - y, px, midY + y);
+        }
     }
 
     painter->setPen(QPen(QColor(220, 220, 220), 1));
-    painter->drawText(m_layerPanelWidth + 5, base.center().y() + 5, "Audio");
+    QString text = m_audioLabel.isEmpty() ? QStringLiteral("Audio") : m_audioLabel;
+    painter->drawText(m_layerPanelWidth + 5, base.top() + 15, text);
 }
 
 QRect Timeline::getAudioTrackRect() const
@@ -1230,10 +1238,12 @@ QRect Timeline::getAudioTrackRect() const
     return QRect(0, y, width(), m_audioTrackHeight);
 }
 
-void Timeline::setAudioTrack(int frames)
+void Timeline::setAudioTrack(int frames, const std::vector<float>& waveform, const QString& label)
 {
     m_hasAudioTrack = frames > 0;
     m_audioTrackFrames = frames;
+    m_audioWaveform = waveform;
+    m_audioLabel = label;
     updateLayout();
     update();
 }
