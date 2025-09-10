@@ -61,11 +61,6 @@
 #include <QStandardPaths>
 #include <qinputdialog.h>
 #include <QUrl>
-#include <QAudioDecoder>
-#include <QAudioBuffer>
-#include <QEventLoop>
-#include <algorithm>
-#include <cmath>
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
@@ -112,7 +107,7 @@ MainWindow::MainWindow(QWidget* parent)
     // Setup audio playback
     m_audioPlayer->setAudioOutput(m_audioOutput);
     connect(m_audioPlayer, &QMediaPlayer::durationChanged,
-            this, &MainWindow::onAudioDurationChanged);
+        this, &MainWindow::onAudioDurationChanged);
 
     // Create UI components
     createActions();
@@ -187,49 +182,49 @@ MainWindow::MainWindow(QWidget* parent)
     qDebug() << "MainWindow setup complete";
 }
 
-    MainWindow::~MainWindow()
-    {
-        qDebug() << "MainWindow destructor called";
+MainWindow::~MainWindow()
+{
+    qDebug() << "MainWindow destructor called";
 
-        // FIXED: Critical cleanup order to prevent crashes
+    // FIXED: Critical cleanup order to prevent crashes
 
-        // 1. First, clear the undo stack to delete all commands safely
-        if (m_undoStack) {
-            qDebug() << "Clearing undo stack...";
-            m_undoStack->clear();
-        }
-
-        // 2. Clean up tools that might have preview items
-        qDebug() << "Cleaning up tools...";
-        for (auto& toolPair : m_tools) {
-            Tool* tool = toolPair.second.get();
-            if (tool) {
-                // Special cleanup for eraser tool
-                if (toolPair.first == EraseTool) {
-                    ::EraseTool* eraserTool = dynamic_cast<::EraseTool*>(tool);
-                    if (eraserTool) {
-                        eraserTool->cleanup();
-                    }
-                }
-                // Add cleanup for other tools as needed
-            }
-        }
-
-        // 3. Clear the canvas before it's destroyed
-        if (m_canvas) {
-            qDebug() << "Clearing canvas...";
-            m_canvas->clear();
-        }
-
-        // 4. Stop any running timers
-        if (m_playbackTimer) {
-            m_playbackTimer->stop();
-        }
-
-        qDebug() << "MainWindow destructor completed";
-
-        // Qt will handle the rest of the cleanup in the correct order
+    // 1. First, clear the undo stack to delete all commands safely
+    if (m_undoStack) {
+        qDebug() << "Clearing undo stack...";
+        m_undoStack->clear();
     }
+
+    // 2. Clean up tools that might have preview items
+    qDebug() << "Cleaning up tools...";
+    for (auto& toolPair : m_tools) {
+        Tool* tool = toolPair.second.get();
+        if (tool) {
+            // Special cleanup for eraser tool
+            if (toolPair.first == EraseTool) {
+                ::EraseTool* eraserTool = dynamic_cast<::EraseTool*>(tool);
+                if (eraserTool) {
+                    eraserTool->cleanup();
+                }
+            }
+            // Add cleanup for other tools as needed
+        }
+    }
+
+    // 3. Clear the canvas before it's destroyed
+    if (m_canvas) {
+        qDebug() << "Clearing canvas...";
+        m_canvas->clear();
+    }
+
+    // 4. Stop any running timers
+    if (m_playbackTimer) {
+        m_playbackTimer->stop();
+    }
+
+    qDebug() << "MainWindow destructor completed";
+
+    // Qt will handle the rest of the cleanup in the correct order
+}
 
 
 void MainWindow::connectToolsAndCanvas()
@@ -1022,8 +1017,8 @@ void MainWindow::setupTools()
 
         // FIXED: Create bucket fill tool
         m_tools[BucketFillTool] = std::make_unique<::BucketFillTool>(this);
-        qDebug() << "Created BucketFillTool:" << m_tools[BucketFillTool].get();        
-        
+        qDebug() << "Created BucketFillTool:" << m_tools[BucketFillTool].get();
+
         m_tools[EraseTool] = std::make_unique<::EraseTool>(this);
         qDebug() << "Created EraseTool:" << m_tools[EraseTool].get();
 
@@ -1501,41 +1496,6 @@ void MainWindow::importAudio()
         m_audioFile = fileName;
         m_statusLabel->setText(QString("Audio imported: %1").arg(QFileInfo(fileName).fileName()));
 
-        // Generate waveform data
-        m_audioWaveform.clear();
-        QAudioDecoder decoder;
-        decoder.setSourceFilename(fileName);
-        QEventLoop loop;
-        QObject::connect(&decoder, &QAudioDecoder::bufferReady, [&]() {
-            QAudioBuffer buffer = decoder.read();
-            const qint16* data = buffer.constData<qint16>();
-            int channels = buffer.format().channelCount();
-            int samples = buffer.sampleCount() / channels;
-            for (int i = 0; i < samples; ++i) {
-                float value = 0.0f;
-                for (int c = 0; c < channels; ++c)
-                    value += std::abs(data[i * channels + c]) / 32768.0f;
-                m_audioWaveform.push_back(value / channels);
-            }
-        });
-        QObject::connect(&decoder, QOverload<>::of(&QAudioDecoder::finished), &loop, &QEventLoop::quit);
-        decoder.start();
-        loop.exec();
-
-        // Downsample for drawing
-        const int targetSamples = 1000;
-        if (m_audioWaveform.size() > static_cast<size_t>(targetSamples)) {
-            std::vector<float> downsampled;
-            int step = static_cast<int>(m_audioWaveform.size() / targetSamples);
-            for (int i = 0; i < m_audioWaveform.size(); i += step) {
-                float maxVal = 0.0f;
-                for (int j = 0; j < step && (i + j) < m_audioWaveform.size(); ++j)
-                    maxVal = std::max(maxVal, m_audioWaveform[i + j]);
-                downsampled.push_back(maxVal);
-            }
-            m_audioWaveform.swap(downsampled);
-        }
-
         // If duration already available, update timeline immediately
         if (m_audioPlayer->duration() > 0) {
             onAudioDurationChanged(m_audioPlayer->duration());
@@ -1550,7 +1510,7 @@ void MainWindow::onAudioDurationChanged(qint64 duration)
 
     m_audioFrameLength = static_cast<int>((duration / 1000.0) * m_frameRate);
     if (m_timeline) {
-        m_timeline->setAudioTrack(m_audioFrameLength, m_audioWaveform, QFileInfo(m_audioFile).fileName());
+        m_timeline->setAudioTrack(m_audioFrameLength);
     }
 }
 
@@ -1964,7 +1924,8 @@ void MainWindow::addKeyframe()
         int layer = m_canvas->getCurrentLayer();
         if (m_undoStack) {
             m_undoStack->push(new AddKeyframeCommand(m_canvas, layer, m_currentFrame));
-        } else {
+        }
+        else {
             m_canvas->createKeyframe(m_currentFrame);
         }
 
@@ -2533,7 +2494,8 @@ void MainWindow::removeKeyframe()
         int layer = m_canvas->getCurrentLayer();
         if (m_undoStack) {
             m_undoStack->push(new RemoveKeyframeCommand(m_canvas, layer, m_currentFrame));
-        } else {
+        }
+        else {
             m_canvas->removeKeyframe(layer, m_currentFrame);
         }
         if (m_timeline) {
@@ -2553,7 +2515,7 @@ void MainWindow::setFrameRate(int fps)
     if (m_audioPlayer && m_audioPlayer->duration() > 0) {
         m_audioFrameLength = static_cast<int>((m_audioPlayer->duration() / 1000.0) * m_frameRate);
         if (m_timeline)
-            m_timeline->setAudioTrack(m_audioFrameLength, m_audioWaveform, QFileInfo(m_audioFile).fileName());
+            m_timeline->setAudioTrack(m_audioFrameLength);
     }
 }
 
