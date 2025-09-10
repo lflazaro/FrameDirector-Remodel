@@ -8,6 +8,7 @@
 #include <QGraphicsScene>
 #include <QGraphicsItem>
 #include <QGraphicsPathItem>
+#include <QGraphicsPixmapItem>
 #include <QGraphicsBlurEffect>
 #include <QMouseEvent>
 #include <QWheelEvent>
@@ -1105,6 +1106,15 @@ QGraphicsItem* Canvas::cloneGraphicsItem(QGraphicsItem* item)
         newPath->setPos(pathItem->pos());
         newPath->setRotation(pathItem->rotation());
         copy = newPath;
+    }
+    else if (auto pixmapItem = qgraphicsitem_cast<QGraphicsPixmapItem*>(item)) {
+        // Handle imported images
+        auto newPixmap = new QGraphicsPixmapItem(pixmapItem->pixmap());
+        newPixmap->setTransform(pixmapItem->transform());
+        newPixmap->setPos(pixmapItem->pos());
+        newPixmap->setRotation(pixmapItem->rotation());
+        newPixmap->setOffset(pixmapItem->offset());
+        copy = newPixmap;
     }
     else if (auto textItem = qgraphicsitem_cast<QGraphicsTextItem*>(item)) {
         auto newText = new QGraphicsTextItem(textItem->toPlainText());

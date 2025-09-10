@@ -4,6 +4,7 @@
 #include <QGraphicsEllipseItem>
 #include <QGraphicsPathItem>
 #include <QGraphicsTextItem>
+#include <QGraphicsPixmapItem>
 #include <QGraphicsBlurEffect>
 #include <QtMath>
 #include <QPen>        // Add this
