@@ -6,6 +6,8 @@
 #include <QPainter>
 #include <algorithm>
 
+// GradientPreview - Custom widget to display and interact with gradient stops
+
 GradientPreview::GradientPreview(QGradientStops* stops, QWidget* parent)
     : QWidget(parent)
     , m_stops(stops)
