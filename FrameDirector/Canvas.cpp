@@ -19,6 +19,19 @@
 #include <QDebug>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QVariant>
+
+namespace {
+    int g_nextItemId = 1;
+    int ensureItemHasId(QGraphicsItem* item) {
+        if (!item) return -1;
+        QVariant id = item->data(997);
+        if (!id.isValid()) {
+            item->setData(997, g_nextItemId++);
+        }
+        return item->data(997).toInt();
+    }
+}
 
 // ROBUST: Enhanced layer data structure with better state management
 struct LayerData {
@@ -499,6 +512,8 @@ void Canvas::addItemToCurrentLayer(QGraphicsItem* item)
         m_scene->addItem(item);
     }
 
+    ensureItemHasId(item);
+
     LayerData* currentLayer = static_cast<LayerData*>(m_layers[m_currentLayerIndex]);
 
     // ROBUST: Check if item is already in another layer and remove it
@@ -545,6 +560,7 @@ void Canvas::saveFrameState(int frame)
     QList<QGraphicsItem*> currentLayerItems;
     for (QGraphicsItem* item : m_scene->items()) {
         if (item != m_backgroundRect && getItemLayerIndex(item) == m_currentLayerIndex) {
+            ensureItemHasId(item);
             currentLayerItems.append(item);
         }
     }
@@ -563,6 +579,7 @@ void Canvas::saveFrameState(int frame)
             state["rotation"] = item->rotation();
             state["scale"] = item->scale();
             state["opacity"] = item->opacity();
+            state["id"] = item->data(997).toInt();
             frameData.itemStates[item] = state;
         }
     }
@@ -611,6 +628,7 @@ void Canvas::loadFrameState(int frame)
         for (QGraphicsItem* item : layerFrameItems) {
             // CRITICAL: Validate item pointer before using it
             if (item && isValidItem(item)) {
+                ensureItemHasId(item);
                 m_scene->addItem(item);
                 // Ensure proper layer Z-ordering
                 item->setZValue(layerIndex * 1000 + static_cast<int>(item->zValue()) % 1000);
@@ -924,14 +942,29 @@ void Canvas::interpolateFrame(int currentFrame, int startFrame, int endFrame, fl
     const QList<QGraphicsItem*>& startItems = startIt.value().items;
     const QList<QGraphicsItem*>& endItems = endIt.value().items;
 
-    for (int i = 0; i < qMin(startItems.size(), endItems.size()); ++i) {
-        QGraphicsItem* startItem = startItems[i];
-        QGraphicsItem* endItem = endItems[i];
+    QHash<int, QGraphicsItem*> startMap;
+    for (QGraphicsItem* item : startItems) {
+        int id = ensureItemHasId(item);
+        startMap[id] = item;
+    }
+
+    QHash<int, QGraphicsItem*> endMap;
+    for (QGraphicsItem* item : endItems) {
+        int id = ensureItemHasId(item);
+        endMap[id] = item;
+    }
+
+    for (auto it = startMap.begin(); it != startMap.end(); ++it) {
+        int id = it.key();
+        if (!endMap.contains(id)) continue;
+        QGraphicsItem* startItem = it.value();
+        QGraphicsItem* endItem = endMap[id];
 
         if (!startItem || !endItem) continue;
 
         QGraphicsItem* interpolatedItem = cloneGraphicsItem(startItem);
         if (!interpolatedItem) continue;
+        interpolatedItem->setData(997, id);
 
         // Interpolate position
         QPointF startPos = startItem->pos();
@@ -1002,6 +1035,7 @@ void Canvas::createKeyframe(int frame)
     QList<QGraphicsItem*> clonedItems;
     for (QGraphicsItem* item : m_scene->items()) {
         if (item != m_backgroundRect && getItemLayerIndex(item) == m_currentLayerIndex) {
+            ensureItemHasId(item);
             QGraphicsItem* clonedItem = cloneGraphicsItem(item);
             if (clonedItem) {
                 clonedItems.append(clonedItem);
@@ -1034,6 +1068,7 @@ void Canvas::createKeyframe(int frame)
 QGraphicsItem* Canvas::cloneGraphicsItem(QGraphicsItem* item)
 {
     if (!item) return nullptr;
+    ensureItemHasId(item);
 
     QGraphicsItem* copy = nullptr;
 
@@ -1099,6 +1134,7 @@ QGraphicsItem* Canvas::cloneGraphicsItem(QGraphicsItem* item)
         copy->setEnabled(item->isEnabled());
         copy->setSelected(item->isSelected());
         copy->setData(0, item->opacity());  // Store original opacity as data
+        copy->setData(997, item->data(997));
     }
 
     return copy;
