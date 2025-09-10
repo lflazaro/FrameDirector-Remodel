@@ -350,7 +350,7 @@ void StyleChangeCommand::applyStyle(QGraphicsItem* item, const QString& property
     else if (property == "blur") {
         double radius = value.toDouble();
         if (radius > 0) {
-            QGraphicsBlurEffect* blur = qgraphicsitem_cast<QGraphicsBlurEffect*>(item->graphicsEffect());
+            QGraphicsBlurEffect* blur = dynamic_cast<QGraphicsBlurEffect*>(item->graphicsEffect());
             if (!blur) {
                 blur = new QGraphicsBlurEffect();
                 item->setGraphicsEffect(blur);

@@ -45,7 +45,7 @@ void AnimationKeyframe::captureItemState(QGraphicsItem* item)
     state.opacity = item->opacity();
     state.transform = item->transform();
     state.visible = item->isVisible();
-    if (auto blur = qgraphicsitem_cast<QGraphicsBlurEffect*>(item->graphicsEffect())) {
+    if (auto blur = dynamic_cast<QGraphicsBlurEffect*>(item->graphicsEffect())) {
         state.blurRadius = blur->blurRadius();
     }
     else {
@@ -107,7 +107,7 @@ void AnimationKeyframe::applyItemState(QGraphicsItem* item) const
     item->setOpacity(state.opacity);
     item->setVisible(state.visible);
     if (state.blurRadius > 0) {
-        QGraphicsBlurEffect* blurEffect = qgraphicsitem_cast<QGraphicsBlurEffect*>(item->graphicsEffect());
+        QGraphicsBlurEffect* blurEffect = dynamic_cast<QGraphicsBlurEffect*>(item->graphicsEffect());
         if (!blurEffect) {
             blurEffect = new QGraphicsBlurEffect();
             item->setGraphicsEffect(blurEffect);
@@ -207,7 +207,7 @@ void AnimationKeyframe::interpolateBetween(const AnimationKeyframe* from,
     // Interpolate blur
     double blur = interpolateValue(fromState.blurRadius, toState.blurRadius, easedT);
     if (blur > 0) {
-        QGraphicsBlurEffect* blurEffect = qgraphicsitem_cast<QGraphicsBlurEffect*>(item->graphicsEffect());
+        QGraphicsBlurEffect* blurEffect = dynamic_cast<QGraphicsBlurEffect*>(item->graphicsEffect());
         if (!blurEffect) {
             blurEffect = new QGraphicsBlurEffect();
             item->setGraphicsEffect(blurEffect);

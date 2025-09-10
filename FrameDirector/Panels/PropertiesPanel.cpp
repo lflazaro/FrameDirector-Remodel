@@ -612,7 +612,7 @@ void PropertiesPanel::updateStyleControls(QGraphicsItem* item)
 
     // Update blur
     int blur = 0;
-    if (auto blurEffect = qgraphicsitem_cast<QGraphicsBlurEffect*>(item->graphicsEffect())) {
+    if (auto blurEffect = dynamic_cast<QGraphicsBlurEffect*>(item->graphicsEffect())) {
         blur = static_cast<int>(blurEffect->blurRadius());
     }
     m_blurSlider->setValue(blur);
@@ -694,7 +694,7 @@ void PropertiesPanel::onStyleChanged()
 
         // Apply blur effect
         if (blur > 0) {
-            QGraphicsBlurEffect* blurEffect = qgraphicsitem_cast<QGraphicsBlurEffect*>(item->graphicsEffect());
+            QGraphicsBlurEffect* blurEffect = dynamic_cast<QGraphicsBlurEffect*>(item->graphicsEffect());
             if (!blurEffect) {
                 blurEffect = new QGraphicsBlurEffect();
                 item->setGraphicsEffect(blurEffect);

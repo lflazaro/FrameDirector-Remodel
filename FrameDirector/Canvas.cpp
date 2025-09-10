@@ -564,7 +564,7 @@ void Canvas::saveFrameState(int frame)
             state["rotation"] = item->rotation();
             state["scale"] = item->scale();
             state["opacity"] = item->opacity();
-            if (auto blur = qgraphicsitem_cast<QGraphicsBlurEffect*>(item->graphicsEffect())) {
+            if (auto blur = dynamic_cast<QGraphicsBlurEffect*>(item->graphicsEffect())) {
                 state["blur"] = blur->blurRadius();
             } else {
                 state["blur"] = 0.0;
@@ -975,14 +975,14 @@ void Canvas::interpolateFrame(int currentFrame, int startFrame, int endFrame, fl
 
         // Interpolate blur
         qreal startBlur = 0;
-        if (auto blur = qgraphicsitem_cast<QGraphicsBlurEffect*>(startItem->graphicsEffect()))
+        if (auto blur = dynamic_cast<QGraphicsBlurEffect*>(startItem->graphicsEffect()))
             startBlur = blur->blurRadius();
         qreal endBlur = 0;
-        if (auto blur2 = qgraphicsitem_cast<QGraphicsBlurEffect*>(endItem->graphicsEffect()))
+        if (auto blur2 = dynamic_cast<QGraphicsBlurEffect*>(endItem->graphicsEffect()))
             endBlur = blur2->blurRadius();
         qreal interpolatedBlur = startBlur + t * (endBlur - startBlur);
         if (interpolatedBlur > 0) {
-            QGraphicsBlurEffect* blurEffect = qgraphicsitem_cast<QGraphicsBlurEffect*>(interpolatedItem->graphicsEffect());
+            QGraphicsBlurEffect* blurEffect = dynamic_cast<QGraphicsBlurEffect*>(interpolatedItem->graphicsEffect());
             if (!blurEffect) {
                 blurEffect = new QGraphicsBlurEffect();
                 interpolatedItem->setGraphicsEffect(blurEffect);
@@ -1124,7 +1124,7 @@ QGraphicsItem* Canvas::cloneGraphicsItem(QGraphicsItem* item)
         copy->setEnabled(item->isEnabled());
         copy->setSelected(item->isSelected());
         copy->setData(0, item->opacity());  // Store original opacity as data
-        if (auto blur = qgraphicsitem_cast<QGraphicsBlurEffect*>(item->graphicsEffect())) {
+        if (auto blur = dynamic_cast<QGraphicsBlurEffect*>(item->graphicsEffect())) {
             auto newBlur = new QGraphicsBlurEffect();
             newBlur->setBlurRadius(blur->blurRadius());
             copy->setGraphicsEffect(newBlur);
