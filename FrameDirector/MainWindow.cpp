@@ -1611,6 +1611,7 @@ void MainWindow::exportAnimation()
     bool ok = controller.exportAnimation(fileName, format, options.getQuality(), options.getLoop());
     options.close();
     m_statusLabel->setText(ok ? "Animation exported" : "Export failed");
+}
 
 void MainWindow::exportFrame()
 {
