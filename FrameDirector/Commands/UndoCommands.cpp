@@ -156,25 +156,30 @@ RemoveItemCommand::RemoveItemCommand(Canvas* canvas, const QList<QGraphicsItem*>
 
 RemoveItemCommand::~RemoveItemCommand()
 {
-    // FIXED: Safe deletion with proper validation
     if (m_itemsRemoved) {
         qDebug() << "RemoveItemCommand: Cleaning up" << m_items.size() << "removed items";
 
         for (QGraphicsItem* item : m_items) {
-            if (item) {
-                // Double-check the item is not in any scene before deleting
-                if (!item->scene()) {
-                    try {
-                        delete item;
-                    }
-                    catch (...) {
-                        // Ignore deletion errors - item might already be deleted
-                        qDebug() << "RemoveItemCommand: Error deleting item (probably already deleted)";
-                    }
+            if (!item) {
+                continue;
+            }
+
+            bool inScene = false;
+            if (m_canvas && m_canvas->scene()) {
+                inScene = m_canvas->scene()->items().contains(item);
+            }
+
+            if (!inScene) {
+                try {
+                    delete item;
                 }
-                else {
-                    qDebug() << "RemoveItemCommand: Item still in scene, not deleting";
+                catch (...) {
+                    // Ignore deletion errors - item might already be deleted
+                    qDebug() << "RemoveItemCommand: Error deleting item (probably already deleted)";
                 }
+            }
+            else {
+                qDebug() << "RemoveItemCommand: Item still in scene, not deleting";
             }
         }
     }
