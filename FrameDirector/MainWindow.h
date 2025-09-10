@@ -38,6 +38,8 @@
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QApplication>
+#include <QMediaPlayer>
+#include <QAudioOutput>
 #include <memory>
 #include <vector>
 #include <map>
@@ -154,6 +156,7 @@ private slots:
     void exportAnimation();
     void exportFrame();
     void exportSVG();
+    void onAudioDurationChanged(qint64 duration); // NEW
 
     // Edit menu actions
     void undo();
@@ -349,6 +352,10 @@ private:
     int m_frameRate;
     bool m_isPlaying;
     QTimer* m_playbackTimer;
+    QMediaPlayer* m_audioPlayer; // NEW
+    QAudioOutput* m_audioOutput; // NEW
+    int m_audioFrameLength;      // NEW
+    QString m_audioFile;         // NEW
     QList<QGraphicsItem*> m_clipboardItems;
     QPointF m_clipboardOffset;
 

@@ -60,6 +60,7 @@
 #include <QDir>
 #include <QStandardPaths>
 #include <qinputdialog.h>
+#include <QUrl>
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
@@ -79,6 +80,9 @@ MainWindow::MainWindow(QWidget* parent)
     , m_frameRate(24)
     , m_isPlaying(false)
     , m_playbackTimer(new QTimer(this))
+    , m_audioPlayer(new QMediaPlayer(this))
+    , m_audioOutput(new QAudioOutput(this))
+    , m_audioFrameLength(0)
     , m_undoStack(new QUndoStack(this))
     , m_currentLayerIndex(0)
     , m_currentStrokeColor(Qt::black)
@@ -99,6 +103,11 @@ MainWindow::MainWindow(QWidget* parent)
     // Setup playback timer
     m_playbackTimer->setSingleShot(false);
     connect(m_playbackTimer, &QTimer::timeout, this, &MainWindow::onPlaybackTimer);
+
+    // Setup audio playback
+    m_audioPlayer->setAudioOutput(m_audioOutput);
+    connect(m_audioPlayer, &QMediaPlayer::durationChanged,
+            this, &MainWindow::onAudioDurationChanged);
 
     // Create UI components
     createActions();
@@ -459,6 +468,11 @@ void MainWindow::createActions()
     m_importVectorAction->setStatusTip("Import a vector file");
     connect(m_importVectorAction, &QAction::triggered, this, &MainWindow::importVector);
 
+    m_importAudioAction = new QAction("Import &Audio", this);
+    m_importAudioAction->setIcon(QIcon(":/icons/import.png"));
+    m_importAudioAction->setStatusTip("Import an audio file");
+    connect(m_importAudioAction, &QAction::triggered, this, &MainWindow::importAudio);
+
     m_exportAnimationAction = new QAction("Export &Animation", this);
     m_exportAnimationAction->setIcon(QIcon(":/icons/export.png"));
     m_exportAnimationAction->setStatusTip("Export as video/GIF");
@@ -809,6 +823,7 @@ void MainWindow::createMenus()
     m_importMenu = m_fileMenu->addMenu("&Import");
     m_importMenu->addAction(m_importImageAction);
     m_importMenu->addAction(m_importVectorAction);
+    m_importMenu->addAction(m_importAudioAction); // NEW
 
     m_exportMenu = m_fileMenu->addMenu("&Export");
     m_exportMenu->addAction(m_exportAnimationAction);
@@ -1477,12 +1492,25 @@ void MainWindow::importAudio()
         "Audio Files (*.wav *.mp3 *.aac *.ogg *.flac);;All Files (*.*)");
 
     if (!fileName.isEmpty()) {
+        m_audioPlayer->setSource(QUrl::fromLocalFile(fileName));
+        m_audioFile = fileName;
         m_statusLabel->setText(QString("Audio imported: %1").arg(QFileInfo(fileName).fileName()));
 
-        QMessageBox::information(this, "Audio Import",
-            QString("Audio file '%1' imported successfully.\n"
-                "Audio track functionality will be implemented in a future version.")
-            .arg(QFileInfo(fileName).fileName()));
+        // If duration already available, update timeline immediately
+        if (m_audioPlayer->duration() > 0) {
+            onAudioDurationChanged(m_audioPlayer->duration());
+        }
+    }
+}
+
+void MainWindow::onAudioDurationChanged(qint64 duration)
+{
+    if (duration <= 0)
+        return;
+
+    m_audioFrameLength = static_cast<int>((duration / 1000.0) * m_frameRate);
+    if (m_timeline) {
+        m_timeline->setAudioTrack(m_audioFrameLength);
     }
 }
 
@@ -1809,6 +1837,12 @@ void MainWindow::play()
         m_playAction->setText("Pause");
         m_statusLabel->setText("Playing");
         emit playbackStateChanged(true); // Add this line
+
+        if (!m_audioFile.isEmpty()) {
+            qint64 pos = static_cast<qint64>((m_currentFrame - 1) * 1000.0 / m_frameRate);
+            m_audioPlayer->setPosition(pos);
+            m_audioPlayer->play();
+        }
     }
     else {
         stop();
@@ -1824,6 +1858,8 @@ void MainWindow::stop()
         m_playAction->setText("Play");
         m_statusLabel->setText("Stopped");
         emit playbackStateChanged(false); // Add this line
+        if (m_audioPlayer)
+            m_audioPlayer->stop();
     }
 }
 
@@ -1872,6 +1908,8 @@ void MainWindow::previousKeyframe()
 void MainWindow::firstFrame()
 {
     onFrameChanged(1);
+    if (m_isPlaying && !m_audioFile.isEmpty())
+        m_audioPlayer->setPosition(0);
 }
 
 void MainWindow::lastFrame()
@@ -2472,6 +2510,11 @@ void MainWindow::setFrameRate(int fps)
     m_frameRate = fps;
     m_playbackTimer->setInterval(1000 / m_frameRate);
     m_fpsLabel->setText(QString("FPS: %1").arg(fps));
+    if (m_audioPlayer && m_audioPlayer->duration() > 0) {
+        m_audioFrameLength = static_cast<int>((m_audioPlayer->duration() / 1000.0) * m_frameRate);
+        if (m_timeline)
+            m_timeline->setAudioTrack(m_audioFrameLength);
+    }
 }
 
 // Tool operations
@@ -3057,6 +3100,8 @@ void MainWindow::onPlaybackTimer()
     }
     else {
         firstFrame();
+        if (!m_audioFile.isEmpty())
+            m_audioPlayer->setPosition(0);
     }
 }
 
