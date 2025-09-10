@@ -2670,9 +2670,18 @@ QJsonObject Canvas::serializeGraphicsItem(QGraphicsItem* item) const
     json["rotation"] = item->rotation();
     json["scaleX"] = item->transform().m11();
     json["scaleY"] = item->transform().m22();
-    json["opacity"] = item->opacity();
+    // Store per-item opacity rather than the opacity already multiplied by
+    // the layer opacity. The original opacity is kept in item->data(0).
+    double baseOpacity = item->data(0).toDouble(item->opacity());
+    json["opacity"] = baseOpacity;
     json["zValue"] = item->zValue();
     json["visible"] = item->isVisible();
+
+    if (auto blur = dynamic_cast<QGraphicsBlurEffect*>(item->graphicsEffect())) {
+        json["blur"] = blur->blurRadius();
+    } else {
+        json["blur"] = 0.0;
+    }
     return json;
 }
 
@@ -2758,9 +2767,19 @@ QGraphicsItem* Canvas::deserializeGraphicsItem(const QJsonObject& json) const
         QTransform transform;
         transform.scale(json["scaleX"].toDouble(1.0), json["scaleY"].toDouble(1.0));
         item->setTransform(transform);
-        item->setOpacity(json["opacity"].toDouble(1.0));
+        double baseOpacity = json["opacity"].toDouble(1.0);
+        item->setOpacity(baseOpacity);
+        item->setData(0, baseOpacity); // preserve individual opacity for layer scaling
+
         item->setZValue(json["zValue"].toDouble(0.0));
         item->setVisible(json["visible"].toBool(true));
+
+        double blurRadius = json["blur"].toDouble(0.0);
+        if (blurRadius > 0.0) {
+            auto blur = new QGraphicsBlurEffect();
+            blur->setBlurRadius(blurRadius);
+            item->setGraphicsEffect(blur);
+        }
     }
 
     return item;
@@ -2829,6 +2848,10 @@ bool Canvas::fromJson(const QJsonObject& json)
         QJsonObject layerJson = layers[i].toObject();
         QString name = layerJson["name"].toString(QString("Layer %1").arg(i + 1));
         int idx = addLayer(name);
+        if (idx == 0 && m_backgroundRect) {
+            LayerData* bgLayer = static_cast<LayerData*>(m_layers[idx]);
+            bgLayer->addItem(m_backgroundRect, 1);
+        }
         setLayerVisible(idx, layerJson["visible"].toBool(true));
         setLayerLocked(idx, layerJson["locked"].toBool(false));
         setLayerOpacity(idx, layerJson["opacity"].toDouble(1.0));
@@ -2863,15 +2886,22 @@ bool Canvas::fromJson(const QJsonObject& json)
     m_currentFrame = json["currentFrame"].toInt(1);
     m_currentLayerIndex = json["currentLayer"].toInt(0);
 
-    for (int layerIndex = 0; layerIndex < m_layers.size(); ++layerIndex) {
-        auto frames = m_layerFrameData.value(layerIndex);
-        for (auto it = frames.begin(); it != frames.end(); ++it) {
-            for (QGraphicsItem* item : it.value().items) {
-                if (item && !item->scene())
-                    m_scene->addItem(item);
+    // Ensure background rect exists in all frames of the background layer
+    if (m_backgroundRect && !m_layers.isEmpty()) {
+        LayerData* bgLayer = static_cast<LayerData*>(m_layers[0]);
+        QSet<int> frameKeys = QSet<int>::fromList(m_layerFrameData[0].keys());
+        if (frameKeys.isEmpty()) {
+            bgLayer->addItem(m_backgroundRect, m_currentFrame);
+        } else {
+            for (int frame : frameKeys) {
+                if (!bgLayer->frameItems[frame].contains(m_backgroundRect)) {
+                    bgLayer->frameItems[frame].prepend(m_backgroundRect);
+                }
             }
         }
     }
+
+    loadFrameState(m_currentFrame);
 
     return true;
 }
