@@ -9,6 +9,7 @@
 #include <QGraphicsItem>
 #include <QGraphicsPathItem>
 #include <QGraphicsPixmapItem>
+#include <QGraphicsTextItem>
 #include <QGraphicsBlurEffect>
 #include <QMouseEvent>
 #include <QWheelEvent>
@@ -21,6 +22,7 @@
 #include <QDebug>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QBuffer>
 
 // ROBUST: Enhanced layer data structure with better state management
 struct LayerData {
@@ -2583,9 +2585,15 @@ QJsonObject Canvas::serializeGraphicsItem(QGraphicsItem* item) const
         json["y"] = r.y();
         json["w"] = r.width();
         json["h"] = r.height();
-        json["pen"] = rectItem->pen().color().name();
-        json["penWidth"] = rectItem->pen().widthF();
-        json["brush"] = rectItem->brush().color().name();
+
+        QPen pen = rectItem->pen();
+        json["penColor"] = pen.color().name();
+        json["penWidth"] = pen.widthF();
+        json["penStyle"] = static_cast<int>(pen.style());
+
+        QBrush brush = rectItem->brush();
+        json["brushColor"] = brush.color().name();
+        json["brushStyle"] = static_cast<int>(brush.style());
     }
     else if (auto ellipseItem = qgraphicsitem_cast<QGraphicsEllipseItem*>(item)) {
         json["class"] = "ellipse";
@@ -2594,9 +2602,15 @@ QJsonObject Canvas::serializeGraphicsItem(QGraphicsItem* item) const
         json["y"] = r.y();
         json["w"] = r.width();
         json["h"] = r.height();
-        json["pen"] = ellipseItem->pen().color().name();
-        json["penWidth"] = ellipseItem->pen().widthF();
-        json["brush"] = ellipseItem->brush().color().name();
+
+        QPen pen = ellipseItem->pen();
+        json["penColor"] = pen.color().name();
+        json["penWidth"] = pen.widthF();
+        json["penStyle"] = static_cast<int>(pen.style());
+
+        QBrush brush = ellipseItem->brush();
+        json["brushColor"] = brush.color().name();
+        json["brushStyle"] = static_cast<int>(brush.style());
     }
     else if (auto lineItem = qgraphicsitem_cast<QGraphicsLineItem*>(item)) {
         json["class"] = "line";
@@ -2605,8 +2619,11 @@ QJsonObject Canvas::serializeGraphicsItem(QGraphicsItem* item) const
         json["y1"] = l.y1();
         json["x2"] = l.x2();
         json["y2"] = l.y2();
-        json["pen"] = lineItem->pen().color().name();
-        json["penWidth"] = lineItem->pen().widthF();
+
+        QPen pen = lineItem->pen();
+        json["penColor"] = pen.color().name();
+        json["penWidth"] = pen.widthF();
+        json["penStyle"] = static_cast<int>(pen.style());
     }
     else if (auto pathItem = qgraphicsitem_cast<QGraphicsPathItem*>(item)) {
         json["class"] = "path";
@@ -2617,15 +2634,45 @@ QJsonObject Canvas::serializeGraphicsItem(QGraphicsItem* item) const
             QJsonObject p; p["x"] = e.x; p["y"] = e.y; points.append(p);
         }
         json["points"] = points;
-        json["pen"] = pathItem->pen().color().name();
-        json["penWidth"] = pathItem->pen().widthF();
-        json["brush"] = pathItem->brush().color().name();
+
+        QPen pen = pathItem->pen();
+        json["penColor"] = pen.color().name();
+        json["penWidth"] = pen.widthF();
+        json["penStyle"] = static_cast<int>(pen.style());
+
+        QBrush brush = pathItem->brush();
+        json["brushColor"] = brush.color().name();
+        json["brushStyle"] = static_cast<int>(brush.style());
+    }
+    else if (auto pixmapItem = qgraphicsitem_cast<QGraphicsPixmapItem*>(item)) {
+        json["class"] = "pixmap";
+        QPixmap pix = pixmapItem->pixmap();
+        QByteArray bytes;
+        QBuffer buffer(&bytes);
+        buffer.open(QIODevice::WriteOnly);
+        pix.save(&buffer, "PNG");
+        json["data"] = QString::fromLatin1(bytes.toBase64());
+    }
+    else if (auto textItem = qgraphicsitem_cast<QGraphicsTextItem*>(item)) {
+        json["class"] = "text";
+        json["text"] = textItem->toPlainText();
+        QFont f = textItem->font();
+        json["fontFamily"] = f.family();
+        json["fontPointSize"] = f.pointSizeF();
+        json["fontBold"] = f.bold();
+        json["fontItalic"] = f.italic();
+        json["fontUnderline"] = f.underline();
+        json["color"] = textItem->defaultTextColor().name();
     }
 
     json["posX"] = item->pos().x();
     json["posY"] = item->pos().y();
     json["rotation"] = item->rotation();
-    json["scaleX"] = item->scale();
+    json["scaleX"] = item->transform().m11();
+    json["scaleY"] = item->transform().m22();
+    json["opacity"] = item->opacity();
+    json["zValue"] = item->zValue();
+    json["visible"] = item->isVisible();
     return json;
 }
 
@@ -2636,21 +2683,34 @@ QGraphicsItem* Canvas::deserializeGraphicsItem(const QJsonObject& json) const
     if (cls == "rect") {
         QRectF r(json["x"].toDouble(), json["y"].toDouble(), json["w"].toDouble(), json["h"].toDouble());
         auto rectItem = new QGraphicsRectItem(r);
-        rectItem->setPen(QPen(QColor(json["pen"].toString("#000000")), json["penWidth"].toDouble(1.0)));
-        rectItem->setBrush(QBrush(QColor(json["brush"].toString("#ffffff"))));
+        QPen pen(QColor(json["penColor"].toString("#000000")));
+        pen.setWidthF(json["penWidth"].toDouble(1.0));
+        pen.setStyle(static_cast<Qt::PenStyle>(json["penStyle"].toInt(Qt::SolidLine)));
+        rectItem->setPen(pen);
+        QBrush brush(QColor(json["brushColor"].toString("#ffffff")));
+        brush.setStyle(static_cast<Qt::BrushStyle>(json["brushStyle"].toInt(Qt::NoBrush)));
+        rectItem->setBrush(brush);
         item = rectItem;
     }
     else if (cls == "ellipse") {
         QRectF r(json["x"].toDouble(), json["y"].toDouble(), json["w"].toDouble(), json["h"].toDouble());
         auto ellipseItem = new QGraphicsEllipseItem(r);
-        ellipseItem->setPen(QPen(QColor(json["pen"].toString("#000000")), json["penWidth"].toDouble(1.0)));
-        ellipseItem->setBrush(QBrush(QColor(json["brush"].toString("#ffffff"))));
+        QPen pen(QColor(json["penColor"].toString("#000000")));
+        pen.setWidthF(json["penWidth"].toDouble(1.0));
+        pen.setStyle(static_cast<Qt::PenStyle>(json["penStyle"].toInt(Qt::SolidLine)));
+        ellipseItem->setPen(pen);
+        QBrush brush(QColor(json["brushColor"].toString("#ffffff")));
+        brush.setStyle(static_cast<Qt::BrushStyle>(json["brushStyle"].toInt(Qt::NoBrush)));
+        ellipseItem->setBrush(brush);
         item = ellipseItem;
     }
     else if (cls == "line") {
         QLineF l(json["x1"].toDouble(), json["y1"].toDouble(), json["x2"].toDouble(), json["y2"].toDouble());
         auto lineItem = new QGraphicsLineItem(l);
-        lineItem->setPen(QPen(QColor(json["pen"].toString("#000000")), json["penWidth"].toDouble(1.0)));
+        QPen pen(QColor(json["penColor"].toString("#000000")));
+        pen.setWidthF(json["penWidth"].toDouble(1.0));
+        pen.setStyle(static_cast<Qt::PenStyle>(json["penStyle"].toInt(Qt::SolidLine)));
+        lineItem->setPen(pen);
         item = lineItem;
     }
     else if (cls == "path") {
@@ -2664,16 +2724,43 @@ QGraphicsItem* Canvas::deserializeGraphicsItem(const QJsonObject& json) const
                 path.lineTo(p["x"].toDouble(), p["y"].toDouble());
         }
         auto pathItem = new QGraphicsPathItem(path);
-        pathItem->setPen(QPen(QColor(json["pen"].toString("#000000")), json["penWidth"].toDouble(1.0)));
-        pathItem->setBrush(QBrush(QColor(json["brush"].toString("#ffffff"))));
+        QPen pen(QColor(json["penColor"].toString("#000000")));
+        pen.setWidthF(json["penWidth"].toDouble(1.0));
+        pen.setStyle(static_cast<Qt::PenStyle>(json["penStyle"].toInt(Qt::SolidLine)));
+        pathItem->setPen(pen);
+        QBrush brush(QColor(json["brushColor"].toString("#ffffff")));
+        brush.setStyle(static_cast<Qt::BrushStyle>(json["brushStyle"].toInt(Qt::NoBrush)));
+        pathItem->setBrush(brush);
         item = pathItem;
+    }
+    else if (cls == "pixmap") {
+        QByteArray bytes = QByteArray::fromBase64(json["data"].toString().toLatin1());
+        QPixmap pix;
+        pix.loadFromData(bytes, "PNG");
+        item = new QGraphicsPixmapItem(pix);
+    }
+    else if (cls == "text") {
+        auto textItem = new QGraphicsTextItem(json["text"].toString());
+        QFont f;
+        f.setFamily(json["fontFamily"].toString());
+        f.setPointSizeF(json["fontPointSize"].toDouble());
+        f.setBold(json["fontBold"].toBool());
+        f.setItalic(json["fontItalic"].toBool());
+        f.setUnderline(json["fontUnderline"].toBool());
+        textItem->setFont(f);
+        textItem->setDefaultTextColor(QColor(json["color"].toString("#000000")));
+        item = textItem;
     }
 
     if (item) {
         item->setPos(json["posX"].toDouble(), json["posY"].toDouble());
         item->setRotation(json["rotation"].toDouble());
-        double s = json["scaleX"].toDouble(1.0);
-        item->setScale(s);
+        QTransform transform;
+        transform.scale(json["scaleX"].toDouble(1.0), json["scaleY"].toDouble(1.0));
+        item->setTransform(transform);
+        item->setOpacity(json["opacity"].toDouble(1.0));
+        item->setZValue(json["zValue"].toDouble(0.0));
+        item->setVisible(json["visible"].toBool(true));
     }
 
     return item;
