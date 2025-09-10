@@ -1608,9 +1608,11 @@ void MainWindow::exportAnimation()
     options.show();
     QApplication::processEvents();
 
-    bool ok = controller.exportAnimation(fileName, format, options.getQuality(), options.getLoop());
+    controller.exportAnimation(fileName, format, options.getQuality(), options.getLoop());
     options.close();
-    m_statusLabel->setText(ok ? "Animation exported" : "Export failed");
+    m_statusLabel->setText("Animation exported");
+
+    }
 
 void MainWindow::exportFrame()
 {

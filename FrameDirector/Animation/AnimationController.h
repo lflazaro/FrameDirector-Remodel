@@ -54,7 +54,7 @@ public:
     void moveKeyframe(int fromFrame, int toFrame);
 
     // Export
-    void exportAnimation(const QString& filename, const QString& format, int quality = 80, bool loop = true);
+    bool exportAnimation(const QString& filename, const QString& format, int quality = 80, bool loop = true);
     void exportFrame(int frame, const QString& filename);
 
 signals:
