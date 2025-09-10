@@ -2672,7 +2672,10 @@ QJsonObject Canvas::serializeGraphicsItem(QGraphicsItem* item) const
     json["scaleY"] = item->transform().m22();
     // Store per-item opacity rather than the opacity already multiplied by
     // the layer opacity. The original opacity is kept in item->data(0).
-    double baseOpacity = item->data(0).toDouble(item->opacity());
+    double baseOpacity = item->data(0).toDouble(); // Devuelve 0.0 si no está establecido
+    if (baseOpacity == 0.0) {
+        baseOpacity = item->opacity(); // Usa la opacidad actual si no hay dato almacenado
+    }
     json["opacity"] = baseOpacity;
     json["zValue"] = item->zValue();
     json["visible"] = item->isVisible();
@@ -2887,9 +2890,9 @@ bool Canvas::fromJson(const QJsonObject& json)
     m_currentLayerIndex = json["currentLayer"].toInt(0);
 
     // Ensure background rect exists in all frames of the background layer
-    if (m_backgroundRect && !m_layers.isEmpty()) {
+    if (m_backgroundRect && !m_layers.empty()) {
         LayerData* bgLayer = static_cast<LayerData*>(m_layers[0]);
-        QSet<int> frameKeys = QSet<int>::fromList(m_layerFrameData[0].keys());
+        QSet<int> frameKeys = QSet<int>(m_layerFrameData[0].keys().begin(), m_layerFrameData[0].keys().end());
         if (frameKeys.isEmpty()) {
             bgLayer->addItem(m_backgroundRect, m_currentFrame);
         } else {
