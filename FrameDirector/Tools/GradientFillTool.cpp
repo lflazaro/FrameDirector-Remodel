@@ -21,11 +21,7 @@ void GradientFillTool::mousePressEvent(QMouseEvent* event, const QPointF& sceneP
     QList<QGraphicsItem*> selected = m_canvas->scene()->selectedItems();
     if (selected.isEmpty()) return;
 
-    QGradientStops stops;
-    QColor fill = m_canvas->getFillColor();
-    stops << QGradientStop(0.0, fill) << QGradientStop(1.0, fill);
-
-    GradientDialog dlg(stops, m_canvas);
+    GradientDialog dlg(QGradientStops(), m_canvas);
     if (dlg.exec() == QDialog::Accepted) {
         QGradientStops chosen = dlg.getStops();
         for (QGraphicsItem* item : selected) {

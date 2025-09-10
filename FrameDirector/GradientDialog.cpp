@@ -27,10 +27,52 @@ void GradientPreview::paintEvent(QPaintEvent*)
     }
 }
 
+void GradientPreview::mousePressEvent(QMouseEvent* event)
+{
+    if (event->button() != Qt::LeftButton) return;
+    QRect rect = this->rect();
+    for (int i = 0; i < m_stops->size(); ++i) {
+        int x = rect.left() + (*m_stops)[i].first * rect.width();
+        QRect handle(x - 5, rect.bottom() - 15, 10, 15);
+        if (handle.contains(event->pos())) {
+            m_dragIndex = i;
+            break;
+        }
+    }
+}
+
+void GradientPreview::mouseMoveEvent(QMouseEvent* event)
+{
+    if (m_dragIndex < 0) return;
+    QRect rect = this->rect();
+    double pos = (event->pos().x() - rect.left()) / double(rect.width());
+    pos = std::clamp(pos, 0.0, 1.0);
+    QGradientStop stop = (*m_stops)[m_dragIndex];
+    stop.first = pos;
+    m_stops->removeAt(m_dragIndex);
+    int newIndex = 0;
+    while (newIndex < m_stops->size() && pos > (*m_stops)[newIndex].first)
+        ++newIndex;
+    m_stops->insert(newIndex, stop);
+    m_dragIndex = newIndex;
+    update();
+    emit stopsChanged();
+}
+
+void GradientPreview::mouseReleaseEvent(QMouseEvent* event)
+{
+    Q_UNUSED(event);
+    m_dragIndex = -1;
+}
+
 GradientDialog::GradientDialog(const QGradientStops& stops, QWidget* parent)
     : QDialog(parent)
     , m_stops(stops)
 {
+    if (m_stops.isEmpty()) {
+        m_stops << QGradientStop(0.0, Qt::red) << QGradientStop(1.0, Qt::blue);
+    }
+
     setWindowTitle("Gradient Picker");
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
 
@@ -61,6 +103,7 @@ GradientDialog::GradientDialog(const QGradientStops& stops, QWidget* parent)
     connect(m_stopList, &QListWidget::itemDoubleClicked, this, &GradientDialog::editStop);
     connect(ok, &QPushButton::clicked, this, &QDialog::accept);
     connect(cancel, &QPushButton::clicked, this, &QDialog::reject);
+    connect(m_preview, &GradientPreview::stopsChanged, this, [this]() { refreshStopList(); updatePreview(); });
 
     refreshStopList();
     updatePreview();
