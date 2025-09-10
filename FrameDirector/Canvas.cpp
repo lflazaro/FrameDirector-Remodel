@@ -1,4 +1,5 @@
 // Canvas.cpp - Robustly fixed layer system with better state tracking
+// Unique layer IDs to prevent mix-ups
 
 #include "Canvas.h"
 #include "Tools/Tool.h"
