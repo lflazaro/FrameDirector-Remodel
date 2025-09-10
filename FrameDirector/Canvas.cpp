@@ -789,40 +789,36 @@ void Canvas::setCurrentFrame(int frame)
 {
     if (frame == m_currentFrame) return;
 
-    // CRITICAL FIX: Clean up interpolated items for current layer only
-    cleanupInterpolatedItems(m_currentLayerIndex);
+    // Clean up any existing interpolated items across all layers to avoid
+    // residual drawings when jumping between frames or layers
+    cleanupInterpolatedItems();
 
     m_currentFrame = frame;
 
-    // Check if this frame is part of a tweened sequence ON THE CURRENT LAYER
+    // Check if this frame is part of a tweened sequence on the current layer
     if (isFrameTweened(frame, m_currentLayerIndex)) {
-        m_layerShowingInterpolated[m_currentLayerIndex] = true;
-
-        // Find the tweening start and end frames for current layer
+        // Determine tween start and end frames for the active layer
         int startFrame = frame;
         int endFrame = -1;
 
-        // If this is an extended tweened frame, find the source keyframe
         if (getFrameType(frame, m_currentLayerIndex) == FrameType::ExtendedFrame) {
             startFrame = getSourceKeyframe(frame, m_currentLayerIndex);
         }
 
-        // Get the end frame for current layer
         if (hasFrameTweening(startFrame, m_currentLayerIndex)) {
             endFrame = getTweeningEndFrame(startFrame, m_currentLayerIndex);
         }
 
-        // Handle keyframes vs interpolated frames differently
         if (frame == startFrame || frame == endFrame) {
-            // Show actual keyframe content (start or end)
-            m_layerShowingInterpolated[m_currentLayerIndex] = false;
-            clearLayerFromScene(m_currentLayerIndex);
+            // For actual keyframes simply load the saved state for all layers
             loadFrameState(frame);
         }
         else if (startFrame != -1 && endFrame != -1 && frame > startFrame && frame < endFrame) {
-            // Show interpolated content for in-between frames
+            // Load all layer content for this frame first, then replace the
+            // current layer with interpolated items so other layers display
+            // the correct frame content
+            loadFrameState(frame);
             clearLayerFromScene(m_currentLayerIndex);
-            // Compute interpolation factor and apply easing before interpolating
             float t = static_cast<float>(frame - startFrame) / (endFrame - startFrame);
             QString easingType = getFrameTweeningEasing(startFrame, m_currentLayerIndex);
             if (easingType == "ease-in") {
@@ -842,7 +838,6 @@ void Canvas::setCurrentFrame(int frame)
     }
 
     // Normal frame loading
-    m_layerShowingInterpolated[m_currentLayerIndex] = false;
     loadFrameState(frame);
     emit frameChanged(frame);
 }
