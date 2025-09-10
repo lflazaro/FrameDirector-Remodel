@@ -507,6 +507,9 @@ void PropertyChangeCommand::applyProperty(QGraphicsItem* item, const QString& pr
         item->setPos(value.toPointF());
     }
     else if (property == "rotation") {
+        QPointF sceneCenter = item->mapToScene(item->boundingRect().center());
+        item->setTransformOriginPoint(item->boundingRect().center());
+        item->setPos(sceneCenter - item->transformOriginPoint());
         item->setRotation(value.toDouble());
     }
     else if (property == "scale") {

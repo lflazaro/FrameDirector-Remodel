@@ -2954,16 +2954,15 @@ void MainWindow::rotateSelected(double angle)
         for (QGraphicsItem* item : selectedItems) {
             QTransform originalTransform = item->transform();
 
-            // Set rotation origin to item center
-            QPointF center = item->boundingRect().center();
-            item->setTransformOriginPoint(center);
+            // Compute the item's visual center in scene coordinates
+            QPointF sceneCenter = item->mapToScene(item->boundingRect().center());
 
-            // Create new transform with rotation
-            QTransform newTransform = originalTransform;
-            newTransform.translate(center.x(), center.y());
-            newTransform.rotate(angle);
-            newTransform.translate(-center.x(), -center.y());
+            // Reposition and rotate around the item's center
+            item->setTransformOriginPoint(item->boundingRect().center());
+            item->setPos(sceneCenter - item->transformOriginPoint());
+            item->setRotation(item->rotation() + angle);
 
+            QTransform newTransform = item->transform();
             TransformCommand* transformCommand = new TransformCommand(
                 m_canvas, item, originalTransform, newTransform);
             m_undoStack->push(transformCommand);

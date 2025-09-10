@@ -1748,8 +1748,9 @@ void Canvas::rotateSelected(double angle)
     if (!m_scene) return;
     QList<QGraphicsItem*> selectedItems = m_scene->selectedItems();
     for (QGraphicsItem* item : selectedItems) {
-        QPointF center = item->boundingRect().center();
-        item->setTransformOriginPoint(center);
+        QPointF sceneCenter = item->mapToScene(item->boundingRect().center());
+        item->setTransformOriginPoint(item->boundingRect().center());
+        item->setPos(sceneCenter - item->transformOriginPoint());
         item->setRotation(item->rotation() + angle);
     }
     storeCurrentFrameState();
