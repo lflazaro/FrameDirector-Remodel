@@ -3500,8 +3500,8 @@ void MainWindow::createDockWindows()
     m_rightPanelTabs->addTab(m_colorPanel, "Colors");
 
     // Layers Panel
-    m_layerManager = new LayerManager(this);
-    m_rightPanelTabs->addTab(m_layerManager, "Layers");
+    //m_layerManager = new LayerManager(this);
+    //m_rightPanelTabs->addTab(m_layerManager, "Layers");
 
     // Alignment Panel
     m_alignmentPanel = new AlignmentPanel(this);
