@@ -328,17 +328,17 @@ void AnimationController::moveKeyframe(int fromFrame, int toFrame)
     }
 }
 
-void AnimationController::exportAnimation(const QString& filename, const QString& format, int quality, bool loop)
+bool AnimationController::exportAnimation(const QString& filename, const QString& format, int quality, bool loop)
 {
-    if (filename.isEmpty() || m_layers.empty()) {
-        return;
+    if (filename.isEmpty()) {
+        return false;
     }
 
     // Get canvas for rendering
     Canvas* canvas = m_mainWindow->findChild<Canvas*>();
     if (!canvas || !canvas->scene()) {
         QMessageBox::warning(m_mainWindow, "Export Error", "Cannot access canvas for export.");
-        return;
+        return false;
     }
 
     QGraphicsScene* scene = canvas->scene();
@@ -408,6 +408,8 @@ void AnimationController::exportAnimation(const QString& filename, const QString
     } else {
         QMessageBox::warning(m_mainWindow, "Export Error", "Export failed. Frames have been left in:\n" + tempDir);
     }
+
+    return success;
 }
 
 void AnimationController::exportFrame(int frame, const QString& filename)
