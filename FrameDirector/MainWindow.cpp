@@ -61,6 +61,11 @@
 #include <QStandardPaths>
 #include <qinputdialog.h>
 #include <QUrl>
+#include <QAudioDecoder>
+#include <QAudioBuffer>
+#include <QEventLoop>
+#include <algorithm>
+#include <cmath>
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
@@ -1496,6 +1501,41 @@ void MainWindow::importAudio()
         m_audioFile = fileName;
         m_statusLabel->setText(QString("Audio imported: %1").arg(QFileInfo(fileName).fileName()));
 
+        // Generate waveform data
+        m_audioWaveform.clear();
+        QAudioDecoder decoder;
+        decoder.setSourceFilename(fileName);
+        QEventLoop loop;
+        QObject::connect(&decoder, &QAudioDecoder::bufferReady, [&]() {
+            QAudioBuffer buffer = decoder.read();
+            const qint16* data = buffer.constData<qint16>();
+            int channels = buffer.format().channelCount();
+            int samples = buffer.sampleCount() / channels;
+            for (int i = 0; i < samples; ++i) {
+                float value = 0.0f;
+                for (int c = 0; c < channels; ++c)
+                    value += std::abs(data[i * channels + c]) / 32768.0f;
+                m_audioWaveform.push_back(value / channels);
+            }
+        });
+        QObject::connect(&decoder, QOverload<>::of(&QAudioDecoder::finished), &loop, &QEventLoop::quit);
+        decoder.start();
+        loop.exec();
+
+        // Downsample for drawing
+        const int targetSamples = 1000;
+        if (m_audioWaveform.size() > static_cast<size_t>(targetSamples)) {
+            std::vector<float> downsampled;
+            int step = static_cast<int>(m_audioWaveform.size() / targetSamples);
+            for (int i = 0; i < m_audioWaveform.size(); i += step) {
+                float maxVal = 0.0f;
+                for (int j = 0; j < step && (i + j) < m_audioWaveform.size(); ++j)
+                    maxVal = std::max(maxVal, m_audioWaveform[i + j]);
+                downsampled.push_back(maxVal);
+            }
+            m_audioWaveform.swap(downsampled);
+        }
+
         // If duration already available, update timeline immediately
         if (m_audioPlayer->duration() > 0) {
             onAudioDurationChanged(m_audioPlayer->duration());
@@ -1510,7 +1550,7 @@ void MainWindow::onAudioDurationChanged(qint64 duration)
 
     m_audioFrameLength = static_cast<int>((duration / 1000.0) * m_frameRate);
     if (m_timeline) {
-        m_timeline->setAudioTrack(m_audioFrameLength);
+        m_timeline->setAudioTrack(m_audioFrameLength, m_audioWaveform, QFileInfo(m_audioFile).fileName());
     }
 }
 
@@ -2513,7 +2553,7 @@ void MainWindow::setFrameRate(int fps)
     if (m_audioPlayer && m_audioPlayer->duration() > 0) {
         m_audioFrameLength = static_cast<int>((m_audioPlayer->duration() / 1000.0) * m_frameRate);
         if (m_timeline)
-            m_timeline->setAudioTrack(m_audioFrameLength);
+            m_timeline->setAudioTrack(m_audioFrameLength, m_audioWaveform, QFileInfo(m_audioFile).fileName());
     }
 }
 

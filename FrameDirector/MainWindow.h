@@ -356,6 +356,7 @@ private:
     QAudioOutput* m_audioOutput; // NEW
     int m_audioFrameLength;      // NEW
     QString m_audioFile;         // NEW
+    std::vector<float> m_audioWaveform; // NEW
     QList<QGraphicsItem*> m_clipboardItems;
     QPointF m_clipboardOffset;
 
