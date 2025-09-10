@@ -21,6 +21,8 @@
 #include <QBrush>
 #include <QPen>
 #include <QFont>
+#include <QPixmap>
+#include <QString>
 #include <vector>
 #include <map>
 
@@ -109,7 +111,7 @@ public:
     void scrollToFrame(int frame);
 
     // Audio
-    void setAudioTrack(int frames); // NEW
+    void setAudioTrack(int frames, const QPixmap& waveform = QPixmap(), const QString& label = QString()); // NEW
 
     // ENHANCED: Drawing methods with frame extension visualization
     void drawTimelineBackground(QPainter* painter, const QRect& rect);
@@ -137,6 +139,7 @@ signals:
     void frameExtended(int layer, int frame);  // NEW
     void keyframeSelected(int layer, int frame);
     void layerSelected(int layer);
+    void totalFramesChanged(int frames);
 
 private slots:
     void onFrameSliderChanged(int value);
@@ -200,6 +203,8 @@ private:
     bool m_hasAudioTrack;
     int m_audioTrackHeight;
     int m_audioTrackFrames;
+    QPixmap m_audioWaveform;
+    QString m_audioLabel;
 
 
     // ENHANCED: Colors for frame extension visualization

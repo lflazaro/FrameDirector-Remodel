@@ -40,6 +40,10 @@
 #include <QApplication>
 #include <QMediaPlayer>
 #include <QAudioOutput>
+#include <QAudioDecoder>
+#include <QAudioBuffer>
+#include <QEventLoop>
+#include <QPixmap>
 #include <memory>
 #include <vector>
 #include <map>
@@ -157,6 +161,7 @@ private slots:
     void exportFrame();
     void exportSVG();
     void onAudioDurationChanged(qint64 duration); // NEW
+    void onTotalFramesChanged(int frames);
 
     // Edit menu actions
     void undo();
@@ -262,6 +267,7 @@ private:
     void updateStatusBar();
     void updateImportMenu();
     void showFrameTypeIndicator();      // Show current frame type in status bar
+    QPixmap createAudioWaveform(const QString& fileName, int samples, int height = 100);
 
 
     struct FrameClipboard {
@@ -356,6 +362,7 @@ private:
     QAudioOutput* m_audioOutput; // NEW
     int m_audioFrameLength;      // NEW
     QString m_audioFile;         // NEW
+    QPixmap m_audioWaveform;     // NEW
     QList<QGraphicsItem*> m_clipboardItems;
     QPointF m_clipboardOffset;
 

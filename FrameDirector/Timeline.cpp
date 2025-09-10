@@ -1212,16 +1212,22 @@ void Timeline::drawAudioTrack(QPainter* painter, const QRect& rect)
     painter->drawLine(trackRect.topLeft(), trackRect.topRight());
     painter->drawLine(trackRect.bottomLeft(), trackRect.bottomRight());
 
-    // Visualize audio length
+    // Visualize audio length with waveform
     if (m_audioTrackFrames > 0) {
         int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
         int width = m_audioTrackFrames * frameWidth;
-        QRect audioBar(m_layerPanelWidth, base.top(), width, base.height());
-        painter->fillRect(audioBar, QColor(100, 100, 150));
+        if (!m_audioWaveform.isNull()) {
+            QPixmap scaled = m_audioWaveform.scaled(width, base.height(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+            painter->drawPixmap(m_layerPanelWidth, base.top(), scaled);
+        } else {
+            QRect audioBar(m_layerPanelWidth, base.top(), width, base.height());
+            painter->fillRect(audioBar, QColor(100, 100, 150));
+        }
     }
 
     painter->setPen(QPen(QColor(220, 220, 220), 1));
-    painter->drawText(m_layerPanelWidth + 5, base.center().y() + 5, "Audio");
+    QString label = m_audioLabel.isEmpty() ? QString("Audio") : m_audioLabel;
+    painter->drawText(m_layerPanelWidth + 5, base.center().y() + 5, label);
 }
 
 QRect Timeline::getAudioTrackRect() const
@@ -1230,10 +1236,12 @@ QRect Timeline::getAudioTrackRect() const
     return QRect(0, y, width(), m_audioTrackHeight);
 }
 
-void Timeline::setAudioTrack(int frames)
+void Timeline::setAudioTrack(int frames, const QPixmap& waveform, const QString& label)
 {
     m_hasAudioTrack = frames > 0;
     m_audioTrackFrames = frames;
+    m_audioWaveform = waveform;
+    m_audioLabel = label;
     updateLayout();
     update();
 }
@@ -1302,6 +1310,7 @@ void Timeline::setTotalFrames(int frames)
         if (m_drawingArea) {
             m_drawingArea->update();
         }
+        emit totalFramesChanged(frames);
     }
 }
 
