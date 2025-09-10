@@ -215,7 +215,7 @@ void Timeline::showFrameContextMenu(int frame, int layer, const QPoint& globalPo
     if (frameType == FrameType::ExtendedFrame && !isFrameTweened) {
         QAction* convertAction = contextMenu.addAction("Convert to Keyframe");
         convertAction->setIcon(QIcon(":/icons/branch-open.png"));
-            connect(convertAction, &QAction::triggered, [this, canvas, frame, layer]() {
+        connect(convertAction, &QAction::triggered, [this, canvas, frame, layer]() {
             canvas->setCurrentLayer(layer);
             canvas->createKeyframe(frame);
             updateLayersFromCanvas();
@@ -510,15 +510,15 @@ void Timeline::setupUI()
 
     // Ensure newly exposed regions repaint when the user scrolls.
     connect(m_scrollArea->horizontalScrollBar(), &QScrollBar::valueChanged,
-            this, [this](int) {
-                if (m_drawingArea)
-                    m_drawingArea->update();
-            });
+        this, [this](int) {
+            if (m_drawingArea)
+                m_drawingArea->update();
+        });
     connect(m_scrollArea->verticalScrollBar(), &QScrollBar::valueChanged,
-            this, [this](int) {
-                if (m_drawingArea)
-                    m_drawingArea->update();
-            });
+        this, [this](int) {
+            if (m_drawingArea)
+                m_drawingArea->update();
+        });
 
     timelineLayout->addWidget(m_scrollArea);
 
