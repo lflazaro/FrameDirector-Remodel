@@ -1,4 +1,5 @@
 // Canvas.cpp - Robustly fixed layer system with better state tracking
+// Unique layer IDs to prevent mix-ups
 
 #include "Canvas.h"
 #include "Tools/Tool.h"
@@ -818,8 +819,6 @@ void Canvas::setCurrentFrame(int frame)
             // the correct frame content
             loadFrameState(frame);
             clearLayerFromScene(m_currentLayerIndex);
-
-            // Compute interpolation factor with easing
             float t = static_cast<float>(frame - startFrame) / (endFrame - startFrame);
             QString easingType = getFrameTweeningEasing(startFrame, m_currentLayerIndex);
             if (easingType == "ease-in") {
