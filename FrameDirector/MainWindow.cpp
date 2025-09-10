@@ -1557,8 +1557,11 @@ QPixmap MainWindow::createAudioWaveform(const QString& fileName, int samples, in
     QImage image(samples, height, QImage::Format_ARGB32_Premultiplied);
     image.fill(Qt::transparent);
     QPainter painter(&image);
-    painter.setPen(QPen(Qt::white));
+    // Draw waveform in a soft, slightly dark green tone for better visibility
+    painter.setPen(QPen(QColor(60, 110, 60)));
     int step = qMax(1, pcm.size() / samples);
+    // Scale amplitude to keep the waveform from appearing too tall
+    constexpr double amplitudeScale = 0.5;
     for (int x = 0; x < samples; ++x) {
         int start = x * step;
         int end = qMin(start + step, pcm.size());
@@ -1568,8 +1571,8 @@ QPixmap MainWindow::createAudioWaveform(const QString& fileName, int samples, in
             if (val < min) min = val;
             if (val > max) max = val;
         }
-        int y1 = height / 2 - (max * (height / 2) / 32768);
-        int y2 = height / 2 - (min * (height / 2) / 32768);
+        int y1 = height / 2 - static_cast<int>((max * (height / 2) * amplitudeScale) / 32768);
+        int y2 = height / 2 - static_cast<int>((min * (height / 2) * amplitudeScale) / 32768);
         painter.drawLine(x, y1, x, y2);
     }
     painter.end();
