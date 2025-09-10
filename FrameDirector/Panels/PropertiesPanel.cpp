@@ -21,6 +21,7 @@
 #include <QGraphicsLineItem>
 #include <QGraphicsTextItem>
 #include <QGraphicsPathItem>
+#include <QGraphicsBlurEffect>
 #include <QPen>
 #include <QBrush>
 #include <QTransform>
@@ -303,6 +304,42 @@ void PropertiesPanel::setupStyleGroup()
     opLabel->setStyleSheet("color: white; font-weight: normal;");
     styleLayout->addRow(opLabel, opacityLayout);
 
+    // Blur
+    QHBoxLayout* blurLayout = new QHBoxLayout;
+
+    m_blurSlider = new QSlider(Qt::Horizontal);
+    m_blurSlider->setRange(0, 20);
+    m_blurSlider->setValue(0);
+    m_blurSlider->setStyleSheet(
+        "QSlider::groove:horizontal {"
+        "    border: 1px solid #5A5A5C;"
+        "    height: 4px;"
+        "    background: #2D2D30;"
+        "    border-radius: 2px;"
+        "}"
+        "QSlider::handle:horizontal {"
+        "    background: #007ACC;"
+        "    border: 1px solid #005A9B;"
+        "    width: 12px;"
+        "    margin: -4px 0;"
+        "    border-radius: 2px;"
+        "}"
+        "QSlider::handle:horizontal:hover {"
+        "    background: #4A9EDF;"
+        "}"
+    );
+
+    m_blurLabel = new QLabel("0px");
+    m_blurLabel->setStyleSheet("color: white; font-weight: normal; min-width: 35px;");
+    m_blurLabel->setAlignment(Qt::AlignRight);
+
+    blurLayout->addWidget(m_blurSlider);
+    blurLayout->addWidget(m_blurLabel);
+
+    QLabel* blurLabel = new QLabel("Blur:");
+    blurLabel->setStyleSheet("color: white; font-weight: normal;");
+    styleLayout->addRow(blurLabel, blurLayout);
+
     // Stroke style
     m_strokeStyleCombo = new QComboBox;
     m_strokeStyleCombo->addItems({ "Solid", "Dashed", "Dotted", "Dash Dot" });
@@ -346,6 +383,10 @@ void PropertiesPanel::setupStyleGroup()
         this, &PropertiesPanel::onStyleChanged);
     connect(m_opacitySlider, &QSlider::valueChanged, this, [this](int value) {
         m_opacityLabel->setText(QString("%1%").arg(value));
+        onStyleChanged();
+        });
+    connect(m_blurSlider, &QSlider::valueChanged, this, [this](int value) {
+        m_blurLabel->setText(QString("%1px").arg(value));
         onStyleChanged();
         });
     connect(m_strokeStyleCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
@@ -484,6 +525,8 @@ void PropertiesPanel::clearProperties()
     m_strokeWidthSpinBox->setValue(1.0);
     m_opacitySlider->setValue(100);
     m_opacityLabel->setText("100%");
+    m_blurSlider->setValue(0);
+    m_blurLabel->setText("0px");
     m_strokeStyleCombo->setCurrentIndex(0);
 
     m_updating = false;
@@ -567,6 +610,14 @@ void PropertiesPanel::updateStyleControls(QGraphicsItem* item)
     m_opacitySlider->setValue(opacity);
     m_opacityLabel->setText(QString("%1%").arg(opacity));
 
+    // Update blur
+    int blur = 0;
+    if (auto blurEffect = qgraphicsitem_cast<QGraphicsBlurEffect*>(item->graphicsEffect())) {
+        blur = static_cast<int>(blurEffect->blurRadius());
+    }
+    m_blurSlider->setValue(blur);
+    m_blurLabel->setText(QString("%1px").arg(blur));
+
     // Update stroke style
     switch (pen.style()) {
     case Qt::SolidLine: m_strokeStyleCombo->setCurrentIndex(0); break;
@@ -621,6 +672,7 @@ void PropertiesPanel::onStyleChanged()
 
     double strokeWidth = m_strokeWidthSpinBox->value();
     double opacity = m_opacitySlider->value() / 100.0;
+    int blur = m_blurSlider->value();
 
     Qt::PenStyle penStyle = Qt::SolidLine;
     switch (m_strokeStyleCombo->currentIndex()) {
@@ -640,6 +692,18 @@ void PropertiesPanel::onStyleChanged()
         item->setData(0, opacity);
         item->setOpacity(opacity * layerOpacity);
 
+        // Apply blur effect
+        if (blur > 0) {
+            QGraphicsBlurEffect* blurEffect = qgraphicsitem_cast<QGraphicsBlurEffect*>(item->graphicsEffect());
+            if (!blurEffect) {
+                blurEffect = new QGraphicsBlurEffect();
+                item->setGraphicsEffect(blurEffect);
+            }
+            blurEffect->setBlurRadius(blur);
+        }
+        else if (item->graphicsEffect()) {
+            item->setGraphicsEffect(nullptr);
+        }
 
         // Update pen and brush based on item type
         if (auto rectItem = qgraphicsitem_cast<QGraphicsRectItem*>(item)) {

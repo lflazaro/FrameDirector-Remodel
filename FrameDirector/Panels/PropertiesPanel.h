@@ -69,6 +69,8 @@ private:
     QDoubleSpinBox* m_strokeWidthSpinBox;
     QSlider* m_opacitySlider;
     QLabel* m_opacityLabel;
+    QSlider* m_blurSlider;
+    QLabel* m_blurLabel;
     QComboBox* m_strokeStyleCombo;
 
     // Animation properties

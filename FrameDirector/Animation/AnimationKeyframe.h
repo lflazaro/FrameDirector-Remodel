@@ -19,6 +19,7 @@ public:
         double rotation;
         QPointF scale;
         double opacity;
+        double blurRadius;
         QColor strokeColor;
         QColor fillColor;
         double strokeWidth;

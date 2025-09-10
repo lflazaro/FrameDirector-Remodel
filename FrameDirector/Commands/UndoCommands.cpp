@@ -8,6 +8,7 @@
 #include <QGraphicsLineItem>
 #include <QGraphicsTextItem>
 #include <QGraphicsPathItem>
+#include <QGraphicsBlurEffect>
 #include <QPen>
 #include <QBrush>
 #include <QTransform>
@@ -345,6 +346,22 @@ void StyleChangeCommand::applyStyle(QGraphicsItem* item, const QString& property
     else if (property == "opacity") {
         item->setData(0, value.toDouble());
         item->setOpacity(value.toDouble());
+    }
+    else if (property == "blur") {
+        double radius = value.toDouble();
+        if (radius > 0) {
+            QGraphicsBlurEffect* blur = qgraphicsitem_cast<QGraphicsBlurEffect*>(item->graphicsEffect());
+            if (!blur) {
+                blur = new QGraphicsBlurEffect();
+                item->setGraphicsEffect(blur);
+            }
+            blur->setBlurRadius(radius);
+        }
+        else {
+            if (item->graphicsEffect()) {
+                item->setGraphicsEffect(nullptr);
+            }
+        }
     }
 }
 
