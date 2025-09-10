@@ -6,16 +6,23 @@
 #include <QListWidget>
 #include <QPushButton>
 #include <QWidget>
+#include <QMouseEvent>
 
 class GradientPreview : public QWidget
 {
     Q_OBJECT
 public:
     explicit GradientPreview(QGradientStops* stops, QWidget* parent = nullptr);
+signals:
+    void stopsChanged();
 protected:
     void paintEvent(QPaintEvent* event) override;
+    void mousePressEvent(QMouseEvent* event) override;
+    void mouseMoveEvent(QMouseEvent* event) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
 private:
     QGradientStops* m_stops;
+    int m_dragIndex = -1;
 };
 
 class GradientDialog : public QDialog
