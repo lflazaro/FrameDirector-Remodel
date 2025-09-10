@@ -587,6 +587,9 @@ void Canvas::loadFrameState(int frame)
 {
     qDebug() << "Loading frame state for frame:" << frame;
 
+    // Remove any existing interpolated items before loading new state
+    cleanupInterpolatedItems();
+
     // Clear current items first
     QList<QGraphicsItem*> currentItems;
     for (QGraphicsItem* item : scene()->items()) {
@@ -623,6 +626,40 @@ void Canvas::loadFrameState(int frame)
                 // Remove invalid item from layer data
                 layer->removeItemFromFrame(frame, item);
             }
+        }
+    }
+
+    // After base items are loaded, generate interpolated items for tweened layers
+    for (int layerIndex = 0; layerIndex < m_layers.size(); ++layerIndex) {
+        if (!isFrameTweened(frame, layerIndex)) {
+            continue;
+        }
+
+        int startFrame = frame;
+        int endFrame = -1;
+
+        if (getFrameType(frame, layerIndex) == FrameType::ExtendedFrame) {
+            startFrame = getSourceKeyframe(frame, layerIndex);
+        }
+
+        if (hasFrameTweening(startFrame, layerIndex)) {
+            endFrame = getTweeningEndFrame(startFrame, layerIndex);
+        }
+
+        if (startFrame != -1 && endFrame != -1 && frame > startFrame && frame < endFrame) {
+            clearLayerFromScene(layerIndex);
+            float t = static_cast<float>(frame - startFrame) / (endFrame - startFrame);
+            QString easingType = getFrameTweeningEasing(startFrame, layerIndex);
+            if (easingType == "ease-in") {
+                t = t * t;  // Quadratic ease-in
+            }
+            else if (easingType == "ease-out") {
+                t = 1 - (1 - t) * (1 - t);  // Quadratic ease-out
+            }
+            else if (easingType == "ease-in-out") {
+                t = t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t);  // Quadratic ease-in-out
+            }
+            interpolateFrame(frame, startFrame, endFrame, t, layerIndex);
         }
     }
 

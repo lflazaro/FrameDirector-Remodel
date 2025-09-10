@@ -933,18 +933,17 @@ void Timeline::drawTweeningIndicators(QPainter* painter, const QRect& rect)
     int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
     int startFrame = qMax(1, (rect.left() - m_layerPanelWidth) / frameWidth + 1);
     int endFrame = qMin(m_totalFrames, startFrame + rect.width() / frameWidth + 1);
-    int currentLayer = canvas->getCurrentLayer(); // FIX: Only draw for current layer
-
     painter->setPen(QPen(QColor(100, 255, 100), 2));
     painter->setBrush(Qt::NoBrush);
 
-    for (int frame = startFrame; frame <= endFrame; ++frame) {
-        if (canvas->hasFrameTweening(frame, currentLayer)) {
-            int tweeningEnd = canvas->getTweeningEndFrame(frame, currentLayer);
-            if (tweeningEnd > frame) {
-                // FIX: Only draw for current layer, not all layers
-                QRect layerRect = getLayerRect(currentLayer);
-                if (!layerRect.isEmpty()) {
+    for (int layerIndex = 0; layerIndex < m_layers.size(); ++layerIndex) {
+        QRect layerRect = getLayerRect(layerIndex);
+        if (layerRect.isEmpty()) continue;
+
+        for (int frame = startFrame; frame <= endFrame; ++frame) {
+            if (canvas->hasFrameTweening(frame, layerIndex)) {
+                int tweeningEnd = canvas->getTweeningEndFrame(frame, layerIndex);
+                if (tweeningEnd > frame) {
                     int startX = m_layerPanelWidth + (frame - 1) * frameWidth + frameWidth / 2;
                     int endX = m_layerPanelWidth + (tweeningEnd - 1) * frameWidth + frameWidth / 2;
                     int y = layerRect.center().y() + 5;
