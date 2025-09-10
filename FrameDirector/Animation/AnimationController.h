@@ -54,7 +54,7 @@ public:
     void moveKeyframe(int fromFrame, int toFrame);
 
     // Export
-    void exportAnimation(const QString& filename, const QString& format);
+    void exportAnimation(const QString& filename, const QString& format, int quality = 80, bool loop = true);
     void exportFrame(int frame, const QString& filename);
 
 signals:
@@ -75,8 +75,8 @@ private slots:
 private:
     void updateAllLayers();
     void updateLayerAtFrame(AnimationLayer* layer, int frame);
-    bool exportToGif(const QStringList& frameFiles, const QString& filename);
-    bool exportToMp4(const QStringList& frameFiles, const QString& filename);
+    bool exportToGif(const QStringList& frameFiles, const QString& filename, bool loop);
+    bool exportToMp4(const QStringList& frameFiles, const QString& filename, int quality);
     MainWindow* m_mainWindow;
     Timeline* m_timeline;
 
