@@ -3306,11 +3306,27 @@ void MainWindow::loadFile(const QString& fileName)
         QMessageBox::warning(this, "Error", "Invalid project file");
         return;
     }
+    QJsonObject root = doc.object();
 
     if (m_canvas) {
-        m_canvas->fromJson(doc.object());
+        if (root.contains("canvas"))
+            m_canvas->fromJson(root.value("canvas").toObject());
+        else
+            m_canvas->fromJson(root); // backward compatibility
         if (m_timeline) {
             m_timeline->updateLayersFromCanvas();
+        }
+    }
+
+    // Restore audio settings if present
+    m_audioFile = root.value("audioFile").toString();
+    m_audioFrameLength = root.value("audioFrameLength").toInt(0);
+    if (!m_audioFile.isEmpty()) {
+        m_audioPlayer->setSource(QUrl::fromLocalFile(m_audioFile));
+        if (m_audioFrameLength > 0) {
+            m_audioWaveform = createAudioWaveform(m_audioFile, m_audioFrameLength);
+            if (m_timeline)
+                m_timeline->setAudioTrack(m_audioFrameLength, m_audioWaveform, QFileInfo(m_audioFile).fileName());
         }
     }
 
@@ -3324,8 +3340,13 @@ bool MainWindow::saveFile(const QString& fileName)
     if (!m_canvas)
         return false;
 
-    QJsonObject obj = m_canvas->toJson();
-    QJsonDocument doc(obj);
+    QJsonObject root;
+    root["canvas"] = m_canvas->toJson();
+    if (!m_audioFile.isEmpty()) {
+        root["audioFile"] = m_audioFile;
+        root["audioFrameLength"] = m_audioFrameLength;
+    }
+    QJsonDocument doc(root);
 
     QFile file(fileName);
     if (!file.open(QIODevice::WriteOnly)) {
