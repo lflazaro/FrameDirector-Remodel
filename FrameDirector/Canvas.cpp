@@ -2325,7 +2325,7 @@ QList<QGraphicsItem*> Canvas::duplicateItems(const QList<QGraphicsItem*>& items)
 void Canvas::ensureObjectIndependence(QGraphicsItem* item)
 {
     // This method is called before any transformation to ensure the object
-    // being transformed doesn't affect other frames
+    // being transformed doesn't affect other frames.
 
     if (!item) return;
 
