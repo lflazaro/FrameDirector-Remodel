@@ -4,6 +4,7 @@
 #include <QGraphicsEllipseItem>
 #include <QGraphicsPathItem>
 #include <QGraphicsTextItem>
+#include <QGraphicsBlurEffect>
 #include <QtMath>
 #include <QPen>        // Add this
 #include <QBrush>      // Add this
@@ -44,6 +45,12 @@ void AnimationKeyframe::captureItemState(QGraphicsItem* item)
     state.opacity = item->opacity();
     state.transform = item->transform();
     state.visible = item->isVisible();
+    if (auto blur = qgraphicsitem_cast<QGraphicsBlurEffect*>(item->graphicsEffect())) {
+        state.blurRadius = blur->blurRadius();
+    }
+    else {
+        state.blurRadius = 0.0;
+    }
 
     // Get size from bounding rect
     state.size = item->boundingRect().size();
@@ -99,6 +106,17 @@ void AnimationKeyframe::applyItemState(QGraphicsItem* item) const
     item->setRotation(state.rotation);
     item->setOpacity(state.opacity);
     item->setVisible(state.visible);
+    if (state.blurRadius > 0) {
+        QGraphicsBlurEffect* blurEffect = qgraphicsitem_cast<QGraphicsBlurEffect*>(item->graphicsEffect());
+        if (!blurEffect) {
+            blurEffect = new QGraphicsBlurEffect();
+            item->setGraphicsEffect(blurEffect);
+        }
+        blurEffect->setBlurRadius(state.blurRadius);
+    }
+    else if (item->graphicsEffect()) {
+        item->setGraphicsEffect(nullptr);
+    }
 
     // Apply colors and stroke width based on item type
     if (auto rectItem = qgraphicsitem_cast<QGraphicsRectItem*>(item)) {
@@ -185,6 +203,20 @@ void AnimationKeyframe::interpolateBetween(const AnimationKeyframe* from,
     // Interpolate opacity
     double opacity = interpolateValue(fromState.opacity, toState.opacity, easedT);
     item->setOpacity(opacity);
+
+    // Interpolate blur
+    double blur = interpolateValue(fromState.blurRadius, toState.blurRadius, easedT);
+    if (blur > 0) {
+        QGraphicsBlurEffect* blurEffect = qgraphicsitem_cast<QGraphicsBlurEffect*>(item->graphicsEffect());
+        if (!blurEffect) {
+            blurEffect = new QGraphicsBlurEffect();
+            item->setGraphicsEffect(blurEffect);
+        }
+        blurEffect->setBlurRadius(blur);
+    }
+    else if (item->graphicsEffect()) {
+        item->setGraphicsEffect(nullptr);
+    }
 
     // Interpolate colors and stroke width for supported item types
     if (auto rectItem = qgraphicsitem_cast<QGraphicsRectItem*>(item)) {
