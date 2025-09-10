@@ -61,6 +61,11 @@
 #include <QStandardPaths>
 #include <qinputdialog.h>
 #include <QUrl>
+#include <QAudioDecoder>
+#include <QAudioBuffer>
+#include <QEventLoop>
+#include <QImage>
+#include <QVector>
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
@@ -136,9 +141,10 @@ MainWindow::MainWindow(QWidget* parent)
     m_timelineDock->setWidget(m_timeline);
     m_timelineDock->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable);
     addDockWidget(Qt::BottomDockWidgetArea, m_timelineDock);
-
+    m_timeline->setTotalFrames(m_totalFrames);
     connect(m_timeline, &Timeline::frameChanged, this, &MainWindow::onFrameChanged);
     connect(m_timeline, &Timeline::keyframeAdded, this, &MainWindow::addKeyframe);
+    connect(m_timeline, &Timeline::totalFramesChanged, this, &MainWindow::onTotalFramesChanged);
 
     // Setup main layout
     QVBoxLayout* mainLayout = new QVBoxLayout(centralWidget);
@@ -1510,8 +1516,61 @@ void MainWindow::onAudioDurationChanged(qint64 duration)
 
     m_audioFrameLength = static_cast<int>((duration / 1000.0) * m_frameRate);
     if (m_timeline) {
-        m_timeline->setAudioTrack(m_audioFrameLength);
+        m_audioWaveform = createAudioWaveform(m_audioFile, m_audioFrameLength);
+        m_timeline->setAudioTrack(m_audioFrameLength, m_audioWaveform, QFileInfo(m_audioFile).fileName());
     }
+}
+
+void MainWindow::onTotalFramesChanged(int frames)
+{
+    m_totalFrames = frames;
+    if (m_frameLabel)
+        m_frameLabel->setText(QString("Frame: %1 / %2").arg(m_currentFrame).arg(m_totalFrames));
+}
+
+QPixmap MainWindow::createAudioWaveform(const QString& fileName, int samples, int height)
+{
+    if (fileName.isEmpty() || samples <= 0)
+        return QPixmap();
+
+    QAudioDecoder decoder;
+    decoder.setSource(QUrl::fromLocalFile(fileName));
+    QVector<qint16> pcm;
+    QObject::connect(&decoder, &QAudioDecoder::bufferReady, [&]() {
+        QAudioBuffer buffer = decoder.read();
+        const qint16* data = buffer.constData<qint16>();
+        int count = buffer.frameCount() * buffer.channelCount();
+        for (int i = 0; i < count; ++i)
+            pcm.append(data[i]);
+    });
+    QEventLoop loop;
+    QObject::connect(&decoder, &QAudioDecoder::finished, &loop, &QEventLoop::quit);
+    decoder.start();
+    loop.exec();
+
+    if (pcm.isEmpty())
+        return QPixmap();
+
+    QImage image(samples, height, QImage::Format_ARGB32_Premultiplied);
+    image.fill(Qt::transparent);
+    QPainter painter(&image);
+    painter.setPen(QPen(Qt::white));
+    int step = qMax(1, pcm.size() / samples);
+    for (int x = 0; x < samples; ++x) {
+        int start = x * step;
+        int end = qMin(start + step, pcm.size());
+        qint16 min = 0, max = 0;
+        for (int i = start; i < end; ++i) {
+            qint16 val = pcm[i];
+            if (val < min) min = val;
+            if (val > max) max = val;
+        }
+        int y1 = height / 2 - (max * (height / 2) / 32768);
+        int y2 = height / 2 - (min * (height / 2) / 32768);
+        painter.drawLine(x, y1, x, y2);
+    }
+    painter.end();
+    return QPixmap::fromImage(image);
 }
 
 void MainWindow::exportAnimation()
@@ -2515,7 +2574,7 @@ void MainWindow::setFrameRate(int fps)
     if (m_audioPlayer && m_audioPlayer->duration() > 0) {
         m_audioFrameLength = static_cast<int>((m_audioPlayer->duration() / 1000.0) * m_frameRate);
         if (m_timeline)
-            m_timeline->setAudioTrack(m_audioFrameLength);
+            m_timeline->setAudioTrack(m_audioFrameLength, m_audioWaveform, QFileInfo(m_audioFile).fileName());
     }
 }
 
