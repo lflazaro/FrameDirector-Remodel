@@ -36,6 +36,9 @@
     <Filter Include="VectorGraphics">
       <UniqueIdentifier>{9e7fde60-8ffd-4eae-b372-825c04b8e1a9}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Dialogs">
+      <UniqueIdentifier>{deae9bab-17a7-458e-8b31-e70a5892bf38}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Canvas.cpp">
@@ -107,6 +110,12 @@
     <ClCompile Include="Tools\EraseTool.cpp">
       <Filter>Tools</Filter>
     </ClCompile>
+    <ClCompile Include="GradientDialog.cpp">
+      <Filter>Dialogs</Filter>
+    </ClCompile>
+    <ClCompile Include="Tools\GradientFillTool.cpp">
+      <Filter>Tools</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="Canvas.h">
@@ -161,6 +170,12 @@
       <Filter>Tools</Filter>
     </QtMoc>
     <QtMoc Include="Tools\EraseTool.h">
+      <Filter>Tools</Filter>
+    </QtMoc>
+    <QtMoc Include="GradientDialog.h">
+      <Filter>Dialogs</Filter>
+    </QtMoc>
+    <QtMoc Include="Tools\GradientFillTool.h">
       <Filter>Tools</Filter>
     </QtMoc>
   </ItemGroup>

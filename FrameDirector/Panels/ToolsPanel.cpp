@@ -56,6 +56,7 @@ void ToolsPanel::setupUI()
     createToolButton(":/icons/tool-ellipse.png", "Ellipse Tool", MainWindow::EllipseTool, "O");
     createToolButton(":/icons/tool-text.png", "Text Tool", MainWindow::TextTool, "T");
     createToolButton(":/icons/tool-bucket.png", "Bucket Fill Tool", MainWindow::BucketFillTool, "B");
+    createToolButton(":/icons/tool-gradient.png", "Gradient Fill Tool", MainWindow::GradientFillTool, "G");
     createToolButton(":/icons/tool-eraser.png", "Erase Tool", MainWindow::EraseTool, "E");
 
     m_mainLayout->addLayout(m_toolsLayout);
@@ -90,6 +91,7 @@ void ToolsPanel::setToolsEnabled(bool enabled)
         m_originalEnabledStates[m_ellipseButton] = m_ellipseButton->isEnabled();
         m_originalEnabledStates[m_textButton] = m_textButton->isEnabled();
         m_originalEnabledStates[m_bucketFillButton] = m_bucketFillButton->isEnabled();
+        m_originalEnabledStates[m_gradientFillButton] = m_gradientFillButton->isEnabled();
         m_originalEnabledStates[m_eraseButton] = m_eraseButton->isEnabled();
 
         // Disable drawing tools (keep select tool enabled)
@@ -99,6 +101,7 @@ void ToolsPanel::setToolsEnabled(bool enabled)
         m_ellipseButton->setEnabled(false);
         m_textButton->setEnabled(false);
         m_bucketFillButton->setEnabled(false);
+        m_gradientFillButton->setEnabled(false);
         m_eraseButton->setEnabled(false);
 
         // FIX: Apply visual styling using property instead of styleSheet
@@ -108,6 +111,7 @@ void ToolsPanel::setToolsEnabled(bool enabled)
         m_ellipseButton->setProperty("tweenDisabled", true);
         m_textButton->setProperty("tweenDisabled", true);
         m_bucketFillButton->setProperty("tweenDisabled", true);
+        m_gradientFillButton->setProperty("tweenDisabled", true);
         m_eraseButton->setProperty("tweenDisabled", true);
 
         // Force update
@@ -117,6 +121,7 @@ void ToolsPanel::setToolsEnabled(bool enabled)
         m_ellipseButton->update();
         m_textButton->update();
         m_bucketFillButton->update();
+        m_gradientFillButton->update();
         m_eraseButton->update();
 
         // Force selection tool if current tool is now disabled
@@ -147,6 +152,9 @@ void ToolsPanel::setToolsEnabled(bool enabled)
         if (m_originalEnabledStates.contains(m_bucketFillButton)) {
             m_bucketFillButton->setEnabled(m_originalEnabledStates[m_bucketFillButton]);
         }
+        if (m_originalEnabledStates.contains(m_gradientFillButton)) {
+            m_gradientFillButton->setEnabled(m_originalEnabledStates[m_gradientFillButton]);
+        }
         if (m_originalEnabledStates.contains(m_eraseButton)) {
             m_eraseButton->setEnabled(m_originalEnabledStates[m_eraseButton]);
         }
@@ -158,6 +166,7 @@ void ToolsPanel::setToolsEnabled(bool enabled)
         m_ellipseButton->setProperty("tweenDisabled", QVariant());
         m_textButton->setProperty("tweenDisabled", QVariant());
         m_bucketFillButton->setProperty("tweenDisabled", QVariant());
+        m_gradientFillButton->setProperty("tweenDisabled", QVariant());
         m_eraseButton->setProperty("tweenDisabled", QVariant());
 
         // Force size consistency and update
@@ -168,6 +177,7 @@ void ToolsPanel::setToolsEnabled(bool enabled)
         m_ellipseButton->setFixedSize(buttonSize);
         m_textButton->setFixedSize(buttonSize);
         m_bucketFillButton->setFixedSize(buttonSize);
+        m_gradientFillButton->setFixedSize(buttonSize);
         m_eraseButton->setFixedSize(buttonSize);
 
         m_drawButton->update();
@@ -176,6 +186,7 @@ void ToolsPanel::setToolsEnabled(bool enabled)
         m_ellipseButton->update();
         m_textButton->update();
         m_bucketFillButton->update();
+        m_gradientFillButton->update();
         m_eraseButton->update();
     }
 }
@@ -238,6 +249,7 @@ void ToolsPanel::createToolButton(const QString& iconPath, const QString& toolti
     case MainWindow::EllipseTool: m_ellipseButton = button; break;
     case MainWindow::TextTool: m_textButton = button; break;
     case MainWindow::BucketFillTool: m_bucketFillButton = button; break;
+    case MainWindow::GradientFillTool: m_gradientFillButton = button; break;
     case MainWindow::EraseTool: m_eraseButton = button; break;
     }
 }
@@ -388,6 +400,7 @@ void ToolsPanel::setActiveTool(MainWindow::ToolType tool)
     case MainWindow::EllipseTool: targetButton = m_ellipseButton; break;
     case MainWindow::TextTool: targetButton = m_textButton; break;
     case MainWindow::BucketFillTool: targetButton = m_bucketFillButton; break;
+    case MainWindow::GradientFillTool: targetButton = m_gradientFillButton; break;
     case MainWindow::EraseTool: targetButton = m_eraseButton; break;
     }
 
@@ -433,6 +446,7 @@ void ToolsPanel::onToolButtonClicked()
     else if (button == m_ellipseButton) tool = MainWindow::EllipseTool;
     else if (button == m_textButton) tool = MainWindow::TextTool;
     else if (button == m_bucketFillButton) tool = MainWindow::BucketFillTool;
+    else if (button == m_gradientFillButton) tool = MainWindow::GradientFillTool;
     else if (button == m_eraseButton) tool = MainWindow::EraseTool;
 
     setActiveTool(tool);

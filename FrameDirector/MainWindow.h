@@ -91,6 +91,7 @@ public:
         EllipseTool,
         TextTool,
         BucketFillTool,
+		GradientFillTool,
         EraseTool
     };
 
@@ -193,6 +194,7 @@ private slots:
     void ellipseToolActivated();
     void textToolActivated();
     void bucketFillToolActivated();
+    void gradientFillToolActivated();
     void eraseToolActivated();
 
     // Transform and alignment actions

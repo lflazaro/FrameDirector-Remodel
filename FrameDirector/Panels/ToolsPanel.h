@@ -60,6 +60,7 @@ private:
     QPushButton* m_ellipseButton;
     QPushButton* m_textButton;
     QPushButton* m_bucketFillButton;
+    QPushButton* m_gradientFillButton;
     QPushButton* m_eraseButton;
     // NEW: Store original enabled states for restoration
     QMap<QPushButton*, bool> m_originalEnabledStates;

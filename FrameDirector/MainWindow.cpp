@@ -14,6 +14,7 @@
 #include "Tools/EllipseTool.h"       
 #include "Tools/TextTool.h"          
 #include "BucketFillTool.h"
+#include "Tools/GradientFillTool.h"
 #include "Tools/EraseTool.h"
 #include "Commands/UndoCommands.h"
 #include "Animation/AnimationLayer.h"
@@ -1024,6 +1025,9 @@ void MainWindow::setupTools()
         // FIXED: Create bucket fill tool
         m_tools[BucketFillTool] = std::make_unique<::BucketFillTool>(this);
         qDebug() << "Created BucketFillTool:" << m_tools[BucketFillTool].get();
+
+        m_tools[GradientFillTool] = std::make_unique<::GradientFillTool>(this);
+        qDebug() << "Created GradientFillTool:" << m_tools[GradientFillTool].get();
 
         m_tools[EraseTool] = std::make_unique<::EraseTool>(this);
         qDebug() << "Created EraseTool:" << m_tools[EraseTool].get();
@@ -2697,6 +2701,7 @@ void MainWindow::rectangleToolActivated() { setTool(RectangleTool); }
 void MainWindow::ellipseToolActivated() { setTool(EllipseTool); }
 void MainWindow::textToolActivated() { setTool(TextTool); }
 void MainWindow::bucketFillToolActivated() { setTool(BucketFillTool); }
+void MainWindow::gradientFillToolActivated() { setTool(GradientFillTool); }
 void MainWindow::eraseToolActivated() { setTool(EraseTool); }
 
 // Alignment operations
@@ -3148,6 +3153,7 @@ void MainWindow::onToolChanged(ToolType tool)
     case EllipseTool: toolName = "Ellipse"; break;
     case TextTool: toolName = "Text"; break;
     case BucketFillTool: toolName = "Bucket Fill"; break;
+	case GradientFillTool: toolName = "Gradient Fill"; break;
     case EraseTool: toolName = "Erase"; break;
     }
     m_statusLabel->setText(QString("%1 tool active").arg(toolName));
