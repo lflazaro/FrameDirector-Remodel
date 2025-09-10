@@ -291,6 +291,9 @@ Timeline::Timeline(MainWindow* parent)
     , m_layerHeight(22)
     , m_rulerHeight(32)
     , m_layerPanelWidth(120)
+    , m_hasAudioTrack(false)
+    , m_audioTrackHeight(40)
+    , m_audioTrackFrames(0)
     , m_dragging(false)
     , m_selectedLayer(-1)
 {
@@ -889,6 +892,9 @@ void Timeline::drawLayers(QPainter* painter, const QRect& rect)
         painter->setPen(QPen(QColor(85, 85, 85), 1));
         painter->drawLine(layerRect.bottomLeft(), layerRect.bottomRight());
     }
+
+    // Draw audio track after all layers
+    drawAudioTrack(painter, rect);
 }
 
 void Timeline::drawKeyframes(QPainter* painter, const QRect& rect)
@@ -1190,6 +1196,48 @@ void Timeline::drawSelection(QPainter* painter, const QRect& rect)
     }
 }
 
+// NEW: Draw a dedicated audio track at the bottom of the timeline
+void Timeline::drawAudioTrack(QPainter* painter, const QRect& rect)
+{
+    if (!m_hasAudioTrack)
+        return;
+
+    QRect base = getAudioTrackRect();
+    int left = qMax(rect.left(), m_layerPanelWidth);
+    QRect trackRect(left, base.top(), rect.right() - left + 1, base.height());
+
+    // Background and borders
+    painter->fillRect(trackRect, m_layerColor);
+    painter->setPen(QPen(QColor(85, 85, 85), 1));
+    painter->drawLine(trackRect.topLeft(), trackRect.topRight());
+    painter->drawLine(trackRect.bottomLeft(), trackRect.bottomRight());
+
+    // Visualize audio length
+    if (m_audioTrackFrames > 0) {
+        int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
+        int width = m_audioTrackFrames * frameWidth;
+        QRect audioBar(m_layerPanelWidth, base.top(), width, base.height());
+        painter->fillRect(audioBar, QColor(100, 100, 150));
+    }
+
+    painter->setPen(QPen(QColor(220, 220, 220), 1));
+    painter->drawText(m_layerPanelWidth + 5, base.center().y() + 5, "Audio");
+}
+
+QRect Timeline::getAudioTrackRect() const
+{
+    int y = m_rulerHeight + m_layers.size() * m_layerHeight;
+    return QRect(0, y, width(), m_audioTrackHeight);
+}
+
+void Timeline::setAudioTrack(int frames)
+{
+    m_hasAudioTrack = frames > 0;
+    m_audioTrackFrames = frames;
+    updateLayout();
+    update();
+}
+
 // Implementation of other methods continues...
 QRect Timeline::getFrameRect(int frame) const
 {
@@ -1350,7 +1398,8 @@ void Timeline::updateLayout()
 
     int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
     int totalWidth = m_totalFrames * frameWidth + 100;
-    int totalHeight = m_rulerHeight + m_layers.size() * m_layerHeight + 50;
+    int audioHeight = m_hasAudioTrack ? m_audioTrackHeight : 0;
+    int totalHeight = m_rulerHeight + m_layers.size() * m_layerHeight + audioHeight + 50;
 
     // Expand the drawing area's width when the frame count grows so the
     // horizontal scrollbar range reflects the new timeline length. Preserve

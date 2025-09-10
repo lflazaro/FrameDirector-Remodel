@@ -108,6 +108,9 @@ public:
     double getZoomLevel() const;
     void scrollToFrame(int frame);
 
+    // Audio
+    void setAudioTrack(int frames); // NEW
+
     // ENHANCED: Drawing methods with frame extension visualization
     void drawTimelineBackground(QPainter* painter, const QRect& rect);
     void drawFrameRuler(QPainter* painter, const QRect& rect);
@@ -116,10 +119,12 @@ public:
     void drawFrameExtensions(QPainter* painter, const QRect& rect);  // NEW
     void drawPlayhead(QPainter* painter, const QRect& rect);
     void drawSelection(QPainter* painter, const QRect& rect);
+    void drawAudioTrack(QPainter* painter, const QRect& rect); // NEW
 
     // Helper methods for drawing area
     QRect getFrameRect(int frame) const;
     QRect getLayerRect(int layer) const;
+    QRect getAudioTrackRect() const; // NEW
     int getFrameFromX(int x) const;
     int getLayerFromY(int y) const;
     QRect getDrawingAreaRect() const;
@@ -190,6 +195,11 @@ private:
     int m_layerHeight;
     int m_rulerHeight;
     int m_layerPanelWidth;
+
+    // Audio track properties
+    bool m_hasAudioTrack;
+    int m_audioTrackHeight;
+    int m_audioTrackFrames;
 
 
     // ENHANCED: Colors for frame extension visualization
