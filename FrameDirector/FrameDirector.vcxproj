@@ -99,6 +99,7 @@
     <ClCompile Include="Canvas.cpp" />
     <ClCompile Include="Commands\UndoCommands.cpp" />
     <ClCompile Include="GradientDialog.cpp" />
+    <ClCompile Include="Dialogs\ExportDialog.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MainWindow.cpp" />
     <ClCompile Include="Panels\AlignmentPanel.cpp" />
@@ -149,6 +150,9 @@
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="Animation\AnimationController.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <QtMoc Include="Dialogs\ExportDialog.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animation\AnimationKeyframe.h" />

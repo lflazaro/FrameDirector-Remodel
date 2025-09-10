@@ -113,6 +113,9 @@
     <ClCompile Include="GradientDialog.cpp">
       <Filter>Dialogs</Filter>
     </ClCompile>
+    <ClCompile Include="Dialogs\ExportDialog.cpp">
+      <Filter>Dialogs</Filter>
+    </ClCompile>
     <ClCompile Include="Tools\GradientFillTool.cpp">
       <Filter>Tools</Filter>
     </ClCompile>
@@ -159,6 +162,9 @@
     </QtMoc>
     <QtMoc Include="Tools\SelectionTool.h">
       <Filter>Tools</Filter>
+    </QtMoc>
+    <QtMoc Include="Dialogs\ExportDialog.h">
+      <Filter>Dialogs</Filter>
     </QtMoc>
     <QtMoc Include="Tools\TextTool.h">
       <Filter>Tools</Filter>

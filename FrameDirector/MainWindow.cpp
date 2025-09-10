@@ -20,6 +20,7 @@
 #include "Animation/AnimationLayer.h"
 #include "Animation/AnimationKeyframe.h"
 #include "Animation/AnimationController.h"
+#include "Dialogs/ExportDialog.h"
 
 #include <QApplication>
 #include <QMenuBar>
@@ -38,7 +39,6 @@
 #include <QFontDialog>
 #include <QFileDialog>
 #include <QMessageBox>
-#include <QProgressDialog>
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -1585,25 +1585,31 @@ QPixmap MainWindow::createAudioWaveform(const QString& fileName, int samples, in
 
 void MainWindow::exportAnimation()
 {
+    ExportDialog options(this);
+    if (options.exec() != QDialog::Accepted)
+        return;
+
+    QString format = options.getFormat();
+    QString filter = (format == "gif") ? "GIF Files (*.gif)" : "Video Files (*.mp4)";
     QString fileName = QFileDialog::getSaveFileName(this,
-        "Export Animation", "", "Video Files (*.mp4);;GIF Files (*.gif)");
+        "Export Animation", "", filter);
     if (fileName.isEmpty())
         return;
 
-    QString format = QFileInfo(fileName).suffix();
+    if (!fileName.endsWith('.' + format, Qt::CaseInsensitive))
+        fileName += '.' + format;
 
     AnimationController controller(this);
     int totalFrames = m_timeline ? m_timeline->getTotalFrames() : 0;
     if (m_timeline)
         controller.setTotalFrames(totalFrames);
 
-    QProgressDialog progress("Exporting animation...", "Cancel", 0, totalFrames, this);
-    progress.setWindowModality(Qt::WindowModal);
-    connect(&controller, &AnimationController::exportProgress, &progress, &QProgressDialog::setValue);
-    progress.show();
+    connect(&controller, &AnimationController::exportProgress, &options, &ExportDialog::updateProgress);
+    options.show();
+    QApplication::processEvents();
 
-    controller.exportAnimation(fileName, format);
-    progress.close();
+    controller.exportAnimation(fileName, format, options.getQuality(), options.getLoop());
+    options.close();
     m_statusLabel->setText("Animation exported");
 }
 
