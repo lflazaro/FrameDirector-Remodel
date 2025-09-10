@@ -1217,7 +1217,9 @@ void Timeline::drawAudioTrack(QPainter* painter, const QRect& rect)
         int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
         int width = m_audioTrackFrames * frameWidth;
         if (!m_audioWaveform.isNull()) {
-            QPixmap scaled = m_audioWaveform.scaled(width, base.height(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+            // Scale waveform width down to keep it from appearing overly stretched
+            int scaledWidth = width / 2;
+            QPixmap scaled = m_audioWaveform.scaled(scaledWidth, base.height(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
             painter->drawPixmap(m_layerPanelWidth, base.top(), scaled);
         } else {
             QRect audioBar(m_layerPanelWidth, base.top(), width, base.height());
