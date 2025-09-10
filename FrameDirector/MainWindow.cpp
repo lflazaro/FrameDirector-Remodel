@@ -1539,7 +1539,10 @@ QPixmap MainWindow::createAudioWaveform(const QString& fileName, int samples, in
     QObject::connect(&decoder, &QAudioDecoder::bufferReady, [&]() {
         QAudioBuffer buffer = decoder.read();
         const qint16* data = buffer.constData<qint16>();
-        int count = buffer.frameCount() * buffer.channelCount();
+        int count = buffer.frameCount();
+        if (buffer.format().isValid()) {
+            count *= buffer.format().channelCount();
+        }
         for (int i = 0; i < count; ++i)
             pcm.append(data[i]);
     });
