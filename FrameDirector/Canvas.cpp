@@ -970,11 +970,15 @@ void Canvas::interpolateFrame(int currentFrame, int startFrame, int endFrame, fl
         QGraphicsItem* interpolatedItem = cloneGraphicsItem(startItem);
         if (!interpolatedItem) continue;
 
-        // Interpolate position
-        QPointF startPos = startItem->pos();
-        QPointF endPos = endItem->pos();
-        QPointF interpolatedPos = startPos + t * (endPos - startPos);
-        interpolatedItem->setPos(interpolatedPos);
+        // Interpolate position using item centers to keep proper rotation pivot
+        QPointF startCenter = startItem->mapToScene(startItem->boundingRect().center());
+        QPointF endCenter = endItem->mapToScene(endItem->boundingRect().center());
+        QPointF interpolatedCenter = startCenter + t * (endCenter - startCenter);
+
+        // Set transform origin to item center and position accordingly
+        QPointF origin = interpolatedItem->boundingRect().center();
+        interpolatedItem->setTransformOriginPoint(origin);
+        interpolatedItem->setPos(interpolatedCenter - origin);
 
         // Interpolate rotation
         qreal startRotation = startItem->rotation();
@@ -1099,9 +1103,6 @@ QGraphicsItem* Canvas::cloneGraphicsItem(QGraphicsItem* item)
         QPen originalPen = rectItem->pen();
         newRect->setPen(originalPen);  // This preserves width, color, style
         newRect->setBrush(rectItem->brush());
-        newRect->setTransform(rectItem->transform());
-        newRect->setPos(rectItem->pos());
-        newRect->setRotation(rectItem->rotation());
         copy = newRect;
     }
     else if (auto ellipseItem = qgraphicsitem_cast<QGraphicsEllipseItem*>(item)) {
@@ -1110,9 +1111,6 @@ QGraphicsItem* Canvas::cloneGraphicsItem(QGraphicsItem* item)
         QPen originalPen = ellipseItem->pen();
         newEllipse->setPen(originalPen);
         newEllipse->setBrush(ellipseItem->brush());
-        newEllipse->setTransform(ellipseItem->transform());
-        newEllipse->setPos(ellipseItem->pos());
-        newEllipse->setRotation(ellipseItem->rotation());
         copy = newEllipse;
     }
     else if (auto lineItem = qgraphicsitem_cast<QGraphicsLineItem*>(item)) {
@@ -1120,9 +1118,6 @@ QGraphicsItem* Canvas::cloneGraphicsItem(QGraphicsItem* item)
         // FIX: Explicitly preserve all pen properties
         QPen originalPen = lineItem->pen();
         newLine->setPen(originalPen);
-        newLine->setTransform(lineItem->transform());
-        newLine->setPos(lineItem->pos());
-        newLine->setRotation(lineItem->rotation());
         copy = newLine;
     }
     else if (auto pathItem = qgraphicsitem_cast<QGraphicsPathItem*>(item)) {
@@ -1132,17 +1127,11 @@ QGraphicsItem* Canvas::cloneGraphicsItem(QGraphicsItem* item)
         qDebug() << "Cloning path item with pen width:" << originalPen.widthF();
         newPath->setPen(originalPen);  // This should preserve brush stroke width
         newPath->setBrush(pathItem->brush());
-        newPath->setTransform(pathItem->transform());
-        newPath->setPos(pathItem->pos());
-        newPath->setRotation(pathItem->rotation());
         copy = newPath;
     }
     else if (auto pixmapItem = qgraphicsitem_cast<QGraphicsPixmapItem*>(item)) {
         // Handle imported images
         auto newPixmap = new QGraphicsPixmapItem(pixmapItem->pixmap());
-        newPixmap->setTransform(pixmapItem->transform());
-        newPixmap->setPos(pixmapItem->pos());
-        newPixmap->setRotation(pixmapItem->rotation());
         newPixmap->setOffset(pixmapItem->offset());
         copy = newPixmap;
     }
@@ -1150,13 +1139,14 @@ QGraphicsItem* Canvas::cloneGraphicsItem(QGraphicsItem* item)
         auto newText = new QGraphicsTextItem(textItem->toPlainText());
         newText->setFont(textItem->font());
         newText->setDefaultTextColor(textItem->defaultTextColor());
-        newText->setTransform(textItem->transform());
-        newText->setPos(textItem->pos());
-        newText->setRotation(textItem->rotation());
         copy = newText;
     }
 
     if (copy) {
+        copy->setTransformOriginPoint(item->transformOriginPoint());
+        copy->setTransform(item->transform());
+        copy->setPos(item->pos());
+        copy->setRotation(item->rotation());
         copy->setFlags(item->flags());
         copy->setZValue(item->zValue());
         copy->setOpacity(item->opacity());
@@ -2781,6 +2771,8 @@ QJsonObject Canvas::serializeGraphicsItem(QGraphicsItem* item) const
 
     json["posX"] = item->pos().x();
     json["posY"] = item->pos().y();
+    json["originX"] = item->transformOriginPoint().x();
+    json["originY"] = item->transformOriginPoint().y();
     json["rotation"] = item->rotation();
     json["scaleX"] = item->transform().m11();
     json["scaleY"] = item->transform().m22();
@@ -2875,11 +2867,14 @@ QGraphicsItem* Canvas::deserializeGraphicsItem(const QJsonObject& json) const
     }
 
     if (item) {
-        item->setPos(json["posX"].toDouble(), json["posY"].toDouble());
-        item->setRotation(json["rotation"].toDouble());
+        QPointF origin(json["originX"].toDouble(item->boundingRect().center().x()),
+                       json["originY"].toDouble(item->boundingRect().center().y()));
+        item->setTransformOriginPoint(origin);
         QTransform transform;
         transform.scale(json["scaleX"].toDouble(1.0), json["scaleY"].toDouble(1.0));
         item->setTransform(transform);
+        item->setPos(json["posX"].toDouble(), json["posY"].toDouble());
+        item->setRotation(json["rotation"].toDouble());
         double baseOpacity = json["opacity"].toDouble(1.0);
         item->setOpacity(baseOpacity);
         item->setData(0, baseOpacity); // preserve individual opacity for layer scaling
