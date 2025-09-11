@@ -7,6 +7,9 @@
 #include "Tools/SelectionTool.h"
 #include <QGraphicsScene>
 #include <QGraphicsItem>
+#include <QGraphicsRectItem>
+#include <QGraphicsEllipseItem>
+#include <QGraphicsLineItem>
 #include <QGraphicsPathItem>
 #include <QGraphicsPixmapItem>
 #include <QGraphicsTextItem>
@@ -23,6 +26,9 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QBuffer>
+#include <QLinearGradient>
+#include <QRadialGradient>
+#include <QConicalGradient>
 
 // ROBUST: Enhanced layer data structure with better state management
 struct LayerData {
@@ -232,8 +238,9 @@ void Canvas::setupScene()
         // Put background at the bottom Z-order
         m_backgroundRect->setZValue(-1000);
 
-        // Add a custom data flag to identify this as the background
-        m_backgroundRect->setData(0, "background");
+        // Identify this item as the background and preserve base opacity
+        m_backgroundRect->setData(1, "background");
+        m_backgroundRect->setData(0, 1.0);
 
         m_scene->addItem(m_backgroundRect);
     }
@@ -1172,7 +1179,7 @@ void Canvas::clearLayerFromScene(int layerIndex)
 {
     QList<QGraphicsItem*> itemsToRemove;
     for (QGraphicsItem* item : scene()->items()) {
-        if (getItemLayerIndex(item) == layerIndex) {
+        if (item != m_backgroundRect && getItemLayerIndex(item) == layerIndex) {
             itemsToRemove.append(item);
         }
     }
@@ -2593,6 +2600,97 @@ void Canvas::importFrameData(int layerIndex, int frame, const FrameData& data)
         m_layerKeyframes[layerIndex].insert(frame);
 }
 
+QJsonObject Canvas::serializeBrush(const QBrush& brush) const
+{
+    QJsonObject obj;
+    obj["style"] = static_cast<int>(brush.style());
+    if (brush.style() == Qt::SolidPattern) {
+        obj["color"] = brush.color().name();
+    } else if (brush.style() == Qt::LinearGradientPattern ||
+               brush.style() == Qt::RadialGradientPattern ||
+               brush.style() == Qt::ConicalGradientPattern) {
+        const QGradient* grad = brush.gradient();
+        if (grad) {
+            obj["type"] = static_cast<int>(grad->type());
+            obj["spread"] = static_cast<int>(grad->spread());
+            QJsonArray stops;
+            for (const auto& stop : grad->stops()) {
+                QJsonObject s;
+                s["pos"] = stop.first;
+                s["color"] = stop.second.name();
+                stops.append(s);
+            }
+            obj["stops"] = stops;
+
+            if (grad->type() == QGradient::LinearGradient) {
+                const QLinearGradient* lg = static_cast<const QLinearGradient*>(grad);
+                obj["startX"] = lg->start().x();
+                obj["startY"] = lg->start().y();
+                obj["endX"] = lg->finalStop().x();
+                obj["endY"] = lg->finalStop().y();
+            } else if (grad->type() == QGradient::RadialGradient) {
+                const QRadialGradient* rg = static_cast<const QRadialGradient*>(grad);
+                obj["centerX"] = rg->center().x();
+                obj["centerY"] = rg->center().y();
+                obj["focalX"] = rg->focalPoint().x();
+                obj["focalY"] = rg->focalPoint().y();
+                obj["radius"] = rg->radius();
+            } else if (grad->type() == QGradient::ConicalGradient) {
+                const QConicalGradient* cg = static_cast<const QConicalGradient*>(grad);
+                obj["centerX"] = cg->center().x();
+                obj["centerY"] = cg->center().y();
+                obj["angle"] = cg->angle();
+            }
+        }
+    } else if (brush.style() != Qt::NoBrush) {
+        obj["color"] = brush.color().name();
+    }
+    return obj;
+}
+
+QBrush Canvas::deserializeBrush(const QJsonObject& obj) const
+{
+    Qt::BrushStyle style = static_cast<Qt::BrushStyle>(obj["style"].toInt(static_cast<int>(Qt::NoBrush)));
+    if (style == Qt::SolidPattern) {
+        return QBrush(QColor(obj["color"].toString("#000000")));
+    } else if (style == Qt::LinearGradientPattern ||
+               style == Qt::RadialGradientPattern ||
+               style == Qt::ConicalGradientPattern) {
+        QGradient::Type type = static_cast<QGradient::Type>(obj["type"].toInt());
+        QGradient* grad = nullptr;
+        if (type == QGradient::LinearGradient) {
+            QLinearGradient* lg = new QLinearGradient(obj["startX"].toDouble(), obj["startY"].toDouble(),
+                                                      obj["endX"].toDouble(), obj["endY"].toDouble());
+            grad = lg;
+        } else if (type == QGradient::RadialGradient) {
+            QRadialGradient* rg = new QRadialGradient(obj["centerX"].toDouble(), obj["centerY"].toDouble(),
+                                                     obj["radius"].toDouble(), obj["focalX"].toDouble(),
+                                                     obj["focalY"].toDouble());
+            grad = rg;
+        } else if (type == QGradient::ConicalGradient) {
+            QConicalGradient* cg = new QConicalGradient(obj["centerX"].toDouble(), obj["centerY"].toDouble(),
+                                                        obj["angle"].toDouble());
+            grad = cg;
+        }
+
+        if (grad) {
+            grad->setSpread(static_cast<QGradient::Spread>(obj["spread"].toInt()));
+            QJsonArray stops = obj["stops"].toArray();
+            for (const QJsonValue& v : stops) {
+                QJsonObject s = v.toObject();
+                grad->setColorAt(s["pos"].toDouble(), QColor(s["color"].toString("#000000")));
+            }
+            QBrush brush(*grad);
+            delete grad;
+            brush.setStyle(style);
+            return brush;
+        }
+    } else if (style != Qt::NoBrush) {
+        return QBrush(QColor(obj["color"].toString("#000000")));
+    }
+    return QBrush();
+}
+
 QJsonObject Canvas::serializeGraphicsItem(QGraphicsItem* item) const
 {
     QJsonObject json;
@@ -2612,9 +2710,10 @@ QJsonObject Canvas::serializeGraphicsItem(QGraphicsItem* item) const
         json["penWidth"] = pen.widthF();
         json["penStyle"] = static_cast<int>(pen.style());
 
-        QBrush brush = rectItem->brush();
-        json["brushColor"] = brush.color().name();
-        json["brushStyle"] = static_cast<int>(brush.style());
+        json["brush"] = serializeBrush(rectItem->brush());
+        if (item == m_backgroundRect) {
+            json["isBackground"] = true;
+        }
     }
     else if (auto ellipseItem = qgraphicsitem_cast<QGraphicsEllipseItem*>(item)) {
         json["class"] = "ellipse";
@@ -2628,10 +2727,7 @@ QJsonObject Canvas::serializeGraphicsItem(QGraphicsItem* item) const
         json["penColor"] = pen.color().name();
         json["penWidth"] = pen.widthF();
         json["penStyle"] = static_cast<int>(pen.style());
-
-        QBrush brush = ellipseItem->brush();
-        json["brushColor"] = brush.color().name();
-        json["brushStyle"] = static_cast<int>(brush.style());
+        json["brush"] = serializeBrush(ellipseItem->brush());
     }
     else if (auto lineItem = qgraphicsitem_cast<QGraphicsLineItem*>(item)) {
         json["class"] = "line";
@@ -2660,10 +2756,7 @@ QJsonObject Canvas::serializeGraphicsItem(QGraphicsItem* item) const
         json["penColor"] = pen.color().name();
         json["penWidth"] = pen.widthF();
         json["penStyle"] = static_cast<int>(pen.style());
-
-        QBrush brush = pathItem->brush();
-        json["brushColor"] = brush.color().name();
-        json["brushStyle"] = static_cast<int>(brush.style());
+        json["brush"] = serializeBrush(pathItem->brush());
     }
     else if (auto pixmapItem = qgraphicsitem_cast<QGraphicsPixmapItem*>(item)) {
         json["class"] = "pixmap";
@@ -2691,10 +2784,9 @@ QJsonObject Canvas::serializeGraphicsItem(QGraphicsItem* item) const
     json["rotation"] = item->rotation();
     json["scaleX"] = item->transform().m11();
     json["scaleY"] = item->transform().m22();
-    double baseOpacity = item->data(0).toDouble(); // Devuelve 0.0 si no está establecido
-    if (baseOpacity == 0.0) {
-        baseOpacity = item->opacity(); // Usa la opacidad actual si no hay dato almacenado
-    }
+    // Store per-item opacity rather than the opacity already multiplied by
+    // the layer opacity. The original opacity is kept in item->data(0).
+    double baseOpacity = item->data(0).toDouble(item->opacity());
     json["opacity"] = baseOpacity;
     json["zValue"] = item->zValue();
     json["visible"] = item->isVisible();
@@ -2718,9 +2810,13 @@ QGraphicsItem* Canvas::deserializeGraphicsItem(const QJsonObject& json) const
         pen.setWidthF(json["penWidth"].toDouble(1.0));
         pen.setStyle(static_cast<Qt::PenStyle>(json["penStyle"].toInt(Qt::SolidLine)));
         rectItem->setPen(pen);
-        QBrush brush(QColor(json["brushColor"].toString("#ffffff")));
-        brush.setStyle(static_cast<Qt::BrushStyle>(json["brushStyle"].toInt(Qt::NoBrush)));
-        rectItem->setBrush(brush);
+        rectItem->setBrush(deserializeBrush(json["brush"].toObject()));
+        if (json["isBackground"].toBool(false)) {
+            rectItem->setFlag(QGraphicsItem::ItemIsSelectable, false);
+            rectItem->setFlag(QGraphicsItem::ItemIsMovable, false);
+            rectItem->setZValue(-1000);
+            rectItem->setData(1, "background");
+        }
         item = rectItem;
     }
     else if (cls == "ellipse") {
@@ -2730,9 +2826,7 @@ QGraphicsItem* Canvas::deserializeGraphicsItem(const QJsonObject& json) const
         pen.setWidthF(json["penWidth"].toDouble(1.0));
         pen.setStyle(static_cast<Qt::PenStyle>(json["penStyle"].toInt(Qt::SolidLine)));
         ellipseItem->setPen(pen);
-        QBrush brush(QColor(json["brushColor"].toString("#ffffff")));
-        brush.setStyle(static_cast<Qt::BrushStyle>(json["brushStyle"].toInt(Qt::NoBrush)));
-        ellipseItem->setBrush(brush);
+        ellipseItem->setBrush(deserializeBrush(json["brush"].toObject()));
         item = ellipseItem;
     }
     else if (cls == "line") {
@@ -2759,9 +2853,7 @@ QGraphicsItem* Canvas::deserializeGraphicsItem(const QJsonObject& json) const
         pen.setWidthF(json["penWidth"].toDouble(1.0));
         pen.setStyle(static_cast<Qt::PenStyle>(json["penStyle"].toInt(Qt::SolidLine)));
         pathItem->setPen(pen);
-        QBrush brush(QColor(json["brushColor"].toString("#ffffff")));
-        brush.setStyle(static_cast<Qt::BrushStyle>(json["brushStyle"].toInt(Qt::NoBrush)));
-        pathItem->setBrush(brush);
+        pathItem->setBrush(deserializeBrush(json["brush"].toObject()));
         item = pathItem;
     }
     else if (cls == "pixmap") {
@@ -2812,7 +2904,6 @@ QJsonObject Canvas::toJson() const
     QJsonObject json;
     json["width"] = m_canvasSize.width();
     json["height"] = m_canvasSize.height();
-    json["background"] = m_backgroundColor.name();
 
     QJsonArray layers;
     for (int i = 0; i < m_layers.size(); ++i) {
@@ -2859,7 +2950,13 @@ bool Canvas::fromJson(const QJsonObject& json)
         return false;
 
     setCanvasSize(QSize(json["width"].toInt(800), json["height"].toInt(600)));
-    setBackgroundColor(QColor(json["background"].toString("#ffffff")));
+
+    // Remove any existing background before rebuilding from JSON
+    if (m_backgroundRect) {
+        m_scene->removeItem(m_backgroundRect);
+        delete m_backgroundRect;
+        m_backgroundRect = nullptr;
+    }
 
     clear();
     m_layerFrameData.clear();
@@ -2895,9 +2992,16 @@ bool Canvas::fromJson(const QJsonObject& json)
 
             QJsonArray itemsArray = frameJson["items"].toArray();
             for (const QJsonValue& v : itemsArray) {
-                QGraphicsItem* item = deserializeGraphicsItem(v.toObject());
-                if (item)
+                QJsonObject itemObj = v.toObject();
+                QGraphicsItem* item = deserializeGraphicsItem(itemObj);
+                if (item) {
+                    if (itemObj["isBackground"].toBool(false) && qgraphicsitem_cast<QGraphicsRectItem*>(item)) {
+                        m_backgroundRect = static_cast<QGraphicsRectItem*>(item);
+                        m_backgroundRect->setData(1, "background");
+                        m_backgroundRect->setData(0, m_backgroundRect->opacity());
+                    }
                     data.items.append(item);
+                }
             }
 
             m_layerFrameData[idx][frame] = data;
@@ -2912,34 +3016,32 @@ bool Canvas::fromJson(const QJsonObject& json)
         if (!m_layerFrameData[idx].contains(1)) {
             FrameData defaultFrame;
             defaultFrame.type = FrameType::Keyframe;
-            if (idx == 0 && m_backgroundRect) {
-                defaultFrame.items.append(m_backgroundRect);
-                LayerData* layer = static_cast<LayerData*>(m_layers[idx]);
-                layer->setFrameItems(1, QList<QGraphicsItem*>{m_backgroundRect});
-            } else {
-                LayerData* layer = static_cast<LayerData*>(m_layers[idx]);
-                layer->setFrameItems(1, QList<QGraphicsItem*>());
-            }
+            LayerData* layer = static_cast<LayerData*>(m_layers[idx]);
+            layer->setFrameItems(1, QList<QGraphicsItem*>());
             m_layerFrameData[idx][1] = defaultFrame;
             m_layerKeyframes[idx].insert(1);
         }
     }
 
+    // Ensure a background rectangle exists even if not provided
+    if (!m_backgroundRect) {
+        m_backgroundRect = new QGraphicsRectItem(m_canvasRect);
+        m_backgroundRect->setBrush(QBrush(Qt::white));
+        m_backgroundRect->setPen(QPen(Qt::black, 1));
+        m_backgroundRect->setFlag(QGraphicsItem::ItemIsSelectable, false);
+        m_backgroundRect->setFlag(QGraphicsItem::ItemIsMovable, false);
+        m_backgroundRect->setZValue(-1000);
+        m_backgroundRect->setData(1, "background");
+        m_backgroundRect->setData(0, 1.0);
+        if (!m_layers.isEmpty()) {
+            LayerData* bgLayer = static_cast<LayerData*>(m_layers[0]);
+            bgLayer->addItem(m_backgroundRect, 1);
+            m_layerFrameData[0][1].items.append(m_backgroundRect);
+        }
+    }
+
     m_currentFrame = json["currentFrame"].toInt(1);
     m_currentLayerIndex = json["currentLayer"].toInt(0);
-
-    // Background layer should only contain a single keyframe at frame 1
-    if (m_backgroundRect && !m_layers.empty()) {
-        LayerData* bgLayer = static_cast<LayerData*>(m_layers[0]);
-        bgLayer->setFrameItems(1, QList<QGraphicsItem*>{m_backgroundRect});
-        FrameData bgData;
-        bgData.type = FrameType::Keyframe;
-        bgData.items.append(m_backgroundRect);
-        m_layerFrameData[0].clear();
-        m_layerFrameData[0][1] = bgData;
-        m_layerKeyframes[0].clear();
-        m_layerKeyframes[0].insert(1);
-    }
 
     loadFrameState(m_currentFrame);
 
