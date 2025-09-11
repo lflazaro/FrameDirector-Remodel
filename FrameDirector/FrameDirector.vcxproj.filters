@@ -125,6 +125,12 @@
     <ClCompile Include="Import\PSDImporter.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Import\ZipReader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Import\miniz.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="third_party\src\adjustment.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -373,6 +379,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Import\PSDImporter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Import\ZipReader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Import\miniz.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="third_party\include\libpsd.h">
