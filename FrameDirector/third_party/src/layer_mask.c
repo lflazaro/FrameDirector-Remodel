@@ -248,8 +248,8 @@ static psd_status psd_get_layer_fill_opacity(psd_context * context, psd_layer_re
 // Section divider setting (Photoshop 6.0)
 static psd_status psd_get_layer_section_divider(psd_context * context, psd_layer_record * layer, psd_int size)
 {
-	// Type. 4 possible values, 0 = any other type of layer, 1 = open ¡°folder¡±, 2 =
-	// closed ¡°folder¡±, 3 = bounding section divider, hidden in the UI
+	// Type. 4 possible values, 0 = any other type of layer, 1 = open Â¡Â°folderÂ¡Â±, 2 =
+	// closed Â¡Â°folderÂ¡Â±, 3 = bounding section divider, hidden in the UI
 	layer->divider_type = psd_stream_get_int(context);
 	switch(layer->divider_type)
 	{
@@ -381,7 +381,7 @@ static psd_status psd_get_layer_info(psd_context * context)
 
 		// Channel information. Six bytes per channel, consisting of:
 		// 2 bytes for Channel ID: 0 = red, 1 = green, etc.;
-		// ¨C1 = transparency mask; ¨C2 = user supplied layer mask
+		// Â¨C1 = transparency mask; Â¨C2 = user supplied layer mask
 		// 4 bytes for length of corresponding channel data. (**PSB** 8 bytes for
 		// length of corresponding channel data.)
 		for(j = 0; j < layer->number_of_channels; j ++)
@@ -405,7 +405,7 @@ static psd_status psd_get_layer_info(psd_context * context)
 		// Opacity. 0 = transparent ... 255 = opaque
 		layer->opacity = psd_stream_get_char(context);
 
-		// Clipping: 0 = base, 1 = non¨Cbase
+		// Clipping: 0 = base, 1 = nonÂ¨Cbase
 		layer->clipping = psd_stream_get_bool(context);
 
 		// Flags
@@ -504,35 +504,40 @@ static psd_status psd_get_layer_info(psd_context * context)
 		layer->layer_blending_ranges.gray_black_dst = psd_stream_get_short(context);
 		layer->layer_blending_ranges.gray_white_dst = psd_stream_get_short(context);
 
-		layer->layer_blending_ranges.number_of_blending_channels = (size - 8) / 8;
-		if (layer->layer_blending_ranges.number_of_blending_channels <= 0)
-		{
-			psd_layer_free(layer);
-			return psd_status_invalid_blending_channels;
-		}
-		
-		layer->layer_blending_ranges.channel_black_src = (psd_ushort *)psd_malloc(layer->layer_blending_ranges.number_of_blending_channels * 2);
-		layer->layer_blending_ranges.channel_white_src = (psd_ushort *)psd_malloc(layer->layer_blending_ranges.number_of_blending_channels * 2);
-		layer->layer_blending_ranges.channel_black_dst = (psd_ushort *)psd_malloc(layer->layer_blending_ranges.number_of_blending_channels * 2);
-		layer->layer_blending_ranges.channel_white_dst = (psd_ushort *)psd_malloc(layer->layer_blending_ranges.number_of_blending_channels * 2);
-		if(layer->layer_blending_ranges.channel_black_src == NULL || 
-			layer->layer_blending_ranges.channel_white_src == NULL ||
-			layer->layer_blending_ranges.channel_black_dst == NULL ||
-			layer->layer_blending_ranges.channel_white_dst == NULL)
-		{
-			psd_layer_free(layer);
-			return psd_status_malloc_failed;
-		}
-		
-		for(j = 0; j < layer->layer_blending_ranges.number_of_blending_channels; j ++)
-		{
-			// channel source range
-			layer->layer_blending_ranges.channel_black_src[j] = psd_stream_get_short(context);
-			layer->layer_blending_ranges.channel_white_src[j] = psd_stream_get_short(context);
-			// channel destination range
-			layer->layer_blending_ranges.channel_black_dst[j] = psd_stream_get_short(context);
-			layer->layer_blending_ranges.channel_white_dst[j] = psd_stream_get_short(context);
-		}
+                layer->layer_blending_ranges.number_of_blending_channels = (size - 8) / 8;
+                if (layer->layer_blending_ranges.number_of_blending_channels <= 0)
+                {
+                        layer->layer_blending_ranges.number_of_blending_channels = 0;
+                        layer->layer_blending_ranges.channel_black_src = NULL;
+                        layer->layer_blending_ranges.channel_white_src = NULL;
+                        layer->layer_blending_ranges.channel_black_dst = NULL;
+                        layer->layer_blending_ranges.channel_white_dst = NULL;
+                }
+                else
+                {
+                        layer->layer_blending_ranges.channel_black_src = (psd_ushort *)psd_malloc(layer->layer_blending_ranges.number_of_blending_channels * 2);
+                        layer->layer_blending_ranges.channel_white_src = (psd_ushort *)psd_malloc(layer->layer_blending_ranges.number_of_blending_channels * 2);
+                        layer->layer_blending_ranges.channel_black_dst = (psd_ushort *)psd_malloc(layer->layer_blending_ranges.number_of_blending_channels * 2);
+                        layer->layer_blending_ranges.channel_white_dst = (psd_ushort *)psd_malloc(layer->layer_blending_ranges.number_of_blending_channels * 2);
+                        if(layer->layer_blending_ranges.channel_black_src == NULL ||
+                                layer->layer_blending_ranges.channel_white_src == NULL ||
+                                layer->layer_blending_ranges.channel_black_dst == NULL ||
+                                layer->layer_blending_ranges.channel_white_dst == NULL)
+                        {
+                                psd_layer_free(layer);
+                                return psd_status_malloc_failed;
+                        }
+
+                        for(j = 0; j < layer->layer_blending_ranges.number_of_blending_channels; j ++)
+                        {
+                                // channel source range
+                                layer->layer_blending_ranges.channel_black_src[j] = psd_stream_get_short(context);
+                                layer->layer_blending_ranges.channel_white_src[j] = psd_stream_get_short(context);
+                                // channel destination range
+                                layer->layer_blending_ranges.channel_black_dst[j] = psd_stream_get_short(context);
+                                layer->layer_blending_ranges.channel_white_dst[j] = psd_stream_get_short(context);
+                        }
+                }
 
 		// Layer name: Pascal string, padded to a multiple of 4 bytes.
 		size = psd_stream_get_char(context);
@@ -748,7 +753,7 @@ static psd_status psd_get_mask_info(psd_context * context)
 	// Opacity. 0 = transparent, 100 = opaque.
 	context->global_layer_mask.opacity = psd_stream_get_short(context);
 
-	// Kind. 0 = Color selected¡ªi.e. inverted; 1 = Color protected;128 = use
+	// Kind. 0 = Color selectedÂ¡Âªi.e. inverted; 1 = Color protected;128 = use
 	// value stored per layer. This value is preferred. The others are for
 	// backward compatibility with beta versions.
 	context->global_layer_mask.kind = psd_stream_get_char(context);

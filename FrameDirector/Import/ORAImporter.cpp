@@ -22,12 +22,14 @@ QList<LayerData> ORAImporter::importORA(const QString& filePath)
     QZipReader zip(filePath);
     if (!zip.isReadable() || zip.status() != QZipReader::NoError) {
         qWarning() << "Failed to open ORA" << filePath << "status" << zip.status();
+        zip.close();
         return result;
     }
 
     QByteArray xmlData = zip.fileData("stack.xml");
     if (xmlData.isEmpty()) {
         qWarning() << "ORA missing stack.xml";
+        zip.close();
         return result;
     }
 
@@ -40,22 +42,40 @@ QList<LayerData> ORAImporter::importORA(const QString& filePath)
 
     QList<LayerInfo> infos;
 
-    QXmlStreamReader xml(xmlData);
-    while (!xml.atEnd()) {
-        xml.readNext();
-        if (xml.isStartElement() && xml.name() == "layer") {
-            LayerInfo info;
-            auto attrs = xml.attributes();
-            info.name = attrs.value("name").toString();
-            info.src = attrs.value("src").toString();
-            info.opacity = attrs.value("opacity").toDouble();
-            QString vis = attrs.value("visibility").toString();
-            info.visible = vis != "hidden";
-            infos.prepend(info); // prepend so that last layer becomes top-most
+    // Recursively parse <stack> elements so that layer order matches the ORA
+    // specification (top-most layer last).  Using readNextStartElement and
+    // skipCurrentElement ensures the parser doesn't get stuck on unexpected
+    // tags and avoids accessing invalid memory.
+    std::function<void(QXmlStreamReader&)> parseStack = [&](QXmlStreamReader& xml) {
+        while (xml.readNextStartElement()) {
+            if (xml.name() == "layer") {
+                LayerInfo info;
+                auto attrs = xml.attributes();
+                info.name = attrs.value("name").toString();
+                info.src = attrs.value("src").toString();
+                info.opacity = attrs.value("opacity").toDouble();
+                QString vis = attrs.value("visibility").toString();
+                info.visible = vis != "hidden";
+                infos.prepend(info);
+                xml.skipCurrentElement();
+            } else if (xml.name() == "stack") {
+                parseStack(xml);
+            } else {
+                xml.skipCurrentElement();
+            }
         }
+    };
+
+    QXmlStreamReader xml(xmlData);
+    while (xml.readNextStartElement()) {
+        if (xml.name() == "stack")
+            parseStack(xml);
+        else
+            xml.skipCurrentElement();
     }
     if (xml.hasError()) {
         qWarning() << "Failed to parse stack.xml" << xml.errorString();
+        zip.close();
         return result;
     }
 
