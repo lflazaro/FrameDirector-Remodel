@@ -64,8 +64,8 @@ QByteArray ZipReader::fileData(const QString &fileName)
     // in some Qt versions avoid copying. Explicitly create a QByteArray using
     // fromRawData and then copy it so that the data remains valid after we free
     // the temporary buffer returned by miniz.
-    data = QByteArray::fromRawData(static_cast<const char *>(buffer),
-                                   static_cast<int>(size)).copy();
+    data = QByteArray(static_cast<const char*>(buffer),
+        static_cast<int>(size));
     mz_free(buffer);
     return data;
 }
