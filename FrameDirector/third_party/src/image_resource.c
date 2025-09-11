@@ -68,9 +68,10 @@ psd_status psd_get_image_resource(psd_context * context)
 
 	while(length > 0)
 	{
-		// Signature: '8BIM'
+		// Signature: most resources use '8BIM', though some newer
+	// Photoshop versions emit '8B64'. Treat both as valid.
 		tag = psd_stream_get_int(context);
-		if(tag == '8BIM')
+		if(tag == '8BIM' || tag == '8B64')
 		{
 			length -= 4;
 			// Unique identifier for the resource
@@ -663,7 +664,7 @@ psd_status psd_get_image_resource(psd_context * context)
 							psd_get_path(context, sizeofdata);
 						}
 						// If the file contains a resource of type 8BIM with an ID of 2999, then this resource
-						// contains a Pascal¨Cstyle string containing the name of the clipping path to use with this
+						// contains a PascalÂ¨Cstyle string containing the name of the clipping path to use with this
 						// image when saving it as an EPS file???
 						else if(ID == 2999)
 						{

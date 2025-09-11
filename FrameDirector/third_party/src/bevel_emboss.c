@@ -98,23 +98,20 @@ psd_status psd_get_layer_bevel_emboss(psd_context * context, psd_layer_effects_b
 	// Blur value in pixels.
 	bevel_emboss->soften = psd_stream_get_int(context);
 
-	// Highlight blend mode: 4 bytes for signature and 4 bytes for the key
-	// Blend mode signature: '8BIM'
-	tag = psd_stream_get_int(context);
-	if(tag != '8BIM')
-		return psd_status_blend_mode_signature_error;
-	
-	// Blend mode key
-	bevel_emboss->highlight_blend_mode = psd_stream_get_blend_mode(context);
+        // Highlight blend mode: 4 bytes for signature and 4 bytes for the key
+        // Some PSDs use '8B64' instead of the classic '8BIM' signature. Read the
+        // key regardless and downgrade to normal mode when an unknown signature
+        // is encountered so parsing can continue.
+        tag = psd_stream_get_int(context);
+        bevel_emboss->highlight_blend_mode = psd_stream_get_blend_mode(context);
+        if(tag != '8BIM' && tag != '8B64')
+                bevel_emboss->highlight_blend_mode = psd_blend_mode_normal;
 
-	// Shadow blend mode: 4 bytes for signature and 4 bytes for the key
-	// Blend mode signature: '8BIM'
-	tag = psd_stream_get_int(context);
-	if(tag != '8BIM')
-		return psd_status_blend_mode_signature_error;
-	
-	// Blend mode key
-	bevel_emboss->shadow_blend_mode = psd_stream_get_blend_mode(context);
+        // Shadow blend mode: 4 bytes for signature and 4 bytes for the key
+        tag = psd_stream_get_int(context);
+        bevel_emboss->shadow_blend_mode = psd_stream_get_blend_mode(context);
+        if(tag != '8BIM' && tag != '8B64')
+                bevel_emboss->shadow_blend_mode = psd_blend_mode_normal;
 
 	// Highlight color
 	bevel_emboss->highlight_color = psd_stream_get_space_color(context);

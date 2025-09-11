@@ -55,12 +55,14 @@ psd_status psd_get_layer_color_overlay(psd_context * context, psd_layer_effects_
 	if(version != 2)
 		return psd_status_solid_fill_unsupport_version;
 
-	tag = psd_stream_get_int(context);
-	if(tag != '8BIM')
-		return psd_status_blend_mode_signature_error;
-	
-	// Key for blend mode
-	color_overlay->blend_mode = psd_stream_get_blend_mode(context);
+        tag = psd_stream_get_int(context);
+        // Always read the blend mode key to keep the stream aligned
+        color_overlay->blend_mode = psd_stream_get_blend_mode(context);
+        // Some newer PSD files use an alternate signature such as '8B64'.
+        // Fall back to a normal blend mode if an unexpected signature is
+        // encountered instead of aborting with an error.
+        if(tag != '8BIM' && tag != '8B64')
+                color_overlay->blend_mode = psd_blend_mode_normal;
 
 	// Color space
 	color_overlay->color = psd_stream_get_space_color(context);

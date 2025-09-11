@@ -94,14 +94,14 @@ psd_status psd_get_layer_drop_shadow(psd_context * context, psd_layer_effects_dr
 	// Color
 	drop_shadow->color = psd_stream_get_space_color(context);
 
-	// Blend mode: 4 bytes for signature and 4 bytes for key
-	// Blend mode signature: '8BIM'
-	tag = psd_stream_get_int(context);
-	if(tag != '8BIM')
-		return psd_status_blend_mode_signature_error;
-	
-	// Blend mode key
-	drop_shadow->blend_mode = psd_stream_get_blend_mode(context);
+        // Blend mode: 4 bytes for signature and 4 bytes for key
+        // Blend mode signature: typically '8BIM' but some files use '8B64'.
+        tag = psd_stream_get_int(context);
+        // Read the blend mode key regardless of signature so the stream stays in
+        // sync; fall back to normal mode when an unknown signature is found.
+        drop_shadow->blend_mode = psd_stream_get_blend_mode(context);
+        if(tag != '8BIM' && tag != '8B64')
+                drop_shadow->blend_mode = psd_blend_mode_normal;
 
 	// Effect enabled
 	drop_shadow->effect_enable = psd_stream_get_bool(context);
