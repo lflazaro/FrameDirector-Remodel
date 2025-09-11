@@ -29,39 +29,6 @@ void parseStack(QXmlStreamReader &xml, QList<LayerInfo> &infos) {
             info.opacity = attrs.value("opacity").toDouble();
             QString vis = attrs.value("visibility").toString();
             info.visible = vis != QLatin1String("hidden");
-            infos.prepend(info);
-            xml.skipCurrentElement();
-        } else if (xml.name() == QLatin1String("stack")) {
-            parseStack(xml, infos);
-        } else {
-            xml.skipCurrentElement();
-        }
-    }
-}
-} // namespace
-
-namespace {
-struct LayerInfo {
-    QString name;
-    QString src;
-    bool visible;
-    double opacity;
-};
-
-// Recursively parse <stack> elements so that layer order matches the ORA
-// specification (top-most layer last). Using readNextStartElement and
-// skipCurrentElement ensures the parser doesn't get stuck on unexpected tags
-// and avoids accessing invalid memory.
-void parseStack(QXmlStreamReader &xml, QList<LayerInfo> &infos) {
-    while (xml.readNextStartElement()) {
-        if (xml.name() == QLatin1String("layer")) {
-            LayerInfo info;
-            auto attrs = xml.attributes();
-            info.name = attrs.value("name").toString();
-            info.src = attrs.value("src").toString();
-            info.opacity = attrs.value("opacity").toDouble();
-            QString vis = attrs.value("visibility").toString();
-            info.visible = vis != QLatin1String("hidden");
             qDebug() << "Parsed layer entry" << info.name << "src" << info.src
                      << "opacity" << info.opacity << "visible" << info.visible;
             infos.prepend(info);
@@ -123,7 +90,7 @@ QList<LayerData> ORAImporter::importORA(const QString& filePath)
     if (xml.hasError())
         qWarning() << "XML parse error" << xml.errorString() << "at line" << xml.lineNumber();
 
-    qDebug() << "Parsed" << infos.size() << "layers from ORA";¡
+    qDebug() << "Parsed" << infos.size() << "layers from ORA";
 
     for (const LayerInfo& info : infos) {
         LayerData layer;
