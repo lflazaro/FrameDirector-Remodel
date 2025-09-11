@@ -1,3 +1,21 @@
+/* 
+Pseudocódigo (plan detallado):
+1. Validar que la ruta del archivo exista; si no existe, registrar advertencia y devolver lista vacía.
+2. Intentar cargar solo la sección de capas con psd_image_load_layer().
+   - Si falla, liberar contexto si existe y reintentar con psd_image_load() (carga completa).
+   - Si la segunda carga falla o el contexto es nulo, registrar advertencia, liberar y devolver lista vacía.
+3. Verificar que context->layer_count > 0; si no, advertir, liberar y devolver lista vacía.
+4. Iterar sobre context->layer_records:
+   - Omitir carpetas (folder layers).
+   - Rellenar LayerData: nombre (preferir unicode), visible, opacity, blendMode.
+   - Si hay image_data válida, construir QImage apuntando a los datos ARGB4 y hacer copia profunda.
+   - Añadir LayerData al resultado.
+5. Liberar el contexto y devolver la lista de capas.
+Notas:
+- Corregir error de sintaxis C1075 añadiendo llave de cierre faltante para el bloque if que maneja la re-intentada carga.
+- Mantener compatibilidad con C++14 y API de libpsd/QT usada.
+*/
+
 #include "PSDImporter.h"
 
 #include <QImage>
@@ -58,11 +76,12 @@ QList<LayerData> PSDImporter::importPSD(const QString& filePath)
         // psd_image_load_layer() succeed when loaded fully.
         status = psd_image_load(&context,
                                 const_cast<psd_char*>(nativePath.constData()));
-    if ((status != psd_status_done && status != psd_status_invalid_blending_channels) || !context) {
-        qWarning() << "Failed to load PSD layers:" << filePath << "status:" << status;
-        if (context)
-            psd_image_free(context);
-        return result;
+        if ((status != psd_status_done && status != psd_status_invalid_blending_channels) || !context) {
+            qWarning() << "Failed to load PSD layers:" << filePath << "status:" << status;
+            if (context)
+                psd_image_free(context);
+            return result;
+        }
     }
 
     if (context->layer_count <= 0) {
