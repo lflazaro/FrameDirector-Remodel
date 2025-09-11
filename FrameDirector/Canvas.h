@@ -17,6 +17,7 @@
 #include <optional>
 #include <QHash>
 #include <QSet>
+#include <QPainter>
 
 using namespace FrameDirector;
 
@@ -57,8 +58,12 @@ public:
     void convertCurrentExtendedFrameToKeyframe();
 
     // Layer management - Complete interface
-    int addLayer(const QString& name = QString());  // Returns layer index
-    void addLayerVoid(const QString& name = QString()); // Void version for compatibility
+    int addLayer(const QString& name = QString(), bool visible = true,
+                 double opacity = 1.0,
+                 QPainter::CompositionMode blendMode = QPainter::CompositionMode_SourceOver);  // Returns layer index
+    void addLayerVoid(const QString& name = QString(), bool visible = true,
+                      double opacity = 1.0,
+                      QPainter::CompositionMode blendMode = QPainter::CompositionMode_SourceOver); // Void version for compatibility
     void removeLayer(int layerIndex);
     void setCurrentLayer(int layerIndex);
     int getCurrentLayer() const;

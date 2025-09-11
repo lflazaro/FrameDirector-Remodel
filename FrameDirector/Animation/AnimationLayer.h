@@ -5,6 +5,7 @@
 #include <QColor>
 #include <QGraphicsItem>
 #include <QPropertyAnimation>
+#include <QPainter>
 #include <vector>
 #include <memory>
 
@@ -32,6 +33,9 @@ public:
 
     void setColor(const QColor& color);
     QColor getColor() const;
+
+    void setBlendMode(QPainter::CompositionMode mode);
+    QPainter::CompositionMode getBlendMode() const;
 
     // Items management
     void addItem(QGraphicsItem* item);
@@ -69,6 +73,8 @@ private:
     double m_opacity;
     QColor m_color;
     int m_currentFrame;
+
+    QPainter::CompositionMode m_blendMode;
 
     QList<QGraphicsItem*> m_items;
     std::map<int, std::unique_ptr<AnimationKeyframe>> m_keyframes;

@@ -461,7 +461,7 @@ void LayerManager::updateLayers()
 
     // Populate with layer names, preserving states
     for (int i = 0; i < canvas->getLayerCount(); ++i) {
-        QString layerName = (i == 0) ? "Background" : QString("Layer %1").arg(i);
+        QString layerName = canvas->getLayerName(i);
         LayerItem* item = new LayerItem(layerName, i);
 
         // FIXED: Restore saved states if they exist
@@ -477,10 +477,10 @@ void LayerManager::updateLayers()
             canvas->setLayerOpacity(i, state.opacity / 100.0);
         }
         else {
-            // Default values for new layers
-            item->setVisible(true);
-            item->setLocked(false);
-            item->setOpacity(100);
+            // Initialize from canvas properties
+            item->setVisible(canvas->isLayerVisible(i));
+            item->setLocked(canvas->isLayerLocked(i));
+            item->setOpacity(static_cast<int>(canvas->getLayerOpacity(i) * 100));
         }
 
         m_layerList->addItem(item);
