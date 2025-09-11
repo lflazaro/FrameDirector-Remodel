@@ -305,6 +305,7 @@ static psd_status psd_get_layer_info(psd_context * context)
 	psd_int length, extra_length, i, j, size;
 	psd_int prev_stream_pos, prev_layer_stream_pos, extra_stream_pos;
 	psd_bool skip_first_alpha = psd_false;
+	psd_bool extra_data_error = psd_false;
 	psd_layer_record * layer, * group_layer;
 	psd_uchar flags;
 	psd_uint tag;
@@ -696,7 +697,11 @@ static psd_status psd_get_layer_info(psd_context * context)
 			psd_assert(layer->layer_info_count < psd_layer_info_type_count);
 		}
 
-		psd_assert(context->stream.current_pos - extra_stream_pos == extra_length);
+		if (context->stream.current_pos - extra_stream_pos != extra_length) {
+			if (context->stream.current_pos - extra_stream_pos < extra_length)
+				psd_stream_get_null(context, extra_length - (context->stream.current_pos - extra_stream_pos));
+			extra_data_error = psd_true;
+		}
 	}
 	
 	for(i = 0, layer = context->layer_records; i < context->layer_count; i ++, layer ++)
@@ -731,7 +736,7 @@ static psd_status psd_get_layer_info(psd_context * context)
 		}
 	}
 
-	return psd_status_done;
+	return extra_data_error ? psd_status_invalid_blending_channels : psd_status_done;
 }
 
 // Global layer mask info
