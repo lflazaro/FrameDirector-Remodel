@@ -3,6 +3,7 @@
 #include <QImage>
 #include <QByteArray>
 #include <QDebug>
+#include <QFileInfo>
 #include <third_party/include/libpsd.h>
 
 // Helper to convert libpsd blend-mode enum to Qt composition mode
@@ -25,6 +26,14 @@ QList<LayerData> PSDImporter::importPSD(const QString& filePath)
 {
     QList<LayerData> result;
 
+    // Avoid passing a non-existent path to libpsd.  On some platforms the
+    // loader can crash when given an invalid filename.
+    QFileInfo fi(filePath);
+    if (!fi.exists()) {
+        qWarning() << "PSD file does not exist" << filePath;
+        return result;
+    }
+
     // Load only the layer information from the PSD.  Using psd_image_load() would
     // attempt to parse additional sections (merged image, thumbnails, EXIF, ...)
     // and fail for perfectly valid files when those features are unsupported by
@@ -37,6 +46,12 @@ QList<LayerData> PSDImporter::importPSD(const QString& filePath)
         qWarning() << "Failed to load PSD layers:" << filePath << "status:" << status;
         if (context)
             psd_image_free(context);
+        return result;
+    }
+
+    if (context->layer_count <= 0) {
+        qWarning() << "PSD contains no layers" << filePath;
+        psd_image_free(context);
         return result;
     }
 
