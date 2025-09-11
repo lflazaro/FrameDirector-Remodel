@@ -5,6 +5,7 @@
 #include <QImage>
 #include <QDebug>
 #include <6.9.0/QtCore/private/qzipreader_p.h>
+#include <functional>
 
 QList<LayerData> ORAImporter::importORA(const QString& filePath)
 {
@@ -22,7 +23,6 @@ QList<LayerData> ORAImporter::importORA(const QString& filePath)
     QZipReader zip(filePath);
     if (!zip.isReadable() || zip.status() != QZipReader::NoError) {
         qWarning() << "Failed to open ORA" << filePath << "status" << zip.status();
-        zip.close();
         return result;
     }
 
@@ -46,7 +46,8 @@ QList<LayerData> ORAImporter::importORA(const QString& filePath)
     // specification (top-most layer last).  Using readNextStartElement and
     // skipCurrentElement ensures the parser doesn't get stuck on unexpected
     // tags and avoids accessing invalid memory.
-    std::function<void(QXmlStreamReader&)> parseStack = [&](QXmlStreamReader& xml) {
+    std::function<void(QXmlStreamReader&)> parseStack;
+    parseStack = [&](QXmlStreamReader& xml) {
         while (xml.readNextStartElement()) {
             if (xml.name() == "layer") {
                 LayerInfo info;
