@@ -1,17 +1,27 @@
 #include "ORAImporter.h"
 
-#include "QtCore/6.9.0/QtCore/private/qzipreader_p.h"
+#include <QFileInfo>
 #include <QXmlStreamReader>
 #include <QImage>
 #include <QDebug>
+#include <private/qzipreader_p.h>
 
 QList<LayerData> ORAImporter::importORA(const QString& filePath)
 {
     QList<LayerData> result;
 
-    QZipReader zip(filePath);
-    if (!zip.exists()) {
+    // Ensure the file exists before constructing the zip reader.  Passing a
+    // non-existent path to QZipReader can result in undefined behaviour on
+    // some platforms.
+    QFileInfo fi(filePath);
+    if (!fi.exists()) {
         qWarning() << "ORA file does not exist" << filePath;
+        return result;
+    }
+
+    QZipReader zip(filePath);
+    if (!zip.isReadable() || zip.status() != QZipReader::NoError) {
+        qWarning() << "Failed to open ORA" << filePath << "status" << zip.status();
         return result;
     }
 

@@ -25,11 +25,16 @@ QList<LayerData> PSDImporter::importPSD(const QString& filePath)
 {
     QList<LayerData> result;
 
-    // libpsd in this tree uses psd_context and psd_image_load(...)
-    psd_context* context = NULL;
-    psd_status status = psd_image_load(&context, const_cast<psd_char*>(filePath.toUtf8().constData()));
-    if (status != psd_status_done || context == NULL) {
-        qWarning() << "Failed to load PSD (libpsd) :" << filePath << " status:" << status;
+    // Load only the layer information from the PSD.  Using psd_image_load() would
+    // attempt to parse additional sections (merged image, thumbnails, EXIF, ...)
+    // and fail for perfectly valid files when those features are unsupported by
+    // the bundled libpsd.  psd_image_load_layer() focuses on layer and mask data
+    // which is all we require.
+    psd_context* context = nullptr;
+    psd_status status = psd_image_load_layer(&context,
+        const_cast<psd_char*>(filePath.toUtf8().constData()));
+    if (status != psd_status_done || !context) {
+        qWarning() << "Failed to load PSD layers:" << filePath << "status:" << status;
         if (context)
             psd_image_free(context);
         return result;
