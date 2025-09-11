@@ -42,29 +42,27 @@ bool ZipReader::isOpen() const
     return static_cast<bool>(m_zip);
 }
 
-QByteArray ZipReader::fileData(const QString &fileName)
+
+QByteArray ZipReader::fileData(const QString& fileName)
 {
-    QByteArray data;
     if (!m_zip)
-        return data;
+        return {};
 
     // Normalise path separators for miniz.
     QString normalized = fileName;
     normalized.replace('\\', '/');
 
     size_t size = 0;
-    void *buffer = mz_zip_reader_extract_file_to_heap(
+    void* buffer = mz_zip_reader_extract_file_to_heap(
         m_zip.get(), normalized.toUtf8().constData(), &size, 0);
     if (!buffer) {
         qWarning() << "Failed to extract" << normalized;
-        return data;
+        return {};
     }
 
-    // QByteArray(const char*, int) does not take ownership of the memory and may
-    // in some Qt versions avoid copying. Explicitly create a QByteArray using
-    // fromRawData and then copy it so that the data remains valid after we free
-    // the temporary buffer returned by miniz.
-    data = QByteArray(static_cast<const char*>(buffer),
+    // QByteArray(const char*, int) performs a deep copy of the buffer,
+    // so the temporary memory can be freed immediately after construction.
+    QByteArray data(static_cast<const char*>(buffer),
         static_cast<int>(size));
     mz_free(buffer);
     return data;
