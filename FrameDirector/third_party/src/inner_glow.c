@@ -88,14 +88,14 @@ psd_status psd_get_layer_inner_glow(psd_context * context, psd_layer_effects_inn
 	// Color
 	inner_glow->color = psd_stream_get_space_color(context);
 	
-	// Blend mode: 4 bytes for signature and 4 bytes for the key
-	// Blend mode signature: '8BIM'
-	tag = psd_stream_get_int(context);
-	if(tag != '8BIM')
-		return psd_status_blend_mode_signature_error;
-	
-	// Blend mode key
-	inner_glow->blend_mode = psd_stream_get_blend_mode(context);
+        // Blend mode: 4 bytes for signature and 4 bytes for the key
+        // Blend mode signature is usually '8BIM', though '8B64' may appear in
+        // newer files. Consume the key and default to normal mode if an unknown
+        // signature is encountered.
+        tag = psd_stream_get_int(context);
+        inner_glow->blend_mode = psd_stream_get_blend_mode(context);
+        if(tag != '8BIM' && tag != '8B64')
+                inner_glow->blend_mode = psd_blend_mode_normal;
 
 	// Effect enabled
 	inner_glow->effect_enable = psd_stream_get_bool(context);
