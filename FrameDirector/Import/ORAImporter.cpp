@@ -4,6 +4,7 @@
 #include <QXmlStreamReader>
 #include <QImage>
 #include <QDebug>
+#include <QBuffer>
 #include <functional>
 #include "ZipReader.h"
 
@@ -15,10 +16,6 @@ struct LayerInfo {
     double opacity;
 };
 
-// Recursively parse <stack> elements so that layer order matches the ORA
-// specification (top-most layer last). Using readNextStartElement and
-// skipCurrentElement ensures the parser doesn't get stuck on unexpected tags
-// and avoids accessing invalid memory.
 void parseStack(QXmlStreamReader &xml, QList<LayerInfo> &infos) {
     while (xml.readNextStartElement()) {
         if (xml.name() == QLatin1String("layer")) {
@@ -41,14 +38,37 @@ void parseStack(QXmlStreamReader &xml, QList<LayerInfo> &infos) {
         }
     }
 }
+
+bool validatePngData(const QByteArray &data) {
+    // Check PNG signature
+    if (data.size() < 8) return false;
+    static const char pngSignature[] = {'\x89', 'P', 'N', 'G', '\r', '\n', '\x1a', '\n'};
+    return memcmp(data.constData(), pngSignature, 8) == 0;
+}
+
+bool tryLoadImage(QImage &image, const QByteArray &data, const QString &format = "PNG") {
+    if (data.isEmpty()) return false;
+
+    // Try loading directly first
+    if (image.loadFromData(data, format.toLatin1())) {
+        return true;
+    }
+
+    // If that fails, try through a QBuffer for better error handling
+    QBuffer buffer;
+    buffer.setData(data);
+    if (!buffer.open(QIODevice::ReadOnly)) {
+        return false;
+    }
+
+    return image.load(&buffer, format.toLatin1());
+}
 } // namespace
 
 QList<LayerData> ORAImporter::importORA(const QString& filePath)
 {
     QList<LayerData> result;
 
-    // Ensure the file exists before constructing the ZIP reader to avoid
-    // undefined behaviour on some platforms.
     QFileInfo fi(filePath);
     if (!fi.exists()) {
         qWarning() << "ORA file does not exist" << filePath;
@@ -96,20 +116,49 @@ QList<LayerData> ORAImporter::importORA(const QString& filePath)
         layer.name = info.name;
         layer.opacity = info.opacity;
         layer.visible = info.visible;
+
         if (info.src.isEmpty()) {
             qWarning() << "Layer" << info.name << "missing source image";
-        } else {
-            QByteArray imgData = zip.fileData(info.src);
-
-            qDebug() << "Extracting" << info.src << "size" << imgData.size();
-            if (imgData.isEmpty()) {
-                qWarning() << "Failed to extract" << info.src << "from ORA" << filePath;
-            } else if (!layer.image.loadFromData(imgData, "PNG")) {
-                qWarning() << "Failed to decode" << info.src << "in ORA" << filePath;
-            }
+            continue;
         }
+
+        QByteArray imgData = zip.fileData(info.src);
+        qDebug() << "Extracting" << info.src << "size" << imgData.size();
+
+        if (imgData.isEmpty()) {
+            qWarning() << "Failed to extract" << info.src << "from ORA" << filePath;
+            continue;
+        }
+
+        // Validate PNG data before attempting to load
+        if (!validatePngData(imgData)) {
+            qWarning() << "Invalid PNG data in" << info.src;
+            
+            // Debug: dump corrupt data
+            QString debugPath = QString("debug_corrupt_%1").arg(info.src.section('/', -1));
+            QFile debugFile(debugPath);
+            if (debugFile.open(QIODevice::WriteOnly)) {
+                debugFile.write(imgData);
+                debugFile.close();
+                qWarning() << "Wrote corrupt PNG data to" << debugPath;
+            }
+            continue;
+        }
+
+        // Try to load the image with robust error handling
+        if (!tryLoadImage(layer.image, imgData)) {
+            qWarning() << "Failed to decode" << info.src << "in ORA" << filePath;
+            continue;
+        }
+
+        if (layer.image.isNull()) {
+            qWarning() << "Loaded image is null for" << info.src;
+            continue;
+        }
+
         result.append(layer);
     }
+
     qDebug() << "Finished ORA import with" << result.size() << "layers";
     return result;
 }
