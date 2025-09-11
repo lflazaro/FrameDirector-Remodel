@@ -37,7 +37,7 @@
   </ImportGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="QtSettings">
     <QtInstall>6.9.0_msvc2022_64</QtInstall>
-    <QtModules>core;gui;widgets;multimedia;svg;svgwidgets</QtModules>
+    <QtModules>core;gui;widgets;multimedia;svg;svgwidgets;xml</QtModules>
     <QtBuildConfig>debug</QtBuildConfig>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'" Label="QtSettings">
@@ -100,6 +100,8 @@
     <ClCompile Include="Commands\UndoCommands.cpp" />
     <ClCompile Include="GradientDialog.cpp" />
     <ClCompile Include="Dialogs\ExportDialog.cpp" />
+    <ClCompile Include="Import\ORAImporter.cpp" />
+    <ClCompile Include="Import\PSDImporter.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MainWindow.cpp" />
     <ClCompile Include="Panels\AlignmentPanel.cpp" />
@@ -107,6 +109,57 @@
     <ClCompile Include="Panels\LayerManager.cpp" />
     <ClCompile Include="Panels\PropertiesPanel.cpp" />
     <ClCompile Include="Panels\ToolsPanel.cpp" />
+    <ClCompile Include="third_party\src\adjustment.c" />
+    <ClCompile Include="third_party\src\bevel_emboss.c" />
+    <ClCompile Include="third_party\src\bitmap.c" />
+    <ClCompile Include="third_party\src\blend.c" />
+    <ClCompile Include="third_party\src\boundary.c" />
+    <ClCompile Include="third_party\src\brightness_contrast.c" />
+    <ClCompile Include="third_party\src\channel_image.c" />
+    <ClCompile Include="third_party\src\channel_mixer.c" />
+    <ClCompile Include="third_party\src\color.c" />
+    <ClCompile Include="third_party\src\color_balance.c" />
+    <ClCompile Include="third_party\src\color_mode.c" />
+    <ClCompile Include="third_party\src\color_overlay.c" />
+    <ClCompile Include="third_party\src\curves.c" />
+    <ClCompile Include="third_party\src\descriptor.c" />
+    <ClCompile Include="third_party\src\drop_shadow.c" />
+    <ClCompile Include="third_party\src\effects.c" />
+    <ClCompile Include="third_party\src\file_header.c" />
+    <ClCompile Include="third_party\src\fixed.c" />
+    <ClCompile Include="third_party\src\gaussian_blur.c" />
+    <ClCompile Include="third_party\src\gradient_blend.c" />
+    <ClCompile Include="third_party\src\gradient_fill.c" />
+    <ClCompile Include="third_party\src\gradient_map.c" />
+    <ClCompile Include="third_party\src\gradient_overlay.c" />
+    <ClCompile Include="third_party\src\hue_saturation.c" />
+    <ClCompile Include="third_party\src\image_data.c" />
+    <ClCompile Include="third_party\src\image_resource.c" />
+    <ClCompile Include="third_party\src\inner_glow.c" />
+    <ClCompile Include="third_party\src\inner_shadow.c" />
+    <ClCompile Include="third_party\src\invert.c" />
+    <ClCompile Include="third_party\src\layer_mask.c" />
+    <ClCompile Include="third_party\src\levels.c" />
+    <ClCompile Include="third_party\src\outer_glow.c" />
+    <ClCompile Include="third_party\src\path.c" />
+    <ClCompile Include="third_party\src\pattern.c" />
+    <ClCompile Include="third_party\src\pattern_fill.c" />
+    <ClCompile Include="third_party\src\pattern_overlay.c" />
+    <ClCompile Include="third_party\src\photo_filter.c" />
+    <ClCompile Include="third_party\src\posterize.c" />
+    <ClCompile Include="third_party\src\psd.c" />
+    <ClCompile Include="third_party\src\psd_system.c" />
+    <ClCompile Include="third_party\src\psd_zip.c" />
+    <ClCompile Include="third_party\src\rect.c" />
+    <ClCompile Include="third_party\src\satin.c" />
+    <ClCompile Include="third_party\src\selective_color.c" />
+    <ClCompile Include="third_party\src\solid_color.c" />
+    <ClCompile Include="third_party\src\stream.c" />
+    <ClCompile Include="third_party\src\stroke.c" />
+    <ClCompile Include="third_party\src\threshold.c" />
+    <ClCompile Include="third_party\src\thumbnail.c" />
+    <ClCompile Include="third_party\src\type_tool.c" />
+    <ClCompile Include="third_party\test\test.c" />
     <ClCompile Include="Timeline.cpp" />
     <ClCompile Include="Tools\DrawingTool.cpp">
       <DynamicSource Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">input</DynamicSource>
@@ -162,9 +215,25 @@
     <ClInclude Include="Common\CommonIncludes.h" />
     <ClInclude Include="Common\FrameTypes.h" />
     <QtMoc Include="GradientDialog.h" />
+    <ClInclude Include="Import\LayerData.h" />
+    <ClInclude Include="Import\ORAImporter.h" />
+    <ClInclude Include="Import\PSDImporter.h" />
     <ClInclude Include="resource.h" />
     <QtMoc Include="Tools\EraseTool.h" />
     <QtMoc Include="Tools\GradientFillTool.h" />
+    <ClInclude Include="third_party\include\libpsd.h" />
+    <ClInclude Include="third_party\include\psd_color.h" />
+    <ClInclude Include="third_party\include\psd_config.h" />
+    <ClInclude Include="third_party\include\psd_types.h" />
+    <ClInclude Include="third_party\src\psd_bitmap.h" />
+    <ClInclude Include="third_party\src\psd_blend.h" />
+    <ClInclude Include="third_party\src\psd_descriptor.h" />
+    <ClInclude Include="third_party\src\psd_fixed.h" />
+    <ClInclude Include="third_party\src\psd_gradient.h" />
+    <ClInclude Include="third_party\src\psd_math.h" />
+    <ClInclude Include="third_party\src\psd_rect.h" />
+    <ClInclude Include="third_party\src\psd_stream.h" />
+    <ClInclude Include="third_party\src\psd_system.h" />
     <ClInclude Include="VectorGraphics\VectorGraphicsItem.h" />
     <QtMoc Include="Tools\Tool.h" />
     <QtMoc Include="Tools\TextTool.h" />

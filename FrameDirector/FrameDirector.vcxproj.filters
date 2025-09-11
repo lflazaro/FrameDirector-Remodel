@@ -119,6 +119,165 @@
     <ClCompile Include="Tools\GradientFillTool.cpp">
       <Filter>Tools</Filter>
     </ClCompile>
+    <ClCompile Include="Import\ORAImporter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Import\PSDImporter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\adjustment.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\bevel_emboss.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\bitmap.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\blend.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\boundary.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\brightness_contrast.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\channel_image.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\channel_mixer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\color.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\color_balance.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\color_mode.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\color_overlay.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\curves.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\descriptor.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\drop_shadow.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\effects.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\file_header.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\fixed.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\gaussian_blur.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\gradient_blend.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\gradient_fill.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\gradient_map.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\gradient_overlay.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\hue_saturation.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\image_data.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\image_resource.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\inner_glow.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\inner_shadow.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\invert.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\layer_mask.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\levels.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\outer_glow.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\path.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\pattern.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\pattern_fill.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\pattern_overlay.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\photo_filter.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\posterize.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\psd.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\psd_system.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\psd_zip.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\rect.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\satin.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\selective_color.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\solid_color.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\stream.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\stroke.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\threshold.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\thumbnail.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\src\type_tool.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\test\test.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="Canvas.h">
@@ -205,6 +364,54 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Common\CommonIncludes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Import\LayerData.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Import\ORAImporter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Import\PSDImporter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\include\libpsd.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\include\psd_color.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\include\psd_config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\include\psd_types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\src\psd_bitmap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\src\psd_blend.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\src\psd_descriptor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\src\psd_fixed.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\src\psd_gradient.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\src\psd_math.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\src\psd_rect.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\src\psd_stream.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\src\psd_system.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -1,6 +1,6 @@
 #include "ORAImporter.h"
 
-#include <QtGui/private/qzipreader_p.h>
+#include "QtCore/6.9.0/QtCore/private/qzipreader_p.h"
 #include <QXmlStreamReader>
 #include <QImage>
 #include <QDebug>

@@ -3,76 +3,72 @@
 #include <QImage>
 #include <QByteArray>
 #include <QDebug>
+#include <third_party/include/libpsd.h>
 
-// libpsd header - assumes the library is available during build
-#include <libpsd/libpsd.h>
-
-// Helper to convert PSD blend mode to Qt composition mode
-static QPainter::CompositionMode convertBlendMode(const char* mode)
+// Helper to convert libpsd blend-mode enum to Qt composition mode
+static QPainter::CompositionMode convertBlendModeFromEnum(int mode)
 {
-    if (!mode)
-        return QPainter::CompositionMode_SourceOver;
-
-    QByteArray key(mode, 4);
-    if (key == "norm") return QPainter::CompositionMode_SourceOver;
-    if (key == "mul ") return QPainter::CompositionMode_Multiply;
-    if (key == "scrn") return QPainter::CompositionMode_Screen;
-    if (key == "over") return QPainter::CompositionMode_Overlay;
-    if (key == "dark") return QPainter::CompositionMode_Darken;
-    if (key == "lite") return QPainter::CompositionMode_Lighten;
-    if (key == "diff") return QPainter::CompositionMode_Difference;
-    if (key == "smud") return QPainter::CompositionMode_ColorBurn;
-    return QPainter::CompositionMode_SourceOver;
+    switch (mode) {
+    case psd_blend_mode_normal: return QPainter::CompositionMode_SourceOver;
+    case psd_blend_mode_multiply: return QPainter::CompositionMode_Multiply;
+    case psd_blend_mode_screen: return QPainter::CompositionMode_Screen;
+    case psd_blend_mode_overlay: return QPainter::CompositionMode_Overlay;
+    case psd_blend_mode_darken: return QPainter::CompositionMode_Darken;
+    case psd_blend_mode_lighten: return QPainter::CompositionMode_Lighten;
+    case psd_blend_mode_difference: return QPainter::CompositionMode_Difference;
+    case psd_blend_mode_exclusion: return QPainter::CompositionMode_ColorBurn; // best-effort mapping
+    default: return QPainter::CompositionMode_SourceOver;
+    }
 }
 
 QList<LayerData> PSDImporter::importPSD(const QString& filePath)
 {
     QList<LayerData> result;
 
-    psd_context* context = psd_new();
-    if (!context) {
-        qWarning() << "Failed to create PSD context";
+    // libpsd in this tree uses psd_context and psd_image_load(...)
+    psd_context* context = NULL;
+    psd_status status = psd_image_load(&context, const_cast<psd_char*>(filePath.toUtf8().constData()));
+    if (status != psd_status_done || context == NULL) {
+        qWarning() << "Failed to load PSD (libpsd) :" << filePath << " status:" << status;
+        if (context)
+            psd_image_free(context);
         return result;
     }
 
-    if (psd_load(context, filePath.toUtf8().constData()) != 0) {
-        qWarning() << "Failed to load PSD" << filePath;
-        psd_free(context);
-        return result;
-    }
+    // context->layer_count and context->layer_records are provided by this libpsd
+    for (int i = 0; i < context->layer_count; ++i) {
+        psd_layer_record* layerRecord = &context->layer_records[i];
 
-    psd_image* image = psd_image_load(context);
-    if (!image) {
-        qWarning() << "Failed to parse PSD image";
-        psd_free(context);
-        return result;
-    }
-
-    for (int i = 0; i < image->layer_count; ++i) {
-        psd_layer_record* layerRecord = &image->layers[i];
-
-        // Skip folders or unsupported types
-        if (layerRecord->type != PSD_LAYER_RECORD_LAYER)
+        // Skip folder layers (the enum defines folder type)
+        if (layerRecord->layer_type == psd_layer_type_folder)
             continue;
 
         LayerData layer;
-        layer.name = QString::fromUtf8(layerRecord->name);
-        layer.visible = !layerRecord->flags.hidden;
-        layer.opacity = layerRecord->opacity / 255.0;
-        layer.blendMode = convertBlendMode(layerRecord->blend_mode);
+        // Prefer unicode name if available, otherwise the Pascal name field
+        if (layerRecord->unicode_name_length > 0 && layerRecord->unicode_name) {
+            // unicode_name is psd_ushort* (UTF-16-like). Use the char16_t* overload of QString::fromUtf16:
+            layer.name = QString::fromUtf16(reinterpret_cast<const char16_t*>(layerRecord->unicode_name),
+                                            layerRecord->unicode_name_length);
+        } else {
+            layer.name = QString::fromUtf8((const char*)layerRecord->layer_name);
+        }
 
-        psd_bitmap* bmp = psd_render_layer(context, layerRecord);
-        if (bmp && bmp->data) {
-            QImage img(bmp->data, bmp->width, bmp->height, QImage::Format_ARGB32);
-            layer.image = img.copy(); // Deep copy since psd frees its data
-            psd_bitmap_free(bmp);
+        layer.visible = layerRecord->visible ? true : false;
+        layer.opacity = static_cast<double>(layerRecord->opacity) / 255.0;
+        layer.blendMode = convertBlendModeFromEnum(layerRecord->blend_mode);
+
+        // If layer has ARGB pixel buffer, copy into QImage.
+        if (layerRecord->image_data != NULL && layerRecord->width > 0 && layerRecord->height > 0) {
+            // psd_argb_color is unsigned int (AARRGGBB). QImage::Format_ARGB32 expects 0xAARRGGBB on little-endian.
+            const uchar* data = reinterpret_cast<const uchar*>(layerRecord->image_data);
+            int bytesPerLine = layerRecord->width * 4;
+            QImage img(data, layerRecord->width, layerRecord->height, bytesPerLine, QImage::Format_ARGB32);
+            layer.image = img.copy(); // deep copy because libpsd will free context later
         }
 
         result.append(layer);
     }
 
-    psd_image_free(image);
-    psd_free(context);
+    psd_image_free(context);
     return result;
 }
-
