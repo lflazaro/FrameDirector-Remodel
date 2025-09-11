@@ -2786,11 +2786,10 @@ QJsonObject Canvas::serializeGraphicsItem(QGraphicsItem* item) const
     json["scaleY"] = item->transform().m22();
     // Store per-item opacity rather than the opacity already multiplied by
     // the layer opacity. The original opacity is kept in item->data(0).
-    double baseOpacity = item->data(0).toDouble(item->opacity());
+    double baseOpacity = item->data(0).isValid() ? item->data(0).toDouble() : item->opacity();
     json["opacity"] = baseOpacity;
     json["zValue"] = item->zValue();
     json["visible"] = item->isVisible();
-
     if (auto blur = dynamic_cast<QGraphicsBlurEffect*>(item->graphicsEffect())) {
         json["blur"] = blur->blurRadius();
     } else {
@@ -3033,7 +3032,7 @@ bool Canvas::fromJson(const QJsonObject& json)
         m_backgroundRect->setZValue(-1000);
         m_backgroundRect->setData(1, "background");
         m_backgroundRect->setData(0, 1.0);
-        if (!m_layers.isEmpty()) {
+        if (!m_layers.empty()) {
             LayerData* bgLayer = static_cast<LayerData*>(m_layers[0]);
             bgLayer->addItem(m_backgroundRect, 1);
             m_layerFrameData[0][1].items.append(m_backgroundRect);
