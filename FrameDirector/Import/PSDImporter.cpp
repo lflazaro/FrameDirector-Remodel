@@ -77,18 +77,22 @@ QList<LayerData> PSDImporter::importPSD(const QString& filePath)
         status = psd_image_load(&context,
                                 const_cast<psd_char*>(nativePath.constData()));
     }
-    // Treat invalid blending channel errors as non-fatal.  Older libpsd
-    // versions may return this status even though the layer information was
-    // successfully parsed.  As long as a context was produced, proceed with
-    // the import instead of rejecting the file.  Any other status is fatal.
-    if ((status != psd_status_done &&
-         status != psd_status_invalid_blending_channels) || !context) {
+    // If loading produced no context the PSD cannot be imported.  Otherwise,
+    // proceed even when libpsd reports recoverable errors (for example unknown
+    // blend mode signatures) as the layer data may still be usable.
+    if (!context) {
         qWarning() << "Failed to load PSD layers:" << filePath
                    << "status:" << status;
-        if (context)
-            psd_image_free(context);
         return result;
     }
+    if (status != psd_status_done &&
+        status != psd_status_invalid_blending_channels &&
+        status != psd_status_blend_mode_signature_error &&
+        status != psd_status_unsupport_blend_mode &&
+        status != psd_status_additional_layer_signature_error) {
+        qWarning() << "PSD load returned status" << status << "for" << filePath;
+    }
+  
 
     if (context->layer_count <= 0) {
         qWarning() << "PSD contains no layers" << filePath;
