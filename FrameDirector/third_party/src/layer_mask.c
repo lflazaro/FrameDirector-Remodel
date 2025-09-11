@@ -245,9 +245,12 @@ static psd_status psd_get_layer_fill_opacity(psd_context * context, psd_layer_re
 	return psd_status_done;
 }
 
-// Section divider setting (Photoshop 6.0)
+// Declarar la variable 'tag' antes de su primer uso en la función correspondiente.
+// Ejemplo de corrección en la función donde aparece el error:
+
 static psd_status psd_get_layer_section_divider(psd_context * context, psd_layer_record * layer, psd_int size)
 {
+	psd_uint tag; // <-- Declaración añadida aquí
 	// Type. 4 possible values, 0 = any other type of layer, 1 = open ¡°folder¡±, 2 =
 	// closed ¡°folder¡±, 3 = bounding section divider, hidden in the UI
 	layer->divider_type = psd_stream_get_int(context);
@@ -265,11 +268,11 @@ static psd_status psd_get_layer_section_divider(psd_context * context, psd_layer
 	// Following is only present if length = 12
 	if(size == 12)
 	{
-                // Signature: typically '8BIM' but newer files may use '8B64'.
-                tag = psd_stream_get_int(context);
-                layer->divider_blend_mode = psd_stream_get_blend_mode(context);
-                if(tag != '8BIM' && tag != '8B64')
-                        layer->divider_blend_mode = psd_blend_mode_normal;
+		// Signature: typically '8BIM' but newer files may use '8B64'.
+		tag = psd_stream_get_int(context);
+		layer->divider_blend_mode = psd_stream_get_blend_mode(context);
+		if(tag != '8BIM' && tag != '8B64')
+			layer->divider_blend_mode = psd_blend_mode_normal;
 	}
 
 	return psd_status_done;
