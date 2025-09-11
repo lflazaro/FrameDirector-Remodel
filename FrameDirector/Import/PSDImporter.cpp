@@ -78,7 +78,6 @@ QList<LayerData> PSDImporter::importPSD(const QString& filePath)
                                 const_cast<psd_char*>(nativePath.constData()));
         qDebug() << "psd_image_load returned" << status << "context" << context;
     }
-
     // If loading produced no context the PSD cannot be imported.  Otherwise,
     // proceed even when libpsd reports recoverable errors (for example unknown
     // blend mode signatures) as the layer data may still be usable.
