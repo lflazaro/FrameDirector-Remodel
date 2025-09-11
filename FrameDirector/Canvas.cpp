@@ -3058,3 +3058,34 @@ bool Canvas::fromJson(const QJsonObject& json)
 
     return true;
 }
+
+
+QString Canvas::getLayerName(int index) const
+{
+    if (index >= 0 && index < m_layers.size()) {
+        LayerData* layer = static_cast<LayerData*>(m_layers[index]);
+        if (layer) return layer->name;
+    }
+    qDebug() << "getLayerName: invalid layer index" << index;
+    return QString();
+}
+
+bool Canvas::isLayerVisible(int index) const
+{
+    if (index >= 0 && index < m_layers.size()) {
+        LayerData* layer = static_cast<LayerData*>(m_layers[index]);
+        if (layer) return layer->visible;
+    }
+    qDebug() << "isLayerVisible: invalid layer index" << index;
+    return false;
+}
+
+bool Canvas::isLayerLocked(int index) const
+{
+    if (index >= 0 && index < m_layers.size()) {
+        LayerData* layer = static_cast<LayerData*>(m_layers[index]);
+        if (layer) return layer->locked;
+    }
+    qDebug() << "isLayerLocked: invalid layer index" << index;
+    return false;
+}
