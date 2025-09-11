@@ -77,7 +77,6 @@ QList<LayerData> PSDImporter::importPSD(const QString& filePath)
         status = psd_image_load(&context,
                                 const_cast<psd_char*>(nativePath.constData()));
     }
-
     // If loading produced no context the PSD cannot be imported.  Otherwise,
     // proceed even when libpsd reports recoverable errors (for example unknown
     // blend mode signatures) as the layer data may still be usable.
@@ -93,6 +92,7 @@ QList<LayerData> PSDImporter::importPSD(const QString& filePath)
         status != psd_status_additional_layer_signature_error) {
         qWarning() << "PSD load returned status" << status << "for" << filePath;
     }
+  
 
     if (context->layer_count <= 0) {
         qWarning() << "PSD contains no layers" << filePath;

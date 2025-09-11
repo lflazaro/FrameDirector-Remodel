@@ -5,6 +5,7 @@
 #include <QImage>
 #include <QDebug>
 #include <6.9.0/QtCore/private/qzipreader_p.h>
+#include <functional>
 
 namespace {
 struct LayerInfo {
@@ -65,7 +66,6 @@ QList<LayerData> ORAImporter::importORA(const QString& filePath)
     }
 
     QList<LayerInfo> infos;
-
     QXmlStreamReader xml(xmlData);
     while (xml.readNextStartElement()) {
         if (xml.name() == QLatin1String("image")) {
