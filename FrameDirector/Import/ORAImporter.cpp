@@ -22,12 +22,14 @@ QList<LayerData> ORAImporter::importORA(const QString& filePath)
     QZipReader zip(filePath);
     if (!zip.isReadable() || zip.status() != QZipReader::NoError) {
         qWarning() << "Failed to open ORA" << filePath << "status" << zip.status();
+        zip.close();
         return result;
     }
 
     QByteArray xmlData = zip.fileData("stack.xml");
     if (xmlData.isEmpty()) {
         qWarning() << "ORA missing stack.xml";
+        zip.close();
         return result;
     }
 
@@ -73,6 +75,7 @@ QList<LayerData> ORAImporter::importORA(const QString& filePath)
     }
     if (xml.hasError()) {
         qWarning() << "Failed to parse stack.xml" << xml.errorString();
+        zip.close();
         return result;
     }
 

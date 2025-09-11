@@ -58,24 +58,7 @@ QList<LayerData> PSDImporter::importPSD(const QString& filePath)
         // psd_image_load_layer() succeed when loaded fully.
         status = psd_image_load(&context,
                                 const_cast<psd_char*>(nativePath.constData()));
-        // Some malformed files trigger psd_status_invalid_blending_channels
-        // in libpsd which aborts loading entirely.  As a last resort fall back
-        // to loading the flattened image so that the import at least yields a
-        // single layer instead of failing outright.
-        if ((status != psd_status_done || !context) && status == psd_status_invalid_blending_channels) {
-            QImage flatImage(filePath);
-            if (!flatImage.isNull()) {
-                LayerData layer;
-                layer.name = fi.completeBaseName();
-                layer.image = flatImage;
-                result.append(layer);
-            } else {
-                qWarning() << "Failed to load PSD layers:" << filePath << "status:" << status;
-            }
-            return result;
-        }
-    }
-    if (status != psd_status_done || !context) {
+    if ((status != psd_status_done && status != psd_status_invalid_blending_channels) || !context) {
         qWarning() << "Failed to load PSD layers:" << filePath << "status:" << status;
         if (context)
             psd_image_free(context);
