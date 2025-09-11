@@ -80,6 +80,14 @@ QList<LayerData> ORAImporter::importORA(const QString& filePath)
         } else {
             xml.skipCurrentElement();
         }
+    };
+
+    QXmlStreamReader xml(xmlData);
+    while (xml.readNextStartElement()) {
+        if (xml.name() == "stack")
+            parseStack(xml);
+        else
+            xml.skipCurrentElement();
     }
     if (xml.hasError()) {
         qWarning() << "Failed to parse stack.xml" << xml.errorString();
