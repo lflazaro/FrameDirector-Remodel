@@ -2727,7 +2727,6 @@ QJsonObject Canvas::serializeGraphicsItem(QGraphicsItem* item) const
         json["penColor"] = pen.color().name();
         json["penWidth"] = pen.widthF();
         json["penStyle"] = static_cast<int>(pen.style());
-
         json["brush"] = serializeBrush(ellipseItem->brush());
     }
     else if (auto lineItem = qgraphicsitem_cast<QGraphicsLineItem*>(item)) {
@@ -2757,7 +2756,6 @@ QJsonObject Canvas::serializeGraphicsItem(QGraphicsItem* item) const
         json["penColor"] = pen.color().name();
         json["penWidth"] = pen.widthF();
         json["penStyle"] = static_cast<int>(pen.style());
-
         json["brush"] = serializeBrush(pathItem->brush());
     }
     else if (auto pixmapItem = qgraphicsitem_cast<QGraphicsPixmapItem*>(item)) {
@@ -2786,7 +2784,6 @@ QJsonObject Canvas::serializeGraphicsItem(QGraphicsItem* item) const
     json["rotation"] = item->rotation();
     json["scaleX"] = item->transform().m11();
     json["scaleY"] = item->transform().m22();
-
     // Store per-item opacity rather than the opacity already multiplied by
     // the layer opacity. The original opacity is kept in item->data(0).
     double baseOpacity = item->data(0).toDouble(item->opacity());
@@ -2974,6 +2971,10 @@ bool Canvas::fromJson(const QJsonObject& json)
         QJsonObject layerJson = layers[i].toObject();
         QString name = layerJson["name"].toString(QString("Layer %1").arg(i + 1));
         int idx = addLayer(name);
+        if (idx == 0 && m_backgroundRect) {
+            LayerData* bgLayer = static_cast<LayerData*>(m_layers[idx]);
+            bgLayer->addItem(m_backgroundRect, 1);
+        }
         setLayerVisible(idx, layerJson["visible"].toBool(true));
         setLayerLocked(idx, layerJson["locked"].toBool(false));
         setLayerOpacity(idx, layerJson["opacity"].toDouble(1.0));

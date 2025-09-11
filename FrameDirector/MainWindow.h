@@ -495,6 +495,7 @@ private:
     QAction* m_separatorAction;
     QAction* m_setTimelineLengthAction;
     QGraphicsItem* duplicateGraphicsItem(QGraphicsItem* item);
-};
+}
+;
 
 #endif // MAINWINDOW_H
