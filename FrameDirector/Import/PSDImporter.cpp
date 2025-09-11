@@ -35,11 +35,12 @@ QList<LayerData> PSDImporter::importPSD(const QString& filePath)
         return result;
     }
 
-    // Load only the layer information from the PSD.  Using psd_image_load() would
-    // attempt to parse additional sections (merged image, thumbnails, EXIF, ...)
-    // and fail for perfectly valid files when those features are unsupported by
-    // the bundled libpsd.  psd_image_load_layer() focuses on layer and mask data
-    // which is all we require.
+    // Load only the layer information from the PSD.  Older versions of libpsd
+    // occasionally fail when asked to load just the layer section.  In that
+    // situation fall back to loading the full image which provides the same
+    // layer data but also parses additional sections (merged image, thumbnails,
+    // EXIF, ...).  The extra information is ignored but allows valid files to
+    // be imported instead of being rejected outright.
     psd_context* context = nullptr;
     // libpsd expects a path encoded for the local filesystem (typically the
     // current locale's 8-bit encoding on Windows).  Passing UTF-8 here causes
@@ -49,6 +50,20 @@ QList<LayerData> PSDImporter::importPSD(const QString& filePath)
     psd_status status = psd_image_load_layer(&context,
         const_cast<psd_char*>(nativePath.constData()));
     if (status != psd_status_done || !context) {
+        if (context) {
+            psd_image_free(context);
+            context = nullptr;
+        }
+        // Retry using the generic loader.  Many PSDs that fail with
+        // psd_image_load_layer() succeed when loaded fully.
+        status = psd_image_load(&context,
+                                const_cast<psd_char*>(nativePath.constData()));
+    }
+    // Treat invalid blending channel errors as non-fatal.  Older libpsd
+    // versions may return this status even though the layer information was
+    // successfully parsed.  As long as a context was produced, proceed with
+    // the import instead of rejecting the file.
+    if ((status != psd_status_done && status != psd_status_invalid_blending_channels) || !context) {
         qWarning() << "Failed to load PSD layers:" << filePath << "status:" << status;
         if (context)
             psd_image_free(context);
