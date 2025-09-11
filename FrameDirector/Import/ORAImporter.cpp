@@ -4,7 +4,7 @@
 #include <QXmlStreamReader>
 #include <QImage>
 #include <QDebug>
-#include <6.9.0/QtCore/private/qzipreader_p.h>
+#include <QtCore/private/qzipreader_p.h>
 #include <functional>
 
 namespace {
