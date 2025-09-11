@@ -58,11 +58,6 @@ QList<LayerData> PSDImporter::importPSD(const QString& filePath)
         // psd_image_load_layer() succeed when loaded fully.
         status = psd_image_load(&context,
                                 const_cast<psd_char*>(nativePath.constData()));
-    }
-    // Treat invalid blending channel errors as non-fatal.  Older libpsd
-    // versions may return this status even though the layer information was
-    // successfully parsed.  As long as a context was produced, proceed with
-    // the import instead of rejecting the file.
     if ((status != psd_status_done && status != psd_status_invalid_blending_channels) || !context) {
         qWarning() << "Failed to load PSD layers:" << filePath << "status:" << status;
         if (context)
