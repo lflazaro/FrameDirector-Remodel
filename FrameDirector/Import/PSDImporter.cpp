@@ -89,15 +89,13 @@ QList<LayerData> PSDImporter::importPSD(const QString& filePath)
         }
         // Retry using the generic loader.  Many PSDs that fail with
         // psd_image_load_layer() succeed when loaded fully.
-        status = psd_image_load(&context,
-                                const_cast<psd_char*>(nativePath.constData()));
+    status = psd_image_load(&context, const_cast<psd_char*>(nativePath.constData()));
         if ((status != psd_status_done && status != psd_status_invalid_blending_channels) || !context) {
             qWarning() << "Failed to load PSD layers:" << filePath << "status:" << status;
             if (context)
                 psd_image_free(context);
             return result;
         }
-    }
 
     if (context->layer_count <= 0) {
         qWarning() << "PSD contains no layers" << filePath;

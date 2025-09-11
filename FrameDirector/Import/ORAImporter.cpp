@@ -4,7 +4,7 @@
 #include <QXmlStreamReader>
 #include <QImage>
 #include <QDebug>
-#include <QtCore/private/qzipreader_p.h>
+#include <6.9.0/QtCore/private/qzipreader_p.h>
 
 QList<LayerData> ORAImporter::importORA(const QString& filePath)
 {
@@ -81,19 +81,6 @@ QList<LayerData> ORAImporter::importORA(const QString& filePath)
             xml.skipCurrentElement();
         }
     };
-
-    QXmlStreamReader xml(xmlData);
-    while (xml.readNextStartElement()) {
-        if (xml.name() == "stack")
-            parseStack(xml);
-        else
-            xml.skipCurrentElement();
-    }
-    if (xml.hasError()) {
-        qWarning() << "Failed to parse stack.xml" << xml.errorString();
-        zip.close();
-        return result;
-    }
 
     for (const LayerInfo& info : infos) {
         LayerData layer;
