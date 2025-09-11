@@ -17,7 +17,7 @@ ZipReader::ZipReader(const QString &filePath) : m_zip(nullptr) {
     m_zip = new mz_zip_archive();
     std::memset(m_zip, 0, sizeof(mz_zip_archive));
     if (!mz_zip_reader_init_file(m_zip, filePath.toUtf8().constData(), 0)) {
-        qWarning() << "Failed to open ZIP" << filePath;
+        qWarning() << "Failed to open ZIP file" << filePath;
         delete m_zip;
         m_zip = nullptr;
     }
