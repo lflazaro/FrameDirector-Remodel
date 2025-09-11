@@ -21,7 +21,6 @@
 #include "Animation/AnimationKeyframe.h"
 #include "Animation/AnimationController.h"
 #include "Dialogs/ExportDialog.h"
-#include "Import/PSDImporter.h"
 #include "Import/ORAImporter.h"
 
 #include <QApplication>
@@ -1317,26 +1316,19 @@ void MainWindow::importLayeredImage()
     QString fileName = QFileDialog::getOpenFileName(this,
         "Import Layered Image",
         QStandardPaths::writableLocation(QStandardPaths::PicturesLocation),
-        "Layered Image Files (*.psd *.ora)");
+        "OpenRaster Files (*.ora)");
 
     if (fileName.isEmpty())
         return;
 
     QFileInfo fileInfo(fileName);
-    QString ext = fileInfo.suffix().toLower();
-
-    QList<LayerData> layers;
-    if (ext == "psd") {
-        layers = PSDImporter::importPSD(fileName);
-    }
-    else if (ext == "ora") {
-        layers = ORAImporter::importORA(fileName);
-    }
-    else {
+    if (fileInfo.suffix().toLower() != "ora") {
         QMessageBox::warning(this, "Import Error",
             "Unsupported layered image format.");
         return;
     }
+
+    QList<LayerData> layers = ORAImporter::importORA(fileName);
 
     if (layers.isEmpty()) {
         QMessageBox::warning(this, "Import Error",

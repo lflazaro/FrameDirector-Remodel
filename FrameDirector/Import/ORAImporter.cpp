@@ -4,8 +4,8 @@
 #include <QXmlStreamReader>
 #include <QImage>
 #include <QDebug>
-#include <6.9.0/QtCore/private/qzipreader_p.h>
 #include <functional>
+#include "ZipReader.h"
 
 namespace {
 struct LayerInfo {
@@ -47,9 +47,8 @@ QList<LayerData> ORAImporter::importORA(const QString& filePath)
 {
     QList<LayerData> result;
 
-    // Ensure the file exists before constructing the zip reader.  Passing a
-    // non-existent path to QZipReader can result in undefined behaviour on
-    // some platforms.
+    // Ensure the file exists before constructing the ZIP reader to avoid
+    // undefined behaviour on some platforms.
     QFileInfo fi(filePath);
     if (!fi.exists()) {
         qWarning() << "ORA file does not exist" << filePath;
@@ -57,16 +56,16 @@ QList<LayerData> ORAImporter::importORA(const QString& filePath)
     }
 
     qDebug() << "Opening ORA" << filePath;
-    QZipReader zip(filePath);
-    if (!zip.isReadable() || zip.status() != QZipReader::NoError) {
-        qWarning() << "Failed to open ORA" << filePath << "status" << zip.status();
+    ZipReader zip(filePath);
+    if (!zip.isOpen()) {
+        qWarning() << "Failed to open ORA" << filePath;
         return result;
     }
 
     QByteArray xmlData = zip.fileData("stack.xml");
     qDebug() << "stack.xml size" << xmlData.size();
     if (xmlData.isEmpty()) {
-        qWarning() << "ORA missing stack.xml";
+        qWarning() << "ORA missing stack.xml"; 
         return result;
     }
 
@@ -111,7 +110,6 @@ QList<LayerData> ORAImporter::importORA(const QString& filePath)
         }
         result.append(layer);
     }
-    zip.close();
     qDebug() << "Finished ORA import with" << result.size() << "layers";
     return result;
 }
