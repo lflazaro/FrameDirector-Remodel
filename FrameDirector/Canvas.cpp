@@ -130,6 +130,7 @@ Canvas::Canvas(MainWindow* parent)
     , m_currentTool(nullptr)
     , m_canvasSize(1920, 1080)
     , m_backgroundRect(nullptr)
+    , m_backgroundColor(Qt::white)
     , m_currentLayerIndex(0)
     , m_currentFrame(1)
     , m_zoomFactor(1.0)
@@ -264,6 +265,20 @@ void Canvas::setupDefaultLayers()
         backgroundLayer->addItem(m_backgroundRect, 1);
     }
 
+    // Initialize frame 1 for both layers
+    FrameData bgFrame;
+    bgFrame.type = FrameType::Keyframe;
+    if (m_backgroundRect) {
+        bgFrame.items.append(m_backgroundRect);
+    }
+    m_layerFrameData[0][1] = bgFrame;
+    m_layerKeyframes[0].insert(1);
+
+    FrameData drawFrame;
+    drawFrame.type = FrameType::Keyframe;
+    m_layerFrameData[1][1] = drawFrame;
+    m_layerKeyframes[1].insert(1);
+
     // Set Layer 1 as current (not background)
     setCurrentLayer(1);
 
@@ -292,6 +307,12 @@ int Canvas::addLayer(const QString& name)
     m_layerInterpolatedItems[newIndex] = QList<QGraphicsItem*>();
     m_layerShowingInterpolated[newIndex] = false;
     m_layerKeyframes[newIndex] = QSet<int>();
+
+    // Every layer starts with an empty keyframe at frame 1
+    FrameData frame1;
+    frame1.type = FrameType::Keyframe;
+    m_layerFrameData[newIndex][1] = frame1;
+    m_layerKeyframes[newIndex].insert(1);
 
     qDebug() << "Added layer:" << layerName << "Index:" << newIndex << "UUID:" << newLayer->uuid;
 
@@ -2670,9 +2691,7 @@ QJsonObject Canvas::serializeGraphicsItem(QGraphicsItem* item) const
     json["rotation"] = item->rotation();
     json["scaleX"] = item->transform().m11();
     json["scaleY"] = item->transform().m22();
-    // Store per-item opacity rather than the opacity already multiplied by
-    // the layer opacity. The original opacity is kept in item->data(0).
-    double baseOpacity = item->data(0).toDouble(); // Devuelve 0.0 si no está establecido
+    double baseOpacity = item->data(0).toDouble(); // Devuelve 0.0 si no estÃ¡ establecido
     if (baseOpacity == 0.0) {
         baseOpacity = item->opacity(); // Usa la opacidad actual si no hay dato almacenado
     }
@@ -2846,6 +2865,10 @@ bool Canvas::fromJson(const QJsonObject& json)
     m_layerFrameData.clear();
     m_layers.clear();
 
+    // Avoid storing stale state while reconstructing layers
+    m_currentLayerIndex = -1;
+    m_currentFrame = 1;
+
     QJsonArray layers = json["layers"].toArray();
     for (int i = 0; i < layers.size(); ++i) {
         QJsonObject layerJson = layers[i].toObject();
@@ -2884,24 +2907,38 @@ bool Canvas::fromJson(const QJsonObject& json)
             if (data.type == FrameType::Keyframe)
                 m_layerKeyframes[idx].insert(frame);
         }
+
+        // Ensure each layer has a frame 1
+        if (!m_layerFrameData[idx].contains(1)) {
+            FrameData defaultFrame;
+            defaultFrame.type = FrameType::Keyframe;
+            if (idx == 0 && m_backgroundRect) {
+                defaultFrame.items.append(m_backgroundRect);
+                LayerData* layer = static_cast<LayerData*>(m_layers[idx]);
+                layer->setFrameItems(1, QList<QGraphicsItem*>{m_backgroundRect});
+            } else {
+                LayerData* layer = static_cast<LayerData*>(m_layers[idx]);
+                layer->setFrameItems(1, QList<QGraphicsItem*>());
+            }
+            m_layerFrameData[idx][1] = defaultFrame;
+            m_layerKeyframes[idx].insert(1);
+        }
     }
 
     m_currentFrame = json["currentFrame"].toInt(1);
     m_currentLayerIndex = json["currentLayer"].toInt(0);
 
-    // Ensure background rect exists in all frames of the background layer
-    if (m_backgroundRect && !m_layers.empty()) {
+    // Background layer should only contain a single keyframe at frame 1
+    if (m_backgroundRect && !m_layers.isEmpty()) {
         LayerData* bgLayer = static_cast<LayerData*>(m_layers[0]);
-        QSet<int> frameKeys = QSet<int>(m_layerFrameData[0].keys().begin(), m_layerFrameData[0].keys().end());
-        if (frameKeys.isEmpty()) {
-            bgLayer->addItem(m_backgroundRect, m_currentFrame);
-        } else {
-            for (int frame : frameKeys) {
-                if (!bgLayer->frameItems[frame].contains(m_backgroundRect)) {
-                    bgLayer->frameItems[frame].prepend(m_backgroundRect);
-                }
-            }
-        }
+        bgLayer->setFrameItems(1, QList<QGraphicsItem*>{m_backgroundRect});
+        FrameData bgData;
+        bgData.type = FrameType::Keyframe;
+        bgData.items.append(m_backgroundRect);
+        m_layerFrameData[0].clear();
+        m_layerFrameData[0][1] = bgData;
+        m_layerKeyframes[0].clear();
+        m_layerKeyframes[0].insert(1);
     }
 
     loadFrameState(m_currentFrame);
