@@ -17,6 +17,8 @@ public:
         QPointF position;
         QSizeF size;
         double rotation;
+        QPointF transformOrigin;
+        QPointF center;
         QPointF scale;
         double opacity;
         double blurRadius;

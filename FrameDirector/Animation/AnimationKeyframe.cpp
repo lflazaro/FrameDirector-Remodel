@@ -40,8 +40,10 @@ void AnimationKeyframe::captureItemState(QGraphicsItem* item)
     if (!item) return;
 
     ItemState state;
-    state.position = item->pos();
     state.rotation = item->rotation();
+    state.transformOrigin = item->boundingRect().center();
+    state.center = item->pos() + state.transformOrigin;
+    state.position = item->pos();
     state.scale = QPointF(item->transform().m11(), item->transform().m22());
     state.opacity = item->opacity();
     state.transform = item->transform();
@@ -103,7 +105,8 @@ void AnimationKeyframe::applyItemState(QGraphicsItem* item) const
 
     const ItemState& state = it->second;
 
-    item->setPos(state.position);
+    item->setTransformOriginPoint(state.transformOrigin);
+    item->setPos(state.center - state.transformOrigin);
     item->setRotation(state.rotation);
     item->setOpacity(state.opacity);
     item->setVisible(state.visible);
@@ -193,9 +196,11 @@ void AnimationKeyframe::interpolateBetween(const AnimationKeyframe* from,
     QEasingCurve easingCurve(to->getEasing());
     double easedT = easingCurve.valueForProgress(t);
 
-    // Interpolate position
-    QPointF pos = interpolatePoint(fromState.position, toState.position, easedT);
-    item->setPos(pos);
+    // Interpolate transform origin and center so rotation stays around item center
+    QPointF origin = interpolatePoint(fromState.transformOrigin, toState.transformOrigin, easedT);
+    QPointF center = interpolatePoint(fromState.center, toState.center, easedT);
+    item->setTransformOriginPoint(origin);
+    item->setPos(center - origin);
 
     // Interpolate rotation
     double rotation = interpolateValue(fromState.rotation, toState.rotation, easedT);
