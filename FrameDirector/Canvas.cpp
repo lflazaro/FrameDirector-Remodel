@@ -2929,7 +2929,7 @@ bool Canvas::fromJson(const QJsonObject& json)
     m_currentLayerIndex = json["currentLayer"].toInt(0);
 
     // Background layer should only contain a single keyframe at frame 1
-    if (m_backgroundRect && !m_layers.isEmpty()) {
+    if (m_backgroundRect && !m_layers.empty()) {
         LayerData* bgLayer = static_cast<LayerData*>(m_layers[0]);
         bgLayer->setFrameItems(1, QList<QGraphicsItem*>{m_backgroundRect});
         FrameData bgData;
