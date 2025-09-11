@@ -970,11 +970,15 @@ void Canvas::interpolateFrame(int currentFrame, int startFrame, int endFrame, fl
         QGraphicsItem* interpolatedItem = cloneGraphicsItem(startItem);
         if (!interpolatedItem) continue;
 
-        // Interpolate position
-        QPointF startPos = startItem->pos();
-        QPointF endPos = endItem->pos();
-        QPointF interpolatedPos = startPos + t * (endPos - startPos);
-        interpolatedItem->setPos(interpolatedPos);
+        // Interpolate position using item centers to keep proper rotation pivot
+        QPointF startCenter = startItem->mapToScene(startItem->boundingRect().center());
+        QPointF endCenter = endItem->mapToScene(endItem->boundingRect().center());
+        QPointF interpolatedCenter = startCenter + t * (endCenter - startCenter);
+
+        // Set transform origin to item center and position accordingly
+        QPointF origin = interpolatedItem->boundingRect().center();
+        interpolatedItem->setTransformOriginPoint(origin);
+        interpolatedItem->setPos(interpolatedCenter - origin);
 
         // Interpolate rotation
         qreal startRotation = startItem->rotation();
