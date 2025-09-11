@@ -228,6 +228,8 @@ private:
     void updateSceneRect();
     QGraphicsItem* cloneGraphicsItem(QGraphicsItem* item);
     void clearFrameItems(int frame);
+    QJsonObject serializeBrush(const QBrush& brush) const;
+    QBrush deserializeBrush(const QJsonObject& json) const;
     QJsonObject serializeGraphicsItem(QGraphicsItem* item) const;
     QGraphicsItem* deserializeGraphicsItem(const QJsonObject& json) const;
 
