@@ -3,6 +3,7 @@
 #include <QImage>
 #include <QByteArray>
 #include <QDebug>
+#include <QFile>
 #include <QFileInfo>
 #include <third_party/include/libpsd.h>
 
@@ -40,8 +41,13 @@ QList<LayerData> PSDImporter::importPSD(const QString& filePath)
     // the bundled libpsd.  psd_image_load_layer() focuses on layer and mask data
     // which is all we require.
     psd_context* context = nullptr;
+    // libpsd expects a path encoded for the local filesystem (typically the
+    // current locale's 8-bit encoding on Windows).  Passing UTF-8 here causes
+    // file-open failures when the path contains non-ASCII characters.  Use
+    // QFile::encodeName to obtain a correctly encoded byte array.
+    QByteArray nativePath = QFile::encodeName(filePath);
     psd_status status = psd_image_load_layer(&context,
-        const_cast<psd_char*>(filePath.toUtf8().constData()));
+        const_cast<psd_char*>(nativePath.constData()));
     if (status != psd_status_done || !context) {
         qWarning() << "Failed to load PSD layers:" << filePath << "status:" << status;
         if (context)
