@@ -9,6 +9,7 @@
 #include <QGraphicsItem>
 #include <QGraphicsPathItem>
 #include <QGraphicsPixmapItem>
+#include <QGraphicsTextItem>
 #include <QGraphicsBlurEffect>
 #include <QMouseEvent>
 #include <QWheelEvent>
@@ -21,6 +22,7 @@
 #include <QDebug>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QBuffer>
 
 // ROBUST: Enhanced layer data structure with better state management
 struct LayerData {
@@ -128,6 +130,7 @@ Canvas::Canvas(MainWindow* parent)
     , m_currentTool(nullptr)
     , m_canvasSize(1920, 1080)
     , m_backgroundRect(nullptr)
+    , m_backgroundColor(Qt::white)
     , m_currentLayerIndex(0)
     , m_currentFrame(1)
     , m_zoomFactor(1.0)
@@ -262,6 +265,20 @@ void Canvas::setupDefaultLayers()
         backgroundLayer->addItem(m_backgroundRect, 1);
     }
 
+    // Initialize frame 1 for both layers
+    FrameData bgFrame;
+    bgFrame.type = FrameType::Keyframe;
+    if (m_backgroundRect) {
+        bgFrame.items.append(m_backgroundRect);
+    }
+    m_layerFrameData[0][1] = bgFrame;
+    m_layerKeyframes[0].insert(1);
+
+    FrameData drawFrame;
+    drawFrame.type = FrameType::Keyframe;
+    m_layerFrameData[1][1] = drawFrame;
+    m_layerKeyframes[1].insert(1);
+
     // Set Layer 1 as current (not background)
     setCurrentLayer(1);
 
@@ -290,6 +307,12 @@ int Canvas::addLayer(const QString& name)
     m_layerInterpolatedItems[newIndex] = QList<QGraphicsItem*>();
     m_layerShowingInterpolated[newIndex] = false;
     m_layerKeyframes[newIndex] = QSet<int>();
+
+    // Every layer starts with an empty keyframe at frame 1
+    FrameData frame1;
+    frame1.type = FrameType::Keyframe;
+    m_layerFrameData[newIndex][1] = frame1;
+    m_layerKeyframes[newIndex].insert(1);
 
     qDebug() << "Added layer:" << layerName << "Index:" << newIndex << "UUID:" << newLayer->uuid;
 
@@ -2583,9 +2606,15 @@ QJsonObject Canvas::serializeGraphicsItem(QGraphicsItem* item) const
         json["y"] = r.y();
         json["w"] = r.width();
         json["h"] = r.height();
-        json["pen"] = rectItem->pen().color().name();
-        json["penWidth"] = rectItem->pen().widthF();
-        json["brush"] = rectItem->brush().color().name();
+
+        QPen pen = rectItem->pen();
+        json["penColor"] = pen.color().name();
+        json["penWidth"] = pen.widthF();
+        json["penStyle"] = static_cast<int>(pen.style());
+
+        QBrush brush = rectItem->brush();
+        json["brushColor"] = brush.color().name();
+        json["brushStyle"] = static_cast<int>(brush.style());
     }
     else if (auto ellipseItem = qgraphicsitem_cast<QGraphicsEllipseItem*>(item)) {
         json["class"] = "ellipse";
@@ -2594,9 +2623,15 @@ QJsonObject Canvas::serializeGraphicsItem(QGraphicsItem* item) const
         json["y"] = r.y();
         json["w"] = r.width();
         json["h"] = r.height();
-        json["pen"] = ellipseItem->pen().color().name();
-        json["penWidth"] = ellipseItem->pen().widthF();
-        json["brush"] = ellipseItem->brush().color().name();
+
+        QPen pen = ellipseItem->pen();
+        json["penColor"] = pen.color().name();
+        json["penWidth"] = pen.widthF();
+        json["penStyle"] = static_cast<int>(pen.style());
+
+        QBrush brush = ellipseItem->brush();
+        json["brushColor"] = brush.color().name();
+        json["brushStyle"] = static_cast<int>(brush.style());
     }
     else if (auto lineItem = qgraphicsitem_cast<QGraphicsLineItem*>(item)) {
         json["class"] = "line";
@@ -2605,8 +2640,11 @@ QJsonObject Canvas::serializeGraphicsItem(QGraphicsItem* item) const
         json["y1"] = l.y1();
         json["x2"] = l.x2();
         json["y2"] = l.y2();
-        json["pen"] = lineItem->pen().color().name();
-        json["penWidth"] = lineItem->pen().widthF();
+
+        QPen pen = lineItem->pen();
+        json["penColor"] = pen.color().name();
+        json["penWidth"] = pen.widthF();
+        json["penStyle"] = static_cast<int>(pen.style());
     }
     else if (auto pathItem = qgraphicsitem_cast<QGraphicsPathItem*>(item)) {
         json["class"] = "path";
@@ -2617,15 +2655,55 @@ QJsonObject Canvas::serializeGraphicsItem(QGraphicsItem* item) const
             QJsonObject p; p["x"] = e.x; p["y"] = e.y; points.append(p);
         }
         json["points"] = points;
-        json["pen"] = pathItem->pen().color().name();
-        json["penWidth"] = pathItem->pen().widthF();
-        json["brush"] = pathItem->brush().color().name();
+
+        QPen pen = pathItem->pen();
+        json["penColor"] = pen.color().name();
+        json["penWidth"] = pen.widthF();
+        json["penStyle"] = static_cast<int>(pen.style());
+
+        QBrush brush = pathItem->brush();
+        json["brushColor"] = brush.color().name();
+        json["brushStyle"] = static_cast<int>(brush.style());
+    }
+    else if (auto pixmapItem = qgraphicsitem_cast<QGraphicsPixmapItem*>(item)) {
+        json["class"] = "pixmap";
+        QPixmap pix = pixmapItem->pixmap();
+        QByteArray bytes;
+        QBuffer buffer(&bytes);
+        buffer.open(QIODevice::WriteOnly);
+        pix.save(&buffer, "PNG");
+        json["data"] = QString::fromLatin1(bytes.toBase64());
+    }
+    else if (auto textItem = qgraphicsitem_cast<QGraphicsTextItem*>(item)) {
+        json["class"] = "text";
+        json["text"] = textItem->toPlainText();
+        QFont f = textItem->font();
+        json["fontFamily"] = f.family();
+        json["fontPointSize"] = f.pointSizeF();
+        json["fontBold"] = f.bold();
+        json["fontItalic"] = f.italic();
+        json["fontUnderline"] = f.underline();
+        json["color"] = textItem->defaultTextColor().name();
     }
 
     json["posX"] = item->pos().x();
     json["posY"] = item->pos().y();
     json["rotation"] = item->rotation();
-    json["scaleX"] = item->scale();
+    json["scaleX"] = item->transform().m11();
+    json["scaleY"] = item->transform().m22();
+
+    // Store per-item opacity rather than the opacity already multiplied by
+    // the layer opacity. The original opacity is kept in item->data(0).
+    double baseOpacity = item->data(0).toDouble(item->opacity());
+    json["opacity"] = baseOpacity;
+    json["zValue"] = item->zValue();
+    json["visible"] = item->isVisible();
+
+    if (auto blur = dynamic_cast<QGraphicsBlurEffect*>(item->graphicsEffect())) {
+        json["blur"] = blur->blurRadius();
+    } else {
+        json["blur"] = 0.0;
+    }
     return json;
 }
 
@@ -2636,21 +2714,34 @@ QGraphicsItem* Canvas::deserializeGraphicsItem(const QJsonObject& json) const
     if (cls == "rect") {
         QRectF r(json["x"].toDouble(), json["y"].toDouble(), json["w"].toDouble(), json["h"].toDouble());
         auto rectItem = new QGraphicsRectItem(r);
-        rectItem->setPen(QPen(QColor(json["pen"].toString("#000000")), json["penWidth"].toDouble(1.0)));
-        rectItem->setBrush(QBrush(QColor(json["brush"].toString("#ffffff"))));
+        QPen pen(QColor(json["penColor"].toString("#000000")));
+        pen.setWidthF(json["penWidth"].toDouble(1.0));
+        pen.setStyle(static_cast<Qt::PenStyle>(json["penStyle"].toInt(Qt::SolidLine)));
+        rectItem->setPen(pen);
+        QBrush brush(QColor(json["brushColor"].toString("#ffffff")));
+        brush.setStyle(static_cast<Qt::BrushStyle>(json["brushStyle"].toInt(Qt::NoBrush)));
+        rectItem->setBrush(brush);
         item = rectItem;
     }
     else if (cls == "ellipse") {
         QRectF r(json["x"].toDouble(), json["y"].toDouble(), json["w"].toDouble(), json["h"].toDouble());
         auto ellipseItem = new QGraphicsEllipseItem(r);
-        ellipseItem->setPen(QPen(QColor(json["pen"].toString("#000000")), json["penWidth"].toDouble(1.0)));
-        ellipseItem->setBrush(QBrush(QColor(json["brush"].toString("#ffffff"))));
+        QPen pen(QColor(json["penColor"].toString("#000000")));
+        pen.setWidthF(json["penWidth"].toDouble(1.0));
+        pen.setStyle(static_cast<Qt::PenStyle>(json["penStyle"].toInt(Qt::SolidLine)));
+        ellipseItem->setPen(pen);
+        QBrush brush(QColor(json["brushColor"].toString("#ffffff")));
+        brush.setStyle(static_cast<Qt::BrushStyle>(json["brushStyle"].toInt(Qt::NoBrush)));
+        ellipseItem->setBrush(brush);
         item = ellipseItem;
     }
     else if (cls == "line") {
         QLineF l(json["x1"].toDouble(), json["y1"].toDouble(), json["x2"].toDouble(), json["y2"].toDouble());
         auto lineItem = new QGraphicsLineItem(l);
-        lineItem->setPen(QPen(QColor(json["pen"].toString("#000000")), json["penWidth"].toDouble(1.0)));
+        QPen pen(QColor(json["penColor"].toString("#000000")));
+        pen.setWidthF(json["penWidth"].toDouble(1.0));
+        pen.setStyle(static_cast<Qt::PenStyle>(json["penStyle"].toInt(Qt::SolidLine)));
+        lineItem->setPen(pen);
         item = lineItem;
     }
     else if (cls == "path") {
@@ -2664,16 +2755,53 @@ QGraphicsItem* Canvas::deserializeGraphicsItem(const QJsonObject& json) const
                 path.lineTo(p["x"].toDouble(), p["y"].toDouble());
         }
         auto pathItem = new QGraphicsPathItem(path);
-        pathItem->setPen(QPen(QColor(json["pen"].toString("#000000")), json["penWidth"].toDouble(1.0)));
-        pathItem->setBrush(QBrush(QColor(json["brush"].toString("#ffffff"))));
+        QPen pen(QColor(json["penColor"].toString("#000000")));
+        pen.setWidthF(json["penWidth"].toDouble(1.0));
+        pen.setStyle(static_cast<Qt::PenStyle>(json["penStyle"].toInt(Qt::SolidLine)));
+        pathItem->setPen(pen);
+        QBrush brush(QColor(json["brushColor"].toString("#ffffff")));
+        brush.setStyle(static_cast<Qt::BrushStyle>(json["brushStyle"].toInt(Qt::NoBrush)));
+        pathItem->setBrush(brush);
         item = pathItem;
+    }
+    else if (cls == "pixmap") {
+        QByteArray bytes = QByteArray::fromBase64(json["data"].toString().toLatin1());
+        QPixmap pix;
+        pix.loadFromData(bytes, "PNG");
+        item = new QGraphicsPixmapItem(pix);
+    }
+    else if (cls == "text") {
+        auto textItem = new QGraphicsTextItem(json["text"].toString());
+        QFont f;
+        f.setFamily(json["fontFamily"].toString());
+        f.setPointSizeF(json["fontPointSize"].toDouble());
+        f.setBold(json["fontBold"].toBool());
+        f.setItalic(json["fontItalic"].toBool());
+        f.setUnderline(json["fontUnderline"].toBool());
+        textItem->setFont(f);
+        textItem->setDefaultTextColor(QColor(json["color"].toString("#000000")));
+        item = textItem;
     }
 
     if (item) {
         item->setPos(json["posX"].toDouble(), json["posY"].toDouble());
         item->setRotation(json["rotation"].toDouble());
-        double s = json["scaleX"].toDouble(1.0);
-        item->setScale(s);
+        QTransform transform;
+        transform.scale(json["scaleX"].toDouble(1.0), json["scaleY"].toDouble(1.0));
+        item->setTransform(transform);
+        double baseOpacity = json["opacity"].toDouble(1.0);
+        item->setOpacity(baseOpacity);
+        item->setData(0, baseOpacity); // preserve individual opacity for layer scaling
+
+        item->setZValue(json["zValue"].toDouble(0.0));
+        item->setVisible(json["visible"].toBool(true));
+
+        double blurRadius = json["blur"].toDouble(0.0);
+        if (blurRadius > 0.0) {
+            auto blur = new QGraphicsBlurEffect();
+            blur->setBlurRadius(blurRadius);
+            item->setGraphicsEffect(blur);
+        }
     }
 
     return item;
@@ -2737,11 +2865,19 @@ bool Canvas::fromJson(const QJsonObject& json)
     m_layerFrameData.clear();
     m_layers.clear();
 
+    // Avoid storing stale state while reconstructing layers
+    m_currentLayerIndex = -1;
+    m_currentFrame = 1;
+
     QJsonArray layers = json["layers"].toArray();
     for (int i = 0; i < layers.size(); ++i) {
         QJsonObject layerJson = layers[i].toObject();
         QString name = layerJson["name"].toString(QString("Layer %1").arg(i + 1));
         int idx = addLayer(name);
+        if (idx == 0 && m_backgroundRect) {
+            LayerData* bgLayer = static_cast<LayerData*>(m_layers[idx]);
+            bgLayer->addItem(m_backgroundRect, 1);
+        }
         setLayerVisible(idx, layerJson["visible"].toBool(true));
         setLayerLocked(idx, layerJson["locked"].toBool(false));
         setLayerOpacity(idx, layerJson["opacity"].toDouble(1.0));
@@ -2771,20 +2907,41 @@ bool Canvas::fromJson(const QJsonObject& json)
             if (data.type == FrameType::Keyframe)
                 m_layerKeyframes[idx].insert(frame);
         }
+
+        // Ensure each layer has a frame 1
+        if (!m_layerFrameData[idx].contains(1)) {
+            FrameData defaultFrame;
+            defaultFrame.type = FrameType::Keyframe;
+            if (idx == 0 && m_backgroundRect) {
+                defaultFrame.items.append(m_backgroundRect);
+                LayerData* layer = static_cast<LayerData*>(m_layers[idx]);
+                layer->setFrameItems(1, QList<QGraphicsItem*>{m_backgroundRect});
+            } else {
+                LayerData* layer = static_cast<LayerData*>(m_layers[idx]);
+                layer->setFrameItems(1, QList<QGraphicsItem*>());
+            }
+            m_layerFrameData[idx][1] = defaultFrame;
+            m_layerKeyframes[idx].insert(1);
+        }
     }
 
     m_currentFrame = json["currentFrame"].toInt(1);
     m_currentLayerIndex = json["currentLayer"].toInt(0);
 
-    for (int layerIndex = 0; layerIndex < m_layers.size(); ++layerIndex) {
-        auto frames = m_layerFrameData.value(layerIndex);
-        for (auto it = frames.begin(); it != frames.end(); ++it) {
-            for (QGraphicsItem* item : it.value().items) {
-                if (item && !item->scene())
-                    m_scene->addItem(item);
-            }
-        }
+    // Background layer should only contain a single keyframe at frame 1
+    if (m_backgroundRect && !m_layers.isEmpty()) {
+        LayerData* bgLayer = static_cast<LayerData*>(m_layers[0]);
+        bgLayer->setFrameItems(1, QList<QGraphicsItem*>{m_backgroundRect});
+        FrameData bgData;
+        bgData.type = FrameType::Keyframe;
+        bgData.items.append(m_backgroundRect);
+        m_layerFrameData[0].clear();
+        m_layerFrameData[0][1] = bgData;
+        m_layerKeyframes[0].clear();
+        m_layerKeyframes[0].insert(1);
     }
+
+    loadFrameState(m_currentFrame);
 
     return true;
 }
