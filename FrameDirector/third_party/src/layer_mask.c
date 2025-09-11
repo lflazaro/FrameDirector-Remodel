@@ -265,12 +265,11 @@ static psd_status psd_get_layer_section_divider(psd_context * context, psd_layer
 	// Following is only present if length = 12
 	if(size == 12)
 	{
-		// Signature: '8BIM'
-		if(psd_stream_get_int(context) != '8BIM')
-			return psd_status_divider_signature_error;
-
-		// blend mode
-		layer->divider_blend_mode = psd_stream_get_blend_mode(context);
+                // Signature: typically '8BIM' but newer files may use '8B64'.
+                tag = psd_stream_get_int(context);
+                layer->divider_blend_mode = psd_stream_get_blend_mode(context);
+                if(tag != '8BIM' && tag != '8B64')
+                        layer->divider_blend_mode = psd_blend_mode_normal;
 	}
 
 	return psd_status_done;
@@ -392,16 +391,14 @@ static psd_status psd_get_layer_info(psd_context * context)
 			layer->channel_info[j].restricted = psd_false;
 		}
 
-		// Blend mode signature: '8BIM'
-		tag = psd_stream_get_int(context);
-		if(tag != '8BIM')
-		{
-			psd_layer_free(layer);
-			return psd_status_blend_mode_signature_error;
-		}
-
-		// Blend mode key
-		layer->blend_mode = psd_stream_get_blend_mode(context);
+                // Blend mode signature: most files use '8BIM' but some newer
+                // versions of Photoshop store '8B64'. Read the signature and
+                // key, defaulting to normal when encountering an unexpected
+                // value instead of aborting so that layer parsing can continue.
+                tag = psd_stream_get_int(context);
+                layer->blend_mode = psd_stream_get_blend_mode(context);
+                if(tag != '8BIM' && tag != '8B64')
+                        layer->blend_mode = psd_blend_mode_normal;
 
 		// Opacity. 0 = transparent ... 255 = opaque
 		layer->opacity = psd_stream_get_char(context);
@@ -548,10 +545,10 @@ static psd_status psd_get_layer_info(psd_context * context)
 		while(context->stream.current_pos - extra_stream_pos < extra_length)
 		{
 			// ADDITIONAL LAYER INFORMATION
-			// Signature
-			tag = psd_stream_get_int(context);
-			if(tag != '8BIM')
-				return psd_status_layer_information_signature_error;
+                        // Signature
+                        tag = psd_stream_get_int(context);
+                        if(tag != '8BIM' && tag != '8B64')
+                                return psd_status_layer_information_signature_error;
 
 			// Key: a 4-character code
 			tag = psd_stream_get_int(context);
@@ -809,9 +806,9 @@ psd_status psd_get_layer_and_mask(psd_context * context)
 
 	while(prev_stream_pos + length - context->stream.current_pos > 12)
 	{
-		tag = psd_stream_get_int(context);
-		if(tag == '8BIM')
-		{
+                tag = psd_stream_get_int(context);
+                if(tag == '8BIM' || tag == '8B64')
+                {
 			tag = psd_stream_get_int(context);
 			if (tag == 'Lr16')
 			{

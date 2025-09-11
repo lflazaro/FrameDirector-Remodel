@@ -93,10 +93,10 @@ psd_status psd_get_layer_effects(psd_context * context, psd_layer_record * layer
 
 	for(i = 0; i < data->effects_count; i ++)
 	{
-		// Signature: '8BIM'
-		tag = psd_stream_get_int(context);
-		if(tag != '8BIM')
-			return psd_status_effects_signature_error;
+                // Signature: usually '8BIM' but newer files may use '8B64'
+                tag = psd_stream_get_int(context);
+                if(tag != '8BIM' && tag != '8B64')
+                        return psd_status_effects_signature_error;
 
 		// Effects signatures
 		tag = psd_stream_get_int(context);
