@@ -2691,10 +2691,10 @@ QJsonObject Canvas::serializeGraphicsItem(QGraphicsItem* item) const
     json["rotation"] = item->rotation();
     json["scaleX"] = item->transform().m11();
     json["scaleY"] = item->transform().m22();
-
-    // Store per-item opacity rather than the opacity already multiplied by
-    // the layer opacity. The original opacity is kept in item->data(0).
-    double baseOpacity = item->data(0).toDouble(item->opacity());
+    double baseOpacity = item->data(0).toDouble(); // Devuelve 0.0 si no está establecido
+    if (baseOpacity == 0.0) {
+        baseOpacity = item->opacity(); // Usa la opacidad actual si no hay dato almacenado
+    }
     json["opacity"] = baseOpacity;
     json["zValue"] = item->zValue();
     json["visible"] = item->isVisible();
