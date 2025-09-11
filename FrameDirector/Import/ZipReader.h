@@ -2,6 +2,11 @@
 
 #include <QString>
 #include <QByteArray>
+#include <memory>
+
+extern "C" {
+#include "miniz.h"
+}
 
 // Simple ZIP reader based on the miniz library.
 // Provides minimal functionality needed by ORAImporter.
@@ -18,5 +23,8 @@ public:
     QByteArray fileData(const QString &fileName);
 
 private:
-    struct mz_zip_archive *m_zip;
+    struct ZipArchiveDeleter {
+        void operator()(mz_zip_archive *zip) const;
+    };
+    std::unique_ptr<mz_zip_archive, ZipArchiveDeleter> m_zip;
 };

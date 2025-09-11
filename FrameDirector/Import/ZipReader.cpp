@@ -8,41 +8,60 @@ extern "C" {
 #include <QDebug>
 #include <cstring>
 
-ZipReader::ZipReader(const QString &filePath) : m_zip(nullptr) {
-    QFileInfo fi(filePath);
-    if (!fi.exists()) {
+// Custom deleter implementation for the unique_ptr declared in the header.
+void ZipReader::ZipArchiveDeleter::operator()(mz_zip_archive *zip) const {
+    if (zip) {
+        mz_zip_reader_end(zip);
+        delete zip;
+    }
+}
+
+ZipReader::ZipReader(const QString &filePath)
+{
+    QFileInfo info(filePath);
+    if (!info.exists() || !info.isFile()) {
         qWarning() << "ZIP file does not exist" << filePath;
         return;
     }
-    m_zip = new mz_zip_archive();
-    std::memset(m_zip, 0, sizeof(mz_zip_archive));
-    if (!mz_zip_reader_init_file(m_zip, filePath.toUtf8().constData(), 0)) {
+
+    std::unique_ptr<mz_zip_archive, ZipArchiveDeleter> zip(new mz_zip_archive);
+    std::memset(zip.get(), 0, sizeof(mz_zip_archive));
+
+    if (!mz_zip_reader_init_file(zip.get(), filePath.toUtf8().constData(), 0)) {
         qWarning() << "Failed to open ZIP file" << filePath;
-        delete m_zip;
-        m_zip = nullptr;
+        return;
     }
+
+    m_zip = std::move(zip);
 }
 
-ZipReader::~ZipReader() {
-    if (m_zip) {
-        mz_zip_reader_end(m_zip);
-        delete m_zip;
-    }
+ZipReader::~ZipReader() = default;
+
+bool ZipReader::isOpen() const
+{
+    return static_cast<bool>(m_zip);
 }
 
-bool ZipReader::isOpen() const {
-    return m_zip != nullptr;
-}
-
-QByteArray ZipReader::fileData(const QString &fileName) {
-    QByteArray result;
+QByteArray ZipReader::fileData(const QString &fileName)
+{
+    QByteArray data;
     if (!m_zip)
-        return result;
+        return data;
+
+    // Normalise path separators for miniz.
+    QString normalized = fileName;
+    normalized.replace('\\', '/');
+
     size_t size = 0;
-    void *p = mz_zip_reader_extract_file_to_heap(m_zip, fileName.toUtf8().constData(), &size, 0);
-    if (!p)
-        return result;
-    result = QByteArray(static_cast<const char *>(p), static_cast<int>(size));
-    mz_free(p);
-    return result;
+    void *buffer = mz_zip_reader_extract_file_to_heap(
+        m_zip.get(), normalized.toUtf8().constData(), &size, 0);
+    if (!buffer) {
+        qWarning() << "Failed to extract" << normalized;
+        return data;
+    }
+
+    data = QByteArray(static_cast<const char *>(buffer), static_cast<int>(size));
+    mz_free(buffer);
+    return data;
 }
+
