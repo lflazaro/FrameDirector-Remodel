@@ -392,13 +392,16 @@ static psd_status psd_get_layer_info(psd_context * context)
 			layer->channel_info[j].restricted = psd_false;
 		}
 
-		// Blend mode signature: '8BIM'
-		tag = psd_stream_get_int(context);
-		if(tag != '8BIM')
-		{
-			psd_layer_free(layer);
-			return psd_status_blend_mode_signature_error;
-		}
+                // Blend mode signature: most files use '8BIM' but some newer
+                // versions of Photoshop store '8B64'. Treat either value as
+                // valid and only error out when another unknown signature is
+                // encountered so that we can continue parsing the layer.
+                tag = psd_stream_get_int(context);
+                if(tag != '8BIM' && tag != '8B64')
+                {
+                        psd_layer_free(layer);
+                        return psd_status_blend_mode_signature_error;
+                }
 
 		// Blend mode key
 		layer->blend_mode = psd_stream_get_blend_mode(context);

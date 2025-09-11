@@ -4,7 +4,7 @@
 #include <QXmlStreamReader>
 #include <QImage>
 #include <QDebug>
-#include <6.9.0/QtCore/private/qzipreader_p.h>
+#include <QtCore/private/qzipreader_p.h>
 #include <functional>
 
 namespace {
@@ -103,12 +103,10 @@ QList<LayerData> ORAImporter::importORA(const QString& filePath)
             QByteArray imgData = zip.fileData(info.src);
 
             qDebug() << "Extracting" << info.src << "size" << imgData.size();
-            if (zip.status() != QZipReader::NoError) {
-                qWarning() << "Failed to extract" << info.src << "from ORA" << filePath
-                           << "status" << zip.status();
-            } else if (!imgData.isEmpty()) {
-                if (!layer.image.loadFromData(imgData, "PNG"))
-                    qWarning() << "Failed to decode" << info.src << "in ORA" << filePath;
+            if (imgData.isEmpty()) {
+                qWarning() << "Failed to extract" << info.src << "from ORA" << filePath;
+            } else if (!layer.image.loadFromData(imgData, "PNG")) {
+                qWarning() << "Failed to decode" << info.src << "in ORA" << filePath;
             }
         }
         result.append(layer);
