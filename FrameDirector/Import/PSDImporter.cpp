@@ -65,17 +65,18 @@ QList<LayerData> PSDImporter::importPSD(const QString& filePath)
     // file-open failures when the path contains non-ASCII characters.  Use
     // QFile::encodeName to obtain a correctly encoded byte array.
     QByteArray nativePath = QFile::encodeName(filePath);
+    qDebug() << "Attempting to load PSD layers from" << filePath;
     psd_status status = psd_image_load_layer(&context,
         const_cast<psd_char*>(nativePath.constData()));
-    if (status != psd_status_done || !context) {
-        if (context) {
-            psd_image_free(context);
-            context = nullptr;
-        }
-        // Retry using the generic loader.  Many PSDs that fail with
-        // psd_image_load_layer() succeed when loaded fully.
+    qDebug() << "psd_image_load_layer returned" << status << "context" << context;
+    // Some libpsd versions return an error status but still produce a usable
+    // context containing partial layer information.  Only retry with a full
+    // load when no context is returned at all.
+    if (!context) {
+        qWarning() << "psd_image_load_layer failed; retrying with psd_image_load";
         status = psd_image_load(&context,
                                 const_cast<psd_char*>(nativePath.constData()));
+        qDebug() << "psd_image_load returned" << status << "context" << context;
     }
     // If loading produced no context the PSD cannot be imported.  Otherwise,
     // proceed even when libpsd reports recoverable errors (for example unknown
@@ -92,21 +93,23 @@ QList<LayerData> PSDImporter::importPSD(const QString& filePath)
         status != psd_status_additional_layer_signature_error) {
         qWarning() << "PSD load returned status" << status << "for" << filePath;
     }
-  
 
+    qDebug() << "PSD layer count" << context->layer_count;
     if (context->layer_count <= 0) {
         qWarning() << "PSD contains no layers" << filePath;
         psd_image_free(context);
         return result;
     }
 
-    // context->layer_count and context->layer_records are provided by this libpsd
+    // context->layer_count and context->layer_records are provided by libpsd
     for (int i = 0; i < context->layer_count; ++i) {
         psd_layer_record* layerRecord = &context->layer_records[i];
 
         // Skip folder layers (the enum defines folder type)
-        if (layerRecord->layer_type == psd_layer_type_folder)
+        if (layerRecord->layer_type == psd_layer_type_folder) {
+            qDebug() << "Skipping folder layer" << i;
             continue;
+        }
 
         LayerData layer;
         // Prefer unicode name if available, otherwise the Pascal name field
@@ -117,6 +120,9 @@ QList<LayerData> PSDImporter::importPSD(const QString& filePath)
         } else {
             layer.name = QString::fromUtf8((const char*)layerRecord->layer_name);
         }
+        qDebug() << "Processing layer" << i << layer.name
+                 << "type" << layerRecord->layer_type
+                 << "size" << layerRecord->width << "x" << layerRecord->height;
 
         layer.visible = layerRecord->visible ? true : false;
         layer.opacity = static_cast<double>(layerRecord->opacity) / 255.0;
@@ -129,6 +135,9 @@ QList<LayerData> PSDImporter::importPSD(const QString& filePath)
             int bytesPerLine = layerRecord->width * 4;
             QImage img(data, layerRecord->width, layerRecord->height, bytesPerLine, QImage::Format_ARGB32);
             layer.image = img.copy(); // deep copy because libpsd will free context later
+            qDebug() << "Layer" << i << "image bytes" << bytesPerLine * layerRecord->height;
+        } else {
+            qDebug() << "Layer" << i << "has no image data";
         }
 
         result.append(layer);
