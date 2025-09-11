@@ -21,6 +21,8 @@
 #include "Animation/AnimationKeyframe.h"
 #include "Animation/AnimationController.h"
 #include "Dialogs/ExportDialog.h"
+#include "Import/PSDImporter.h"
+#include "Import/ORAImporter.h"
 
 #include <QApplication>
 #include <QMenuBar>
@@ -470,6 +472,11 @@ void MainWindow::createActions()
     m_importImageAction->setStatusTip("Import an image file");
     connect(m_importImageAction, &QAction::triggered, this, &MainWindow::importImage);
 
+    m_importLayeredImageAction = new QAction("Import &Layered Image", this);
+    m_importLayeredImageAction->setIcon(QIcon(":/icons/import.png"));
+    m_importLayeredImageAction->setStatusTip("Import a layered image file");
+    connect(m_importLayeredImageAction, &QAction::triggered, this, &MainWindow::importLayeredImage);
+
     m_importVectorAction = new QAction("Import &Vector", this);
     m_importVectorAction->setIcon(QIcon(":/icons/import.png"));
     m_importVectorAction->setStatusTip("Import a vector file");
@@ -829,6 +836,7 @@ void MainWindow::createMenus()
 
     m_importMenu = m_fileMenu->addMenu("&Import");
     m_importMenu->addAction(m_importImageAction);
+    m_importMenu->addAction(m_importLayeredImageAction);
     m_importMenu->addAction(m_importVectorAction);
     m_importMenu->addAction(m_importAudioAction); // NEW
 
@@ -1302,6 +1310,79 @@ void MainWindow::importImage()
         m_statusLabel->setText(QString("Image imported: %1").arg(fileInfo.fileName()));
         m_isModified = true;
     }
+}
+
+void MainWindow::importLayeredImage()
+{
+    QString fileName = QFileDialog::getOpenFileName(this,
+        "Import Layered Image",
+        QStandardPaths::writableLocation(QStandardPaths::PicturesLocation),
+        "Layered Image Files (*.psd *.ora)");
+
+    if (fileName.isEmpty())
+        return;
+
+    QFileInfo fileInfo(fileName);
+    QString ext = fileInfo.suffix().toLower();
+
+    QList<LayerData> layers;
+    if (ext == "psd") {
+        layers = PSDImporter::importPSD(fileName);
+    }
+    else if (ext == "ora") {
+        layers = ORAImporter::importORA(fileName);
+    }
+    else {
+        QMessageBox::warning(this, "Import Error",
+            "Unsupported layered image format.");
+        return;
+    }
+
+    if (layers.isEmpty()) {
+        QMessageBox::warning(this, "Import Error",
+            "No layers were imported from the file.");
+        return;
+    }
+
+    if (!m_canvas)
+        return;
+
+    int prevLayer = m_canvas->getCurrentLayer();
+    int prevFrame = m_canvas->getCurrentFrame();
+    m_canvas->setCurrentFrame(1);
+
+    for (const LayerData& layer : layers) {
+        int idx = m_canvas->addLayer(layer.name, layer.visible, layer.opacity, layer.blendMode);
+        m_canvas->setCurrentLayer(idx);
+
+        auto animLayer = std::make_unique<AnimationLayer>(layer.name);
+        animLayer->setVisible(layer.visible);
+        animLayer->setOpacity(layer.opacity);
+        animLayer->setBlendMode(layer.blendMode);
+
+        QGraphicsPixmapItem* item = new QGraphicsPixmapItem(layer.toPixmap());
+        item->setFlag(QGraphicsItem::ItemIsSelectable, true);
+        item->setFlag(QGraphicsItem::ItemIsMovable, true);
+        item->setData(2, static_cast<int>(layer.blendMode));
+
+        QUndoCommand* command = new AddItemCommand(m_canvas, item);
+        m_undoStack->push(command);
+
+        animLayer->addItem(item);
+        m_layers.push_back(std::move(animLayer));
+    }
+
+    m_canvas->setCurrentLayer(prevLayer);
+    m_canvas->setCurrentFrame(prevFrame);
+    m_currentLayerIndex = prevLayer;
+
+    if (m_layerManager)
+        m_layerManager->updateLayers();
+    if (m_timeline)
+        m_timeline->updateLayersFromCanvas();
+
+    m_statusLabel->setText(QString("Layered image imported: %1").arg(fileInfo.fileName()));
+    m_isModified = true;
 }
 
 void MainWindow::importVector()

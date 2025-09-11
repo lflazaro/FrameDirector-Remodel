@@ -10,6 +10,7 @@ AnimationLayer::AnimationLayer(const QString& name)
     , m_opacity(1.0)
     , m_color(Qt::blue)
     , m_currentFrame(1)
+    , m_blendMode(QPainter::CompositionMode_SourceOver)
     , m_onionSkinEnabled(false)
     , m_onionSkinBefore(1)
     , m_onionSkinAfter(1)
@@ -66,6 +67,16 @@ void AnimationLayer::setOpacity(double opacity)
 double AnimationLayer::getOpacity() const
 {
     return m_opacity;
+}
+
+void AnimationLayer::setBlendMode(QPainter::CompositionMode mode)
+{
+    m_blendMode = mode;
+}
+
+QPainter::CompositionMode AnimationLayer::getBlendMode() const
+{
+    return m_blendMode;
 }
 
 void AnimationLayer::setColor(const QColor& color)

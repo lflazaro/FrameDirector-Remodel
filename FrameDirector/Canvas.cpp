@@ -37,12 +37,14 @@ struct LayerData {
     bool visible;
     bool locked;
     double opacity;
+    QPainter::CompositionMode blendMode;
     QList<QGraphicsItem*> items;
     QHash<int, QList<QGraphicsItem*>> frameItems; // Per-frame item tracking
     QSet<QGraphicsItem*> allTimeItems; // All items ever added to this layer
 
     LayerData(const QString& layerName)
-        : name(layerName), visible(true), locked(false), opacity(1.0) {
+        : name(layerName), visible(true), locked(false), opacity(1.0),
+          blendMode(QPainter::CompositionMode_SourceOver) {
         // Generate unique ID to prevent layer confusion
         uuid = QString("layer_%1_%2").arg(layerName).arg(QDateTime::currentMSecsSinceEpoch());
     }
@@ -294,7 +296,8 @@ void Canvas::setupDefaultLayers()
 }
 
 
-int Canvas::addLayer(const QString& name)
+int Canvas::addLayer(const QString& name, bool visible, double opacity,
+                     QPainter::CompositionMode blendMode)
 {
     QString layerName = name.isEmpty() ? QString("Layer %1").arg(m_layers.size()) : name;
 
@@ -305,6 +308,9 @@ int Canvas::addLayer(const QString& name)
 
     // Create new layer
     LayerData* newLayer = new LayerData(layerName);
+    newLayer->visible = visible;
+    newLayer->opacity = qBound(0.0, opacity, 1.0);
+    newLayer->blendMode = blendMode;
     m_layers.push_back(newLayer);
 
     int newIndex = m_layers.size() - 1;
@@ -326,6 +332,12 @@ int Canvas::addLayer(const QString& name)
     emit layerChanged(m_currentLayerIndex); // Refresh current layer display
 
     return newIndex;
+}
+
+void Canvas::addLayerVoid(const QString& name, bool visible, double opacity,
+                          QPainter::CompositionMode blendMode)
+{
+    addLayer(name, visible, opacity, blendMode);
 }
 
 void Canvas::removeLayer(int layerIndex)
@@ -2907,6 +2919,7 @@ QJsonObject Canvas::toJson() const
         layerJson["visible"] = layer->visible;
         layerJson["locked"] = layer->locked;
         layerJson["opacity"] = layer->opacity;
+        layerJson["blendMode"] = static_cast<int>(layer->blendMode);
 
         QJsonObject frames;
         auto layerFrames = m_layerFrameData.value(i);
@@ -2964,14 +2977,18 @@ bool Canvas::fromJson(const QJsonObject& json)
     for (int i = 0; i < layers.size(); ++i) {
         QJsonObject layerJson = layers[i].toObject();
         QString name = layerJson["name"].toString(QString("Layer %1").arg(i + 1));
-        int idx = addLayer(name);
+        bool visible = layerJson["visible"].toBool(true);
+        double opacity = layerJson["opacity"].toDouble(1.0);
+        QPainter::CompositionMode blendMode =
+            static_cast<QPainter::CompositionMode>(layerJson["blendMode"].toInt(QPainter::CompositionMode_SourceOver));
+        int idx = addLayer(name, visible, opacity, blendMode);
         if (idx == 0 && m_backgroundRect) {
             LayerData* bgLayer = static_cast<LayerData*>(m_layers[idx]);
             bgLayer->addItem(m_backgroundRect, 1);
         }
-        setLayerVisible(idx, layerJson["visible"].toBool(true));
+        setLayerVisible(idx, visible);
         setLayerLocked(idx, layerJson["locked"].toBool(false));
-        setLayerOpacity(idx, layerJson["opacity"].toDouble(1.0));
+        setLayerOpacity(idx, opacity);
 
         QJsonObject frames = layerJson["frames"].toObject();
         for (auto it = frames.begin(); it != frames.end(); ++it) {

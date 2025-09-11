@@ -155,6 +155,7 @@ private slots:
     void save();
     void saveAs();
     void importImage();
+    void importLayeredImage();
     void importVector();
     void importAudio();
     void importMultipleFiles();
@@ -388,6 +389,7 @@ private:
     QAction* m_saveAction;
     QAction* m_saveAsAction;
     QAction* m_importImageAction;
+    QAction* m_importLayeredImageAction;
     QAction* m_importVectorAction;
     QAction* m_importAudioAction;
     QAction* m_exportAnimationAction;

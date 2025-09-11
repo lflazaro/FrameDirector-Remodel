@@ -580,9 +580,9 @@ void Timeline::updateLayersFromCanvas()
 
     for (int i = 0; i < canvas->getLayerCount(); ++i) {
         Layer layer;
-        layer.name = (i == 0) ? "Background" : QString("Layer %1").arg(i);
-        layer.visible = true;        // Default to visible
-        layer.locked = false;        // Default to unlocked
+        layer.name = canvas->getLayerName(i);
+        layer.visible = canvas->isLayerVisible(i);
+        layer.locked = canvas->isLayerLocked(i);
         layer.color = (i % 2 == 0) ? m_layerColor : m_alternateLayerColor;
         m_layers.push_back(layer);
 
