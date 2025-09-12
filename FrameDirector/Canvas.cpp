@@ -1505,6 +1505,13 @@ void Canvas::drawGrid(QPainter* painter, const QRectF& rect)
 void Canvas::onSceneSelectionChanged()
 {
     if (!m_destroying && !m_suppressFrameConversion) {
+        QList<QGraphicsItem*> selectedItems = m_scene->selectedItems();
+        if (!selectedItems.isEmpty()) {
+            int layerIdx = getItemLayerIndex(selectedItems.first());
+            if (layerIdx >= 0 && layerIdx != m_currentLayerIndex) {
+                setCurrentLayer(layerIdx);
+            }
+        }
         emit selectionChanged();
     }
 }
