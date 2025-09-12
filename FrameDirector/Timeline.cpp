@@ -22,6 +22,7 @@
 #include <QApplication>
 #include <QStyle>
 #include <QSignalBlocker>
+#include <algorithm>
 
 // TimelineDrawingArea implementation
 TimelineDrawingArea::TimelineDrawingArea(QWidget* parent)
@@ -31,6 +32,11 @@ TimelineDrawingArea::TimelineDrawingArea(QWidget* parent)
     setFocusPolicy(Qt::StrongFocus);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     setMinimumSize(800, 200);
+}
+
+QSize TimelineDrawingArea::sizeHint() const
+{
+    return m_timeline ? m_timeline->calculateDrawingAreaSize() : QSize(800, 200);
 }
 
 void TimelineDrawingArea::paintEvent(QPaintEvent* event)
@@ -1518,22 +1524,32 @@ double Timeline::getZoomLevel() const
     return m_zoomLevel;
 }
 
-void Timeline::updateLayout()
+QSize Timeline::calculateDrawingAreaSize() const
 {
-    if (!m_drawingArea) return;
-
     int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
     int totalWidth = m_totalFrames * frameWidth + 100;
     int audioHeight = m_hasAudioTrack ? m_audioTrackHeight : 0;
-    int totalHeight = m_rulerHeight + m_layers.size() * m_layerHeight + audioHeight + 50;
+    int totalHeight = m_rulerHeight + static_cast<int>(m_layers.size()) * m_layerHeight + audioHeight + 50;
 
-    // Expand the drawing area's width when the frame count grows so the
-    // horizontal scrollbar range reflects the new timeline length. Preserve
-    // the current height unless more layers require additional space to avoid
-    // shrinking the visible timeline area.
-    int currentHeight = qMax(totalHeight, m_drawingArea->height());
-    m_drawingArea->setMinimumHeight(totalHeight);
-    m_drawingArea->resize(totalWidth, currentHeight);
+    int minWidth = 800;
+    int minHeight = 200;
+    totalWidth = std::max(totalWidth, minWidth);
+    totalHeight = std::max(totalHeight, minHeight);
+
+    return QSize(totalWidth, totalHeight);
+}
+
+void Timeline::updateLayout()
+{
+    if (!m_drawingArea) return;
+    QSize totalSize = calculateDrawingAreaSize();
+    if (m_scrollArea) {
+        QSize viewportSize = m_scrollArea->viewport()->size();
+        totalSize.setWidth(std::max(totalSize.width(), viewportSize.width()));
+        totalSize.setHeight(std::max(totalSize.height(), viewportSize.height()));
+    }
+    m_drawingArea->setMinimumSize(totalSize);
+    m_drawingArea->resize(totalSize);
     m_drawingArea->updateGeometry();
 }
 
