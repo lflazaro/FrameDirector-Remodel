@@ -922,35 +922,6 @@ void Timeline::drawLayers(QPainter* painter, const QRect& rect)
     // Draw audio track after all layers
     drawAudioTrack(painter, rect);
 }
-//Onion skin drawing
-void Timeline::drawOnionSkin(QPainter* painter, const QRect& rect)
-{
-    if (!m_onionSkinEnabled) return;
-
-    int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
-    int areaHeight = height() - m_rulerHeight;
-
-    for (int i = 1; i <= m_onionSkinBefore; ++i) {
-        int frame = m_currentFrame - i;
-        if (frame < 1) break;
-        int x = m_layerPanelWidth + (frame - 1) * frameWidth;
-        QRect frameRect(x, m_rulerHeight, frameWidth, areaHeight);
-        if (frameRect.intersects(rect)) {
-            painter->fillRect(frameRect, m_onionSkinPrevColor);
-        }
-    }
-
-    for (int i = 1; i <= m_onionSkinAfter; ++i) {
-        int frame = m_currentFrame + i;
-        if (frame > m_totalFrames) break;
-        int x = m_layerPanelWidth + (frame - 1) * frameWidth;
-        QRect frameRect(x, m_rulerHeight, frameWidth, areaHeight);
-        if (frameRect.intersects(rect)) {
-            painter->fillRect(frameRect, m_onionSkinNextColor);
-        }
-    }
-}
-
 void Timeline::drawOnionSkin(QPainter* painter, const QRect& rect)
 {
     if (!m_onionSkinEnabled) return;
