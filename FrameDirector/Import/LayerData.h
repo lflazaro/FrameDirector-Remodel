@@ -5,6 +5,7 @@
 #include <QList>
 #include <QHash>
 #include <QGraphicsItem>
+#include <QSet>
 
 // Robust LayerData: only POD and Qt containers of POD, no QImage/QPixmap
 struct LayerData {

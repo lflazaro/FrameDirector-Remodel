@@ -16,12 +16,18 @@ struct LayerInfo {
     QString name;
     QString src;
     bool visible;
-    double opacity; 
+    double opacity;
+    double x = 0.0;
+    double y = 0.0;
 };
 
 // Recursively parse <stack> elements so that layer order matches the ORA
 // specification (top-most layer last).
-void parseStack(QXmlStreamReader &xml, QList<LayerInfo> &infos) {
+// Recursively parse <stack> elements accumulating positional offsets so that
+// layer order matches the ORA specification (top-most layer last) and layers
+// retain their original coordinates.
+void parseStack(QXmlStreamReader &xml, QList<LayerInfo> &infos,
+                double offsetX = 0.0, double offsetY = 0.0) {
     while (xml.readNextStartElement()) {
         if (xml.name() == QLatin1String("layer")) {
             LayerInfo info;
@@ -31,12 +37,18 @@ void parseStack(QXmlStreamReader &xml, QList<LayerInfo> &infos) {
             info.opacity = attrs.value("opacity").toDouble();
             QString vis = attrs.value("visibility").toString();
             info.visible = vis != QLatin1String("hidden");
+            info.x = attrs.value("x").toDouble() + offsetX;
+            info.y = attrs.value("y").toDouble() + offsetY;
             qDebug() << "Parsed layer entry" << info.name << "src" << info.src
-                     << "opacity" << info.opacity << "visible" << info.visible;
+                     << "opacity" << info.opacity << "visible" << info.visible
+                     << "pos" << info.x << info.y;
             infos.prepend(info);
             xml.skipCurrentElement();
         } else if (xml.name() == QLatin1String("stack")) {
-            parseStack(xml, infos);
+            auto attrs = xml.attributes();
+            double x = attrs.value("x").toDouble();
+            double y = attrs.value("y").toDouble();
+            parseStack(xml, infos, offsetX + x, offsetY + y);
         } else {
             qDebug() << "Skipping unexpected tag" << xml.name();
             xml.skipCurrentElement();
@@ -111,6 +123,7 @@ QList<std::pair<LayerData, QImage>> importORAWithImages(const QString& filePath)
                         // layer has something to display when added to the scene.
                         QGraphicsPixmapItem *item =
                             new QGraphicsPixmapItem(QPixmap::fromImage(image));
+                        item->setPos(info.x, info.y);
                         layer.items.append(item);
                     }
                 }
