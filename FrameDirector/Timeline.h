@@ -49,6 +49,7 @@ class TimelineDrawingArea : public QWidget
 public:
     explicit TimelineDrawingArea(QWidget* parent = nullptr);
     void setTimeline(class Timeline* timeline) { m_timeline = timeline; }
+    QSize sizeHint() const override;
 
 protected:
     void paintEvent(QPaintEvent* event) override;
@@ -108,6 +109,7 @@ public:
     // View
     void setZoomLevel(double zoom);
     double getZoomLevel() const;
+    QSize calculateDrawingAreaSize() const;
     void scrollToFrame(int frame);
 
     // Audio
