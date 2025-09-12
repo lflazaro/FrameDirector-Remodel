@@ -185,6 +185,7 @@ private:
     QPushButton* m_prevFrameButton;
     QPushButton* m_nextFrameButton;
     QPushButton* m_lastFrameButton;
+    QPushButton* m_onionSkinButton = nullptr;
     QSlider* m_frameSlider;
     QSpinBox* m_frameSpinBox;
     QComboBox* m_frameRateCombo;
