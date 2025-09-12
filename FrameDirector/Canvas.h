@@ -137,6 +137,11 @@ public:
     QString getFrameTweeningEasing(int frame) const { return getFrameTweeningEasing(frame, m_currentLayerIndex); }
     int getTweeningEndFrame(int frame) const { return getTweeningEndFrame(frame, m_currentLayerIndex); }
 
+    // Onion skinning
+    void setOnionSkinEnabled(bool enabled);
+    bool isOnionSkinEnabled() const;
+    void setOnionSkinRange(int before, int after);
+
     // Tools and drawing
     void setCurrentTool(Tool* tool);
     Tool* getCurrentTool() const;
@@ -238,6 +243,9 @@ private:
     QJsonObject serializeGraphicsItem(QGraphicsItem* item) const;
     QGraphicsItem* deserializeGraphicsItem(const QJsonObject& json) const;
 
+    void applyOnionSkin(int frame);
+    void clearOnionSkinItems();
+
     // Drawing and rendering
     void drawGrid(QPainter* painter, const QRectF& rect);
     void drawGrid(QPainter* painter); // Alternative signature
@@ -319,6 +327,12 @@ private:
     bool m_rubberBandActive;
     bool m_panning;
     QPoint m_lastPanPoint;
+
+    // Onion skin state
+    bool m_onionSkinEnabled;
+    int m_onionSkinBefore;
+    int m_onionSkinAfter;
+    QSet<QGraphicsItem*> m_onionSkinItems;
 };
 
 #endif // CANVAS_H

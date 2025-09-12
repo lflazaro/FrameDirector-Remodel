@@ -1322,6 +1322,10 @@ void Timeline::setOnionSkinEnabled(bool enabled)
         if (m_drawingArea) {
             m_drawingArea->update();
         }
+        Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+        if (canvas) {
+            canvas->setOnionSkinEnabled(m_onionSkinEnabled);
+        }
     }
 }
 
@@ -1336,6 +1340,10 @@ void Timeline::setOnionSkinRange(int before, int after)
     m_onionSkinAfter = qMax(0, after);
     if (m_drawingArea) {
         m_drawingArea->update();
+    }
+    Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+    if (canvas) {
+        canvas->setOnionSkinRange(m_onionSkinBefore, m_onionSkinAfter);
     }
 }
 

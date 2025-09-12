@@ -152,6 +152,9 @@ Canvas::Canvas(MainWindow* parent)
     , m_dragging(false)
     , m_rubberBand(nullptr)
     , m_rubberBandActive(false)
+    , m_onionSkinEnabled(false)
+    , m_onionSkinBefore(1)
+    , m_onionSkinAfter(1)
 {
     setupScene();
     setupDefaultLayers();
@@ -588,7 +591,9 @@ void Canvas::saveFrameState(int frame)
     // Collect current layer items from scene
     QList<QGraphicsItem*> currentLayerItems;
     for (QGraphicsItem* item : m_scene->items()) {
-        if (item != m_backgroundRect && getItemLayerIndex(item) == m_currentLayerIndex) {
+        if (item != m_backgroundRect &&
+            getItemLayerIndex(item) == m_currentLayerIndex &&
+            !m_onionSkinItems.contains(item)) {
             currentLayerItems.append(item);
         }
     }
@@ -638,6 +643,8 @@ void Canvas::loadFrameState(int frame)
 
     // Remove any existing interpolated items before loading new state
     cleanupInterpolatedItems();
+
+    clearOnionSkinItems();
 
     // Clear current items first
     QList<QGraphicsItem*> currentItems;
@@ -712,7 +719,72 @@ void Canvas::loadFrameState(int frame)
         }
     }
 
+    applyOnionSkin(frame);
+
     qDebug() << "Frame state loaded successfully for frame:" << frame;
+}
+
+void Canvas::clearOnionSkinItems()
+{
+    if (!m_scene) {
+        m_onionSkinItems.clear();
+        return;
+    }
+    for (QGraphicsItem* item : m_onionSkinItems) {
+        if (m_scene->items().contains(item)) {
+            m_scene->removeItem(item);
+        }
+    }
+    m_onionSkinItems.clear();
+}
+
+void Canvas::applyOnionSkin(int frame)
+{
+    clearOnionSkinItems();
+    if (!m_onionSkinEnabled) return;
+
+    const double baseOpacity = 0.4;
+
+    // Previous frames
+    for (int i = 1; i <= m_onionSkinBefore; ++i) {
+        int f = frame - i;
+        if (f < 1) break;
+        double factor = baseOpacity * (m_onionSkinBefore - i + 1) / m_onionSkinBefore;
+        for (int layerIndex = 0; layerIndex < m_layers.size(); ++layerIndex) {
+            LayerData* layer = static_cast<LayerData*>(m_layers[layerIndex]);
+            QList<QGraphicsItem*> items = layer->getFrameItems(f);
+            for (QGraphicsItem* item : items) {
+                if (!item || !isValidItem(item)) continue;
+                m_scene->addItem(item);
+                item->setOpacity(item->data(0).toDouble() * layer->opacity * factor);
+                item->setZValue(layerIndex * 1000 - 500 - i);
+                item->setFlag(QGraphicsItem::ItemIsSelectable, false);
+                item->setFlag(QGraphicsItem::ItemIsMovable, false);
+                item->setAcceptedMouseButtons(Qt::NoButton);
+                m_onionSkinItems.insert(item);
+            }
+        }
+    }
+
+    // Next frames
+    for (int i = 1; i <= m_onionSkinAfter; ++i) {
+        int f = frame + i;
+        double factor = baseOpacity * (m_onionSkinAfter - i + 1) / m_onionSkinAfter;
+        for (int layerIndex = 0; layerIndex < m_layers.size(); ++layerIndex) {
+            LayerData* layer = static_cast<LayerData*>(m_layers[layerIndex]);
+            QList<QGraphicsItem*> items = layer->getFrameItems(f);
+            for (QGraphicsItem* item : items) {
+                if (!item || !isValidItem(item)) continue;
+                m_scene->addItem(item);
+                item->setOpacity(item->data(0).toDouble() * layer->opacity * factor);
+                item->setZValue(layerIndex * 1000 - 500 + i);
+                item->setFlag(QGraphicsItem::ItemIsSelectable, false);
+                item->setFlag(QGraphicsItem::ItemIsMovable, false);
+                item->setAcceptedMouseButtons(Qt::NoButton);
+                m_onionSkinItems.insert(item);
+            }
+        }
+    }
 }
 
 
@@ -1439,6 +1511,27 @@ bool Canvas::hasSelection() const
 int Canvas::getSelectionCount() const
 {
     return m_scene ? m_scene->selectedItems().count() : 0;
+}
+
+void Canvas::setOnionSkinEnabled(bool enabled)
+{
+    if (m_onionSkinEnabled == enabled)
+        return;
+    m_onionSkinEnabled = enabled;
+    loadFrameState(m_currentFrame);
+}
+
+bool Canvas::isOnionSkinEnabled() const
+{
+    return m_onionSkinEnabled;
+}
+
+void Canvas::setOnionSkinRange(int before, int after)
+{
+    m_onionSkinBefore = qMax(0, before);
+    m_onionSkinAfter = qMax(0, after);
+    if (m_onionSkinEnabled)
+        loadFrameState(m_currentFrame);
 }
 
 void Canvas::setCurrentTool(Tool* tool)
