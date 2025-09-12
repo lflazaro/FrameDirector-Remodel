@@ -408,6 +408,7 @@ void Timeline::setupUI()
         "}"
     );
     layersLabel->setAlignment(Qt::AlignCenter);
+    layersLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
     layerPanelLayout->addWidget(layersLabel);
 
     m_layerList = new QListWidget;
@@ -436,6 +437,7 @@ void Timeline::setupUI()
         "}"
     );
     m_layerList->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_layerList->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     layerPanelLayout->addWidget(m_layerList);
 
     // Layer buttons
@@ -473,6 +475,7 @@ void Timeline::setupUI()
     layerButtonsLayout->addWidget(m_removeLayerButton);
     layerButtonsLayout->addStretch();
     layerPanelLayout->addLayout(layerButtonsLayout);
+    layerPanelLayout->addStretch();
 
     QWidget* layerPanel = new QWidget;
     layerPanel->setLayout(layerPanelLayout);
