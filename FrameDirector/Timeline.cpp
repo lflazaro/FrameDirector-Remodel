@@ -1530,12 +1530,10 @@ QSize Timeline::calculateDrawingAreaSize() const
     int totalWidth = m_totalFrames * frameWidth + 100;
     int audioHeight = m_hasAudioTrack ? m_audioTrackHeight : 0;
     int totalHeight = m_rulerHeight + static_cast<int>(m_layers.size()) * m_layerHeight + audioHeight + 50;
-
     int minWidth = 800;
     int minHeight = 200;
     totalWidth = std::max(totalWidth, minWidth);
     totalHeight = std::max(totalHeight, minHeight);
-
     return QSize(totalWidth, totalHeight);
 }
 
