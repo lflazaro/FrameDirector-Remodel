@@ -1540,7 +1540,15 @@ void Timeline::updateLayout()
     int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
     int totalWidth = m_totalFrames * frameWidth + 100;
     int audioHeight = m_hasAudioTrack ? m_audioTrackHeight : 0;
-    int totalHeight = m_rulerHeight + m_layers.size() * m_layerHeight + audioHeight + 50;
+    int totalHeight = m_rulerHeight + m_layers.size() * m_layerHeight + audioHeight;
+
+    // Limit the visible height to a fixed number of layers
+    int visibleLayers = std::min<int>(MAX_VISIBLE_LAYERS, m_layers.size());
+    int viewportHeight = m_rulerHeight + visibleLayers * m_layerHeight + audioHeight;
+    if (m_scrollArea)
+        m_scrollArea->setFixedHeight(viewportHeight);
+    if (m_layerList)
+        m_layerList->setFixedHeight(visibleLayers * m_layerHeight);
 
     // Limit the visible height to a fixed number of layers
     int visibleLayers = std::min<int>(MAX_VISIBLE_LAYERS, m_layers.size());
