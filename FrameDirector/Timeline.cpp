@@ -912,7 +912,7 @@ void Timeline::drawLayers(QPainter* painter, const QRect& rect)
     // Draw audio track after all layers
     drawAudioTrack(painter, rect);
 }
-
+//Onion skin drawing
 void Timeline::drawOnionSkin(QPainter* painter, const QRect& rect)
 {
     if (!m_onionSkinEnabled) return;
