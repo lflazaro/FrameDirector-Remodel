@@ -21,11 +21,6 @@ struct LayerInfo {
     double y = 0.0;
 };
 
-// Recursively parse <stack> elements so that layer order matches the ORA
-// specification (top-most layer last).
-// Recursively parse <stack> elements accumulating positional offsets so that
-// layer order matches the ORA specification (top-most layer last) and layers
-// retain their original coordinates.
 void parseStack(QXmlStreamReader &xml, QList<LayerInfo> &infos,
                 double offsetX = 0.0, double offsetY = 0.0) {
     while (xml.readNextStartElement()) {
