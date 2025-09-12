@@ -22,6 +22,11 @@
 #include <QApplication>
 #include <QStyle>
 #include <QSignalBlocker>
+#include <algorithm>
+
+namespace {
+    constexpr int MAX_VISIBLE_LAYERS = 7;
+}
 
 // TimelineDrawingArea implementation
 TimelineDrawingArea::TimelineDrawingArea(QWidget* parent)
@@ -430,6 +435,7 @@ void Timeline::setupUI()
         "    background-color: #383838;"
         "}"
     );
+    m_layerList->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     layerPanelLayout->addWidget(m_layerList);
 
     // Layer buttons
@@ -537,6 +543,12 @@ void Timeline::setupUI()
             if (m_drawingArea)
                 m_drawingArea->update();
         });
+
+    // Synchronize vertical scrolling with the layer list
+    connect(m_scrollArea->verticalScrollBar(), &QScrollBar::valueChanged,
+        m_layerList->verticalScrollBar(), &QScrollBar::setValue);
+    connect(m_layerList->verticalScrollBar(), &QScrollBar::valueChanged,
+        m_scrollArea->verticalScrollBar(), &QScrollBar::setValue);
 
     timelineLayout->addWidget(m_scrollArea);
 
@@ -807,7 +819,8 @@ void Timeline::setupControls()
         "    border-bottom: 1px solid #555555;"
         "}"
     );
-    controlsWidget->setMaximumHeight(36);
+    controlsWidget->setFixedHeight(0);
+    controlsWidget->hide();
 
     m_mainLayout->addWidget(controlsWidget);
 
@@ -1525,6 +1538,14 @@ void Timeline::updateLayout()
     int totalWidth = m_totalFrames * frameWidth + 100;
     int audioHeight = m_hasAudioTrack ? m_audioTrackHeight : 0;
     int totalHeight = m_rulerHeight + m_layers.size() * m_layerHeight + audioHeight + 50;
+
+    // Limit the visible height to a fixed number of layers
+    int visibleLayers = std::min<int>(MAX_VISIBLE_LAYERS, m_layers.size());
+    int viewportHeight = m_rulerHeight + visibleLayers * m_layerHeight + audioHeight + 50;
+    if (m_scrollArea)
+        m_scrollArea->setFixedHeight(viewportHeight);
+    if (m_layerList)
+        m_layerList->setFixedHeight(visibleLayers * m_layerHeight);
 
     // Expand the drawing area's width when the frame count grows so the
     // horizontal scrollbar range reflects the new timeline length. Preserve
