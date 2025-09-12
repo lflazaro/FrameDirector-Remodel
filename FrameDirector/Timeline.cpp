@@ -936,7 +936,11 @@ void Timeline::drawOnionSkin(QPainter* painter, const QRect& rect)
         int x = m_layerPanelWidth + (frame - 1) * frameWidth;
         QRect frameRect(x, m_rulerHeight, frameWidth, areaHeight);
         if (frameRect.intersects(rect)) {
-            painter->fillRect(frameRect, m_onionSkinPrevColor);
+            QColor color = m_onionSkinPrevColor;
+            int baseAlpha = color.alpha();
+            int alpha = baseAlpha * (m_onionSkinBefore - i + 1) / m_onionSkinBefore;
+            color.setAlpha(alpha);
+            painter->fillRect(frameRect, color);
         }
     }
 
@@ -946,7 +950,11 @@ void Timeline::drawOnionSkin(QPainter* painter, const QRect& rect)
         int x = m_layerPanelWidth + (frame - 1) * frameWidth;
         QRect frameRect(x, m_rulerHeight, frameWidth, areaHeight);
         if (frameRect.intersects(rect)) {
-            painter->fillRect(frameRect, m_onionSkinNextColor);
+            QColor color = m_onionSkinNextColor;
+            int baseAlpha = color.alpha();
+            int alpha = baseAlpha * (m_onionSkinAfter - i + 1) / m_onionSkinAfter;
+            color.setAlpha(alpha);
+            painter->fillRect(frameRect, color);
         }
     }
 }
