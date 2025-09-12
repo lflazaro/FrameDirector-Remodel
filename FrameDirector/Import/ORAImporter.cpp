@@ -7,6 +7,7 @@
 #include <QDebug>
 #include <QBuffer>
 #include <QFile>
+#include <QGraphicsPixmapItem>
 #include <functional>
 #include "ZipReader.h"
 
@@ -91,7 +92,9 @@ QList<std::pair<LayerData, QImage>> importORAWithImages(const QString& filePath)
     }
 
     for (const LayerInfo& info : infos) {
-        LayerData layer = LayerData::fromRaster(info.name, info.visible, info.opacity, QPainter::CompositionMode_SourceOver);
+        LayerData layer = LayerData::fromRaster(info.name, info.visible,
+                                               info.opacity,
+                                               QPainter::CompositionMode_SourceOver);
         QImage image;
         if (!info.src.isEmpty()) {
             QByteArray imgData = zip.fileData(info.src);
@@ -104,6 +107,11 @@ QList<std::pair<LayerData, QImage>> importORAWithImages(const QString& filePath)
                     QImage img = reader.read();
                     if (!img.isNull() && reader.error() == 0) {
                         image = img.copy();
+                        // Convert the decoded image into a graphics item so the
+                        // layer has something to display when added to the scene.
+                        QGraphicsPixmapItem *item =
+                            new QGraphicsPixmapItem(QPixmap::fromImage(image));
+                        layer.items.append(item);
                     }
                 }
             }
