@@ -134,7 +134,9 @@ QList<LayerData> PSDImporter::importPSD(const QString& filePath)
             const uchar* data = reinterpret_cast<const uchar*>(layerRecord->image_data);
             int bytesPerLine = layerRecord->width * 4;
             QImage img(data, layerRecord->width, layerRecord->height, bytesPerLine, QImage::Format_ARGB32);
-            layer.image = img.copy(); // deep copy because libpsd will free context later
+            // No longer store image in LayerData
+            // QImage imageCopy = img.copy();
+            // If you need to keep the image, store externally or return a tuple
             qDebug() << "Layer" << i << "image bytes" << bytesPerLine * layerRecord->height;
         } else {
             qDebug() << "Layer" << i << "has no image data";

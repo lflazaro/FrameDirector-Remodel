@@ -1352,15 +1352,18 @@ void MainWindow::importLayeredImage()
         animLayer->setOpacity(layer.opacity);
         animLayer->setBlendMode(layer.blendMode);
 
-        QGraphicsPixmapItem* item = new QGraphicsPixmapItem(layer.toPixmap());
-        item->setFlag(QGraphicsItem::ItemIsSelectable, true);
-        item->setFlag(QGraphicsItem::ItemIsMovable, true);
-        item->setData(2, static_cast<int>(layer.blendMode));
+        // Ahora iteramos sobre los items de la capa importada
+        for (QGraphicsItem* item : layer.items) {
+            if (!item) continue;
+            item->setFlag(QGraphicsItem::ItemIsSelectable, true);
+            item->setFlag(QGraphicsItem::ItemIsMovable, true);
+            item->setData(2, static_cast<int>(layer.blendMode));
 
-        QUndoCommand* command = new AddItemCommand(m_canvas, item);
-        m_undoStack->push(command);
+            QUndoCommand* command = new AddItemCommand(m_canvas, item);
+            m_undoStack->push(command);
 
-        animLayer->addItem(item);
+            animLayer->addItem(item);
+        }
         m_layers.push_back(std::move(animLayer));
     }
 

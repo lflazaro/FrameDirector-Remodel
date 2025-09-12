@@ -9,6 +9,7 @@ extern "C" {
 #include <cstring>
 #include <limits>
 #include <QFile>
+#include <QDir>
 
 // Custom deleter implementation for the unique_ptr declared in the header.
 void ZipReader::ZipArchiveDeleter::operator()(mz_zip_archive *zip) const {
@@ -83,11 +84,14 @@ QByteArray ZipReader::fileData(const QString& fileName)
     }
 
     QByteArray data(static_cast<const char*>(buffer), static_cast<int>(size));
-    mz_free(buffer);
-
-    // Optional: dump extracted file for debugging (uncomment if needed)
-    // QFile dumpFile("debug_extracted_" + normalized.section('/', -1));
-    // if (dumpFile.open(QIODevice::WriteOnly)) dumpFile.write(data);
+    // Inside ZipReader::fileData
+    QFileInfo dumpPath(QDir::currentPath() + "/debug_extracted_" + normalized.section('/', -1));
+    QFile dumpFile(dumpPath.absoluteFilePath());
+    if (dumpFile.open(QIODevice::WriteOnly)) {
+        dumpFile.write(data);
+        dumpFile.close();
+        qDebug() << "Wrote debug dump to:" << dumpPath.absoluteFilePath();
+    }
 
     qDebug() << "Successfully extracted" << normalized << "size:" << data.size();
     return data;
