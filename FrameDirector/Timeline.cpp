@@ -46,6 +46,7 @@ void TimelineDrawingArea::paintEvent(QPaintEvent* event)
     m_timeline->drawTimelineBackground(&painter, rect);
     m_timeline->drawFrameRuler(&painter, rect);
     m_timeline->drawLayers(&painter, rect);
+    m_timeline->drawOnionSkin(&painter, rect);
     m_timeline->drawKeyframes(&painter, rect);
     m_timeline->drawPlayhead(&painter, rect);
     m_timeline->drawSelection(&painter, rect);
@@ -306,6 +307,11 @@ Timeline::Timeline(MainWindow* parent)
     , m_audioTrackFrames(0)
     , m_dragging(false)
     , m_selectedLayer(-1)
+    , m_onionSkinEnabled(false)
+    , m_onionSkinBefore(1)
+    , m_onionSkinAfter(1)
+    , m_onionSkinPrevColor(255, 0, 0, 60)
+    , m_onionSkinNextColor(0, 255, 0, 60)
 {
     // Initialize colors with frame extension support
     m_backgroundColor = QColor(32, 32, 32);
@@ -907,6 +913,34 @@ void Timeline::drawLayers(QPainter* painter, const QRect& rect)
     drawAudioTrack(painter, rect);
 }
 
+void Timeline::drawOnionSkin(QPainter* painter, const QRect& rect)
+{
+    if (!m_onionSkinEnabled) return;
+
+    int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
+    int areaHeight = height() - m_rulerHeight;
+
+    for (int i = 1; i <= m_onionSkinBefore; ++i) {
+        int frame = m_currentFrame - i;
+        if (frame < 1) break;
+        int x = m_layerPanelWidth + (frame - 1) * frameWidth;
+        QRect frameRect(x, m_rulerHeight, frameWidth, areaHeight);
+        if (frameRect.intersects(rect)) {
+            painter->fillRect(frameRect, m_onionSkinPrevColor);
+        }
+    }
+
+    for (int i = 1; i <= m_onionSkinAfter; ++i) {
+        int frame = m_currentFrame + i;
+        if (frame > m_totalFrames) break;
+        int x = m_layerPanelWidth + (frame - 1) * frameWidth;
+        QRect frameRect(x, m_rulerHeight, frameWidth, areaHeight);
+        if (frameRect.intersects(rect)) {
+            painter->fillRect(frameRect, m_onionSkinNextColor);
+        }
+    }
+}
+
 void Timeline::drawKeyframes(QPainter* painter, const QRect& rect)
 {
     // First draw frame extensions (background)
@@ -1256,6 +1290,36 @@ void Timeline::setAudioTrack(int frames, const QPixmap& waveform, const QString&
     m_audioLabel = label;
     updateLayout();
     update();
+}
+
+void Timeline::setOnionSkinEnabled(bool enabled)
+{
+    if (m_onionSkinEnabled != enabled) {
+        m_onionSkinEnabled = enabled;
+        if (m_drawingArea) {
+            m_drawingArea->update();
+        }
+    }
+}
+
+bool Timeline::isOnionSkinEnabled() const
+{
+    return m_onionSkinEnabled;
+}
+
+void Timeline::setOnionSkinRange(int before, int after)
+{
+    m_onionSkinBefore = qMax(0, before);
+    m_onionSkinAfter = qMax(0, after);
+    if (m_drawingArea) {
+        m_drawingArea->update();
+    }
+}
+
+void Timeline::getOnionSkinRange(int& before, int& after) const
+{
+    before = m_onionSkinBefore;
+    after = m_onionSkinAfter;
 }
 
 // Implementation of other methods continues...
