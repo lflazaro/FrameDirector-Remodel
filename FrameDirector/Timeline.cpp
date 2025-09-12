@@ -22,6 +22,7 @@
 #include <QApplication>
 #include <QStyle>
 #include <QSignalBlocker>
+#include <algorithm>
 
 // TimelineDrawingArea implementation
 TimelineDrawingArea::TimelineDrawingArea(QWidget* parent)
@@ -1529,6 +1530,10 @@ QSize Timeline::calculateDrawingAreaSize() const
     int totalWidth = m_totalFrames * frameWidth + 100;
     int audioHeight = m_hasAudioTrack ? m_audioTrackHeight : 0;
     int totalHeight = m_rulerHeight + static_cast<int>(m_layers.size()) * m_layerHeight + audioHeight + 50;
+    int minWidth = 800;
+    int minHeight = 200;
+    totalWidth = std::max(totalWidth, minWidth);
+    totalHeight = std::max(totalHeight, minHeight);
     return QSize(totalWidth, totalHeight);
 }
 
@@ -1536,6 +1541,11 @@ void Timeline::updateLayout()
 {
     if (!m_drawingArea) return;
     QSize totalSize = calculateDrawingAreaSize();
+    if (m_scrollArea) {
+        QSize viewportSize = m_scrollArea->viewport()->size();
+        totalSize.setWidth(std::max(totalSize.width(), viewportSize.width()));
+        totalSize.setHeight(std::max(totalSize.height(), viewportSize.height()));
+    }
     m_drawingArea->setMinimumSize(totalSize);
     m_drawingArea->resize(totalSize);
     m_drawingArea->updateGeometry();
