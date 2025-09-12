@@ -113,10 +113,17 @@ public:
     // Audio
     void setAudioTrack(int frames, const QPixmap& waveform = QPixmap(), const QString& label = QString()); // NEW
 
+    // Onion skinning
+    void setOnionSkinEnabled(bool enabled);
+    bool isOnionSkinEnabled() const;
+    void setOnionSkinRange(int before, int after);
+    void getOnionSkinRange(int& before, int& after) const;
+
     // ENHANCED: Drawing methods with frame extension visualization
     void drawTimelineBackground(QPainter* painter, const QRect& rect);
     void drawFrameRuler(QPainter* painter, const QRect& rect);
     void drawLayers(QPainter* painter, const QRect& rect);
+    void drawOnionSkin(QPainter* painter, const QRect& rect);
     void drawKeyframes(QPainter* painter, const QRect& rect);
     void drawFrameExtensions(QPainter* painter, const QRect& rect);  // NEW
     void drawPlayhead(QPainter* painter, const QRect& rect);
@@ -208,6 +215,13 @@ private:
     int m_audioTrackFrames;
     QPixmap m_audioWaveform;
     QString m_audioLabel;
+
+    // Onion skin properties
+    bool m_onionSkinEnabled;
+    int m_onionSkinBefore;
+    int m_onionSkinAfter;
+    QColor m_onionSkinPrevColor;
+    QColor m_onionSkinNextColor;
 
 
     // ENHANCED: Colors for frame extension visualization
