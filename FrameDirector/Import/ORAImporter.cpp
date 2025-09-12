@@ -12,43 +12,45 @@
 #include "ZipReader.h"
 
 namespace {
-struct LayerInfo {
-    QString name;
-    QString src;
-    bool visible;
-    double opacity; 
-};
+    struct LayerInfo {
+        QString name;
+        QString src;
+        bool visible;
+        double opacity;
+    };
 
-// Recursively parse <stack> elements so that layer order matches the ORA
-// specification (top-most layer last).
-void parseStack(QXmlStreamReader &xml, QList<LayerInfo> &infos) {
-    while (xml.readNextStartElement()) {
-        if (xml.name() == QLatin1String("layer")) {
-            LayerInfo info;
-            auto attrs = xml.attributes();
-            info.name = attrs.value("name").toString();
-            info.src = attrs.value("src").toString();
-            info.opacity = attrs.value("opacity").toDouble();
-            QString vis = attrs.value("visibility").toString();
-            info.visible = vis != QLatin1String("hidden");
-            qDebug() << "Parsed layer entry" << info.name << "src" << info.src
-                     << "opacity" << info.opacity << "visible" << info.visible;
-            infos.prepend(info);
-            xml.skipCurrentElement();
-        } else if (xml.name() == QLatin1String("stack")) {
-            parseStack(xml, infos);
-        } else {
-            qDebug() << "Skipping unexpected tag" << xml.name();
-            xml.skipCurrentElement();
+    // Recursively parse <stack> elements so that layer order matches the ORA
+    // specification (top-most layer last).
+    void parseStack(QXmlStreamReader& xml, QList<LayerInfo>& infos) {
+        while (xml.readNextStartElement()) {
+            if (xml.name() == QLatin1String("layer")) {
+                LayerInfo info;
+                auto attrs = xml.attributes();
+                info.name = attrs.value("name").toString();
+                info.src = attrs.value("src").toString();
+                info.opacity = attrs.value("opacity").toDouble();
+                QString vis = attrs.value("visibility").toString();
+                info.visible = vis != QLatin1String("hidden");
+                qDebug() << "Parsed layer entry" << info.name << "src" << info.src
+                    << "opacity" << info.opacity << "visible" << info.visible;
+                infos.prepend(info);
+                xml.skipCurrentElement();
+            }
+            else if (xml.name() == QLatin1String("stack")) {
+                parseStack(xml, infos);
+            }
+            else {
+                qDebug() << "Skipping unexpected tag" << xml.name();
+                xml.skipCurrentElement();
+            }
         }
     }
-}
 
-bool validatePngData(const QByteArray &data) {
-    if (data.size() < 8) return false;
-    static const char pngSignature[] = {'\x89', 'P', 'N', 'G', '\r', '\n', '\x1a', '\n'};
-    return memcmp(data.constData(), pngSignature, 8) == 0;
-}
+    bool validatePngData(const QByteArray& data) {
+        if (data.size() < 8) return false;
+        static const char pngSignature[] = { '\x89', 'P', 'N', 'G', '\r', '\n', '\x1a', '\n' };
+        return memcmp(data.constData(), pngSignature, 8) == 0;
+    }
 } // namespace
 
 QList<std::pair<LayerData, QImage>> importORAWithImages(const QString& filePath)
@@ -83,9 +85,11 @@ QList<std::pair<LayerData, QImage>> importORAWithImages(const QString& filePath)
                 else
                     xml.skipCurrentElement();
             }
-        } else if (xml.name() == QLatin1String("stack")) {
+        }
+        else if (xml.name() == QLatin1String("stack")) {
             parseStack(xml, infos);
-        } else {
+        }
+        else {
             qDebug() << "Skipping unexpected root tag" << xml.name();
             xml.skipCurrentElement();
         }
@@ -93,8 +97,8 @@ QList<std::pair<LayerData, QImage>> importORAWithImages(const QString& filePath)
 
     for (const LayerInfo& info : infos) {
         LayerData layer = LayerData::fromRaster(info.name, info.visible,
-                                               info.opacity,
-                                               QPainter::CompositionMode_SourceOver);
+            info.opacity,
+            QPainter::CompositionMode_SourceOver);
         QImage image;
         if (!info.src.isEmpty()) {
             QByteArray imgData = zip.fileData(info.src);
@@ -109,7 +113,7 @@ QList<std::pair<LayerData, QImage>> importORAWithImages(const QString& filePath)
                         image = img.copy();
                         // Convert the decoded image into a graphics item so the
                         // layer has something to display when added to the scene.
-                        QGraphicsPixmapItem *item =
+                        QGraphicsPixmapItem* item =
                             new QGraphicsPixmapItem(QPixmap::fromImage(image));
                         layer.items.append(item);
                     }
@@ -130,4 +134,3 @@ QList<LayerData> ORAImporter::importORA(const QString& filePath)
     }
     return layers;
 }
-
