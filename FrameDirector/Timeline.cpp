@@ -22,11 +22,6 @@
 #include <QApplication>
 #include <QStyle>
 #include <QSignalBlocker>
-#include <algorithm>
-
-namespace {
-    constexpr int MAX_VISIBLE_LAYERS = 7;
-}
 
 // TimelineDrawingArea implementation
 TimelineDrawingArea::TimelineDrawingArea(QWidget* parent)
@@ -249,7 +244,7 @@ void Timeline::showFrameContextMenu(int frame, int layer, const QPoint& globalPo
         deleteAction->setIcon(QIcon(":/icons/stop.png"));
         connect(deleteAction, &QAction::triggered, [this, layer, frame]() {
             removeKeyframe(layer, frame);
-        });
+            });
     }
 
     // Show context menu
@@ -408,7 +403,6 @@ void Timeline::setupUI()
         "}"
     );
     layersLabel->setAlignment(Qt::AlignCenter);
-    layersLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
     layerPanelLayout->addWidget(layersLabel);
 
     m_layerList = new QListWidget;
@@ -436,8 +430,6 @@ void Timeline::setupUI()
         "    background-color: #383838;"
         "}"
     );
-    m_layerList->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    m_layerList->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     layerPanelLayout->addWidget(m_layerList);
 
     // Layer buttons
@@ -475,7 +467,6 @@ void Timeline::setupUI()
     layerButtonsLayout->addWidget(m_removeLayerButton);
     layerButtonsLayout->addStretch();
     layerPanelLayout->addLayout(layerButtonsLayout);
-    layerPanelLayout->addStretch();
 
     QWidget* layerPanel = new QWidget;
     layerPanel->setLayout(layerPanelLayout);
@@ -546,12 +537,6 @@ void Timeline::setupUI()
             if (m_drawingArea)
                 m_drawingArea->update();
         });
-
-    // Synchronize vertical scrolling with the layer list
-    connect(m_scrollArea->verticalScrollBar(), &QScrollBar::valueChanged,
-        m_layerList->verticalScrollBar(), &QScrollBar::setValue);
-    connect(m_layerList->verticalScrollBar(), &QScrollBar::valueChanged,
-        m_scrollArea->verticalScrollBar(), &QScrollBar::setValue);
 
     timelineLayout->addWidget(m_scrollArea);
 
@@ -822,8 +807,7 @@ void Timeline::setupControls()
         "    border-bottom: 1px solid #555555;"
         "}"
     );
-    controlsWidget->setFixedHeight(0);
-    controlsWidget->hide();
+    controlsWidget->setMaximumHeight(36);
 
     m_mainLayout->addWidget(controlsWidget);
 
@@ -867,7 +851,7 @@ void Timeline::setupControls()
         });
 
     connect(m_onionSkinButton, &QPushButton::toggled,
-            this, &Timeline::setOnionSkinEnabled);
+        this, &Timeline::setOnionSkinEnabled);
 }
 
 // Rest of the methods (drawing, frame management, etc.)
@@ -1300,7 +1284,8 @@ void Timeline::drawAudioTrack(QPainter* painter, const QRect& rect)
             int scaledWidth = width / 2;
             QPixmap scaled = m_audioWaveform.scaled(scaledWidth, base.height(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
             painter->drawPixmap(m_layerPanelWidth, base.top(), scaled);
-        } else {
+        }
+        else {
             QRect audioBar(m_layerPanelWidth, base.top(), width, base.height());
             painter->fillRect(audioBar, QColor(100, 100, 150));
         }
@@ -1540,23 +1525,7 @@ void Timeline::updateLayout()
     int frameWidth = static_cast<int>(m_frameWidth * m_zoomLevel);
     int totalWidth = m_totalFrames * frameWidth + 100;
     int audioHeight = m_hasAudioTrack ? m_audioTrackHeight : 0;
-    int totalHeight = m_rulerHeight + m_layers.size() * m_layerHeight + audioHeight;
-
-    // Limit the visible height to a fixed number of layers
-    int visibleLayers = std::min<int>(MAX_VISIBLE_LAYERS, m_layers.size());
-    int viewportHeight = m_rulerHeight + visibleLayers * m_layerHeight + audioHeight;
-    if (m_scrollArea)
-        m_scrollArea->setFixedHeight(viewportHeight);
-    if (m_layerList)
-        m_layerList->setFixedHeight(visibleLayers * m_layerHeight);
-
-    // Limit the visible height to a fixed number of layers
-    int visibleLayers = std::min<int>(MAX_VISIBLE_LAYERS, m_layers.size());
-    int viewportHeight = m_rulerHeight + visibleLayers * m_layerHeight + audioHeight + 50;
-    if (m_scrollArea)
-        m_scrollArea->setFixedHeight(viewportHeight);
-    if (m_layerList)
-        m_layerList->setFixedHeight(visibleLayers * m_layerHeight);
+    int totalHeight = m_rulerHeight + m_layers.size() * m_layerHeight + audioHeight + 50;
 
     // Expand the drawing area's width when the frame count grows so the
     // horizontal scrollbar range reflects the new timeline length. Preserve
