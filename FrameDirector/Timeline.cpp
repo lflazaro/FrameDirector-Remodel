@@ -966,7 +966,6 @@ void Timeline::drawKeyframes(QPainter* painter, const QRect& rect)
     // NEW: Draw tweening indicators
     drawTweeningIndicators(painter, rect);
 
-    // Draw onion skin overlays on top of frame backgrounds
     drawOnionSkin(painter, rect);
 
     // Then draw keyframe symbols (foreground)
