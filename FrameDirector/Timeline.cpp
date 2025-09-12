@@ -238,6 +238,15 @@ void Timeline::showFrameContextMenu(int frame, int layer, const QPoint& globalPo
             });
     }
 
+    // Delete keyframe/frame action
+    if (frameType == FrameType::Keyframe || frameType == FrameType::ExtendedFrame) {
+        QAction* deleteAction = contextMenu.addAction("Delete Keyframe");
+        deleteAction->setIcon(QIcon(":/icons/stop.png"));
+        connect(deleteAction, &QAction::triggered, [this, layer, frame]() {
+            removeKeyframe(layer, frame);
+        });
+    }
+
     // Show context menu
     contextMenu.exec(globalPos);
 }
@@ -1372,11 +1381,20 @@ void Timeline::addKeyframe(int layer, int frame)
 
 void Timeline::removeKeyframe(int layer, int frame)
 {
-    // Implementation for removing keyframes
-    if (m_drawingArea) {
-        m_drawingArea->update();
+    Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+    if (canvas && frame >= 1 && frame <= m_totalFrames) {
+        // Ensure we operate on the correct frame and layer
+        setCurrentFrame(frame);
+        canvas->setCurrentLayer(layer);
+
+        m_mainWindow->removeKeyframe();
+
+        if (m_drawingArea) {
+            m_drawingArea->update();
+        }
+
+        emit keyframeRemoved(layer, frame);
     }
-    emit keyframeRemoved(layer, frame);
 }
 
 bool Timeline::hasKeyframe(int layer, int frame) const
