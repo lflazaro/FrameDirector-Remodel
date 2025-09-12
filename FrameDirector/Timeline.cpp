@@ -46,7 +46,6 @@ void TimelineDrawingArea::paintEvent(QPaintEvent* event)
     m_timeline->drawTimelineBackground(&painter, rect);
     m_timeline->drawFrameRuler(&painter, rect);
     m_timeline->drawLayers(&painter, rect);
-    m_timeline->drawOnionSkin(&painter, rect);
     m_timeline->drawKeyframes(&painter, rect);
     m_timeline->drawPlayhead(&painter, rect);
     m_timeline->drawSelection(&painter, rect);
@@ -966,6 +965,8 @@ void Timeline::drawKeyframes(QPainter* painter, const QRect& rect)
 
     // NEW: Draw tweening indicators
     drawTweeningIndicators(painter, rect);
+
+    drawOnionSkin(painter, rect);
 
     // Then draw keyframe symbols (foreground)
     Canvas* canvas = m_mainWindow->findChild<Canvas*>();
