@@ -490,7 +490,7 @@ void Timeline::setupUI()
     // disabling widget resizability the drawing area keeps the minimum size set
     // in updateLayout() and the scrollbars behave as expected.
     m_scrollArea->setWidgetResizable(false);
-    m_scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    m_scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
     m_scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_scrollArea->setStyleSheet(
         "QScrollArea {"
