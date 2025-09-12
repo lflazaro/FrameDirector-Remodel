@@ -46,7 +46,6 @@ void TimelineDrawingArea::paintEvent(QPaintEvent* event)
     m_timeline->drawTimelineBackground(&painter, rect);
     m_timeline->drawFrameRuler(&painter, rect);
     m_timeline->drawLayers(&painter, rect);
-    m_timeline->drawOnionSkin(&painter, rect);
     m_timeline->drawKeyframes(&painter, rect);
     m_timeline->drawPlayhead(&painter, rect);
     m_timeline->drawSelection(&painter, rect);
@@ -967,6 +966,9 @@ void Timeline::drawKeyframes(QPainter* painter, const QRect& rect)
     // NEW: Draw tweening indicators
     drawTweeningIndicators(painter, rect);
 
+    // Draw onion skin overlays on top of frame backgrounds
+    drawOnionSkin(painter, rect);
+
     // Then draw keyframe symbols (foreground)
     Canvas* canvas = m_mainWindow->findChild<Canvas*>();
     if (!canvas) return;
@@ -1321,6 +1323,10 @@ void Timeline::setOnionSkinEnabled(bool enabled)
         if (m_drawingArea) {
             m_drawingArea->update();
         }
+        Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+        if (canvas) {
+            canvas->setOnionSkinEnabled(m_onionSkinEnabled);
+        }
     }
 }
 
@@ -1335,6 +1341,10 @@ void Timeline::setOnionSkinRange(int before, int after)
     m_onionSkinAfter = qMax(0, after);
     if (m_drawingArea) {
         m_drawingArea->update();
+    }
+    Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+    if (canvas) {
+        canvas->setOnionSkinRange(m_onionSkinBefore, m_onionSkinAfter);
     }
 }
 
