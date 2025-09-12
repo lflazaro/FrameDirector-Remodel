@@ -131,6 +131,9 @@ public:
     int getLayerFromY(int y) const;
     QRect getDrawingAreaRect() const;
 
+public slots:
+    void setSelectedLayer(int layer);
+
 signals:
     void frameChanged(int frame);
     void frameRateChanged(int fps);

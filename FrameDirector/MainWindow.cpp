@@ -147,6 +147,7 @@ MainWindow::MainWindow(QWidget* parent)
     connect(m_timeline, &Timeline::frameChanged, this, &MainWindow::onFrameChanged);
     connect(m_timeline, &Timeline::keyframeAdded, this, &MainWindow::addKeyframe);
     connect(m_timeline, &Timeline::totalFramesChanged, this, &MainWindow::onTotalFramesChanged);
+    connect(m_canvas, &Canvas::layerChanged, m_timeline, &Timeline::setSelectedLayer);
 
     // Setup main layout
     QVBoxLayout* mainLayout = new QVBoxLayout(centralWidget);

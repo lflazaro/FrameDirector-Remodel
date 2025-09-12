@@ -21,6 +21,7 @@
 #include <QPaintEvent>
 #include <QApplication>
 #include <QStyle>
+#include <QSignalBlocker>
 
 // TimelineDrawingArea implementation
 TimelineDrawingArea::TimelineDrawingArea(QWidget* parent)
@@ -1451,6 +1452,18 @@ void Timeline::onLayerSelectionChanged()
     emit layerSelected(m_selectedLayer);
     if (m_drawingArea) {
         m_drawingArea->update();
+    }
+}
+
+void Timeline::setSelectedLayer(int layer)
+{
+    if (layer >= 0 && layer < m_layers.size()) {
+        m_selectedLayer = layer;
+        QSignalBlocker blocker(m_layerList);
+        m_layerList->setCurrentRow(layer);
+        if (m_drawingArea) {
+            m_drawingArea->update();
+        }
     }
 }
 
