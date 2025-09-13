@@ -254,6 +254,12 @@
     <Image Include="resources\icons\arrow-right.png">
       <DeploymentContent>true</DeploymentContent>
     </Image>
+    <Image Include="resources\icons\double-arrow-left.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+    <Image Include="resources\icons\double-arrow-right.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
     <Image Include="resources\icons\branch-closed.png">
       <DeploymentContent>true</DeploymentContent>
     </Image>

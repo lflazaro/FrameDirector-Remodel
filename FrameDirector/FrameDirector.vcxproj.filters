@@ -431,6 +431,12 @@
     <Image Include="resources\icons\arrow-right.png">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="resources\icons\double-arrow-left.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icons\double-arrow-right.png">
+      <Filter>Resource Files</Filter>
+    </Image>
     <Image Include="resources\icons\branch-closed.png">
       <Filter>Resource Files</Filter>
     </Image>

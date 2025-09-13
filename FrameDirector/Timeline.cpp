@@ -625,7 +625,7 @@ void Timeline::setupControls()
 
     // Playback controls with icons
     m_firstFrameButton = new QPushButton();
-    m_firstFrameButton->setIcon(QIcon(":/icons/arrow-right.png")); // Will be rotated to create double-left
+    m_firstFrameButton->setIcon(QIcon(":/icons/double-arrow-left.png"));
     m_firstFrameButton->setToolTip("First Frame");
 
     m_prevFrameButton = new QPushButton();
@@ -650,7 +650,7 @@ void Timeline::setupControls()
     m_nextFrameButton->setToolTip("Next Frame");
 
     m_lastFrameButton = new QPushButton();
-    m_lastFrameButton->setIcon(QIcon(":/icons/arrow-right.png"));
+    m_lastFrameButton->setIcon(QIcon(":/icons/double-arrow-right.png"));
     m_lastFrameButton->setToolTip("Last Frame");
 
     // Style buttons with Flash-like appearance
