@@ -107,13 +107,13 @@ int main(int argc, char* argv[])
     app.processEvents();
 
     // Initialize application components
-    splash.showMessage("Loading FrameDirector...", Qt::AlignBottom | Qt::AlignCenter, Qt::white);
+    splash.showMessage("Loading FrameDirector...", Qt::AlignBottom | Qt::AlignCenter, Qt::darkGray);
     app.processEvents();
 
     // Create and show main window
     MainWindow window;
 
-    splash.showMessage("Ready", Qt::AlignBottom | Qt::AlignCenter, Qt::white);
+    splash.showMessage("Ready", Qt::AlignBottom | Qt::AlignCenter, Qt::darkGray);
     app.processEvents();
 
     // Close splash and show main window
