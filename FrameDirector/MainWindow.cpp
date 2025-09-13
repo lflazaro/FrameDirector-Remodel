@@ -1682,6 +1682,10 @@ void MainWindow::exportAnimation()
     if (!fileName.endsWith('.' + format, Qt::CaseInsensitive))
         fileName += '.' + format;
 
+    int originalFrame = m_timeline ? m_timeline->getCurrentFrame() : 1;
+    if (m_timeline)
+        m_timeline->setCurrentFrame(1);
+
     AnimationController controller(this);
     int totalFrames = m_timeline ? m_timeline->getTotalFrames() : 0;
     if (m_timeline)
@@ -1694,6 +1698,9 @@ void MainWindow::exportAnimation()
     bool ok = controller.exportAnimation(fileName, format, options.getQuality(), options.getLoop());
     options.close();
     m_statusLabel->setText(ok ? "Animation exported" : "Export failed");
+
+    if (m_timeline)
+        m_timeline->setCurrentFrame(originalFrame);
 }
 
 void MainWindow::exportFrame()
