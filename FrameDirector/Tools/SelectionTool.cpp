@@ -4,6 +4,7 @@
 #include "../MainWindow.h"
 #include "../Canvas.h"
 #include "../Commands/UndoCommands.h"
+#include "../VectorGraphics/VectorGraphicsItem.h"
 
 SelectionTool::SelectionTool(MainWindow* mainWindow, QObject* parent)
     : Tool(mainWindow, parent)
@@ -59,6 +60,8 @@ void SelectionTool::mousePressEvent(QMouseEvent* event, const QPointF& scenePos)
         // Right-click context menu
         showContextMenu(event->globalPosition().toPoint());
     }
+
+    updateSelectionHandles();
 }
 
 void SelectionTool::mouseMoveEvent(QMouseEvent* event, const QPointF& scenePos)
@@ -186,6 +189,8 @@ void SelectionTool::deleteSelectedItems()
             m_canvas->storeCurrentFrameState();
         }
     }
+
+    updateSelectionHandles();
 }
 
 void SelectionTool::moveSelectedItems(const QPointF& delta, bool largeStep)
@@ -218,6 +223,17 @@ void SelectionTool::moveSelectedItems(const QPointF& delta, bool largeStep)
     }
 }
 
+void SelectionTool::updateSelectionHandles()
+{
+    if (!m_canvas || !m_canvas->scene()) return;
+
+    for (QGraphicsItem* item : m_canvas->scene()->items()) {
+        if (auto vgItem = dynamic_cast<VectorGraphicsItem*>(item)) {
+            vgItem->setShowSelectionHandles(item->isSelected());
+        }
+    }
+}
+
 void SelectionTool::groupSelectedItems()
 {
     if (!m_canvas || !m_canvas->scene()) return;
@@ -241,6 +257,8 @@ void SelectionTool::groupSelectedItems()
             m_canvas->storeCurrentFrameState();
         }
     }
+
+    updateSelectionHandles();
 }
 
 void SelectionTool::ungroupSelectedItems()
@@ -269,6 +287,8 @@ void SelectionTool::ungroupSelectedItems()
             break; // Only ungroup one at a time
         }
     }
+
+    updateSelectionHandles();
 }
 void SelectionTool::showContextMenu(const QPoint& globalPos)
 {

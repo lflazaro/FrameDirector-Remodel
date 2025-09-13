@@ -75,4 +75,7 @@ protected:
     QPointF m_lastMousePos;
 };
 
+// Utility helper to duplicate vector graphics items
+VectorGraphicsItem* cloneVectorGraphicsItem(const VectorGraphicsItem* item);
+
 #endif

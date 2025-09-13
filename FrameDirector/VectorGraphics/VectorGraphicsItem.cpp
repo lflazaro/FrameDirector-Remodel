@@ -613,3 +613,36 @@ public:
 private:
     QPainterPath m_path;
 };
+
+VectorGraphicsItem* cloneVectorGraphicsItem(const VectorGraphicsItem* item)
+{
+    if (!item) {
+        return nullptr;
+    }
+
+    QJsonObject json = item->toJson();
+    VectorGraphicsItem* newItem = nullptr;
+
+    switch (item->getItemType()) {
+    case VectorGraphicsItem::VectorRectangle:
+        newItem = new VectorRectangleItem(QRectF());
+        break;
+    case VectorGraphicsItem::VectorEllipse:
+        newItem = new VectorEllipseItem(QRectF());
+        break;
+    case VectorGraphicsItem::VectorLine:
+        newItem = new VectorLineItem(QLineF());
+        break;
+    case VectorGraphicsItem::VectorPath:
+        newItem = new VectorPathItem(QPainterPath());
+        break;
+    default:
+        break;
+    }
+
+    if (newItem) {
+        newItem->fromJson(json);
+    }
+
+    return newItem;
+}

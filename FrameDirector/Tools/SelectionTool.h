@@ -31,6 +31,7 @@ private slots:
 private:
     void moveSelectedItems(const QPointF& delta, bool largeStep = false);
     void showContextMenu(const QPoint& globalPos);
+    void updateSelectionHandles();
 
     // Dragging state
     bool m_dragging;
