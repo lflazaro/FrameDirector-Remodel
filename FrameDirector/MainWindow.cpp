@@ -22,6 +22,7 @@
 #include "Animation/AnimationController.h"
 #include "Dialogs/ExportDialog.h"
 #include "Import/ORAImporter.h"
+#include "VectorGraphics/VectorGraphicsItem.h"
 
 #include <QApplication>
 #include <QMenuBar>
@@ -2395,19 +2396,12 @@ void MainWindow::copyCurrentFrame()
     if (frameType == FrameType::ExtendedFrame) {
         int sourceFrame = m_canvas->getSourceKeyframe(m_currentFrame);
         if (sourceFrame != -1) {
-            // Get items from source keyframe
-            auto frameData = m_canvas->getFrameData(sourceFrame);
-            if (frameData.has_value()) {
-                currentFrameItems = frameData->items;
-            }
+            currentFrameItems = m_canvas->getFrameItems(sourceFrame);
         }
     }
     else {
         // Get items directly from current frame
-        auto frameData = m_canvas->getFrameData(m_currentFrame);
-        if (frameData.has_value()) {
-            currentFrameItems = frameData->items;
-        }
+        currentFrameItems = m_canvas->getFrameItems(m_currentFrame);
     }
 
     if (currentFrameItems.isEmpty()) {
@@ -2588,6 +2582,9 @@ QGraphicsItem* MainWindow::duplicateGraphicsItem(QGraphicsItem* item)
             }
         }
         copy = newGroup;
+    }
+    else if (auto vgItem = dynamic_cast<VectorGraphicsItem*>(item)) {
+        copy = cloneVectorGraphicsItem(vgItem);
     }
 
     if (copy) {
