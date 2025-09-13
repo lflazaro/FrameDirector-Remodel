@@ -603,12 +603,7 @@ void MainWindow::createActions()
     connect(m_nextFrameAction, &QAction::triggered, this, &MainWindow::nextFrame);
 
     m_prevFrameAction = new QAction("&Previous Frame", this);
-    // Create a left arrow icon by rotating the right arrow
-    QPixmap leftArrow = QIcon(":/icons/arrow-right.png").pixmap(16, 16);
-    QTransform transform;
-    transform.rotate(180);
-    leftArrow = leftArrow.transformed(transform);
-    m_prevFrameAction->setIcon(QIcon(leftArrow));
+    m_prevFrameAction->setIcon(QIcon(":/icons/arrow-left.png"));
     m_prevFrameAction->setShortcut(QKeySequence("Left"));
     connect(m_prevFrameAction, &QAction::triggered, this, &MainWindow::previousFrame);
 
@@ -675,7 +670,6 @@ void MainWindow::createActions()
 
     // NEW: Enhanced keyframe navigation actions
     m_nextKeyframeAction = new QAction("Next &Keyframe", this);
-    // Create a right arrow with a small diamond to indicate keyframe
     QPixmap nextKeyframePixmap = QIcon(":/icons/arrow-right.png").pixmap(16, 16);
     m_nextKeyframeAction->setIcon(QIcon(nextKeyframePixmap));
     m_nextKeyframeAction->setShortcut(QKeySequence("Ctrl+Right"));
@@ -683,10 +677,7 @@ void MainWindow::createActions()
     connect(m_nextKeyframeAction, &QAction::triggered, this, &MainWindow::nextKeyframe);
 
     m_prevKeyframeAction = new QAction("Previous &Keyframe", this);
-    // Create a left arrow with a small diamond to indicate keyframe
-    QPixmap prevKeyframePixmap = QIcon(":/icons/arrow-right.png").pixmap(16, 16);
-    prevKeyframePixmap = prevKeyframePixmap.transformed(transform);  // Use the transform from above
-    m_prevKeyframeAction->setIcon(QIcon(prevKeyframePixmap));
+    m_prevKeyframeAction->setIcon(QIcon(":/icons/arrow-left.png"));
     m_prevKeyframeAction->setShortcut(QKeySequence("Ctrl+Left"));
     m_prevKeyframeAction->setStatusTip("Go to previous keyframe");
     connect(m_prevKeyframeAction, &QAction::triggered, this, &MainWindow::previousKeyframe);
@@ -743,7 +734,7 @@ void MainWindow::createActions()
 
     // Alignment Actions
     m_alignLeftAction = new QAction("Align &Left", this);
-    m_alignLeftAction->setIcon(QIcon(":/icons/arrow-right.png")); // We'll rotate this
+    m_alignLeftAction->setIcon(QIcon(":/icons/arrow-left.png"));
     connect(m_alignLeftAction, &QAction::triggered, this, &MainWindow::alignLeft);
 
     m_alignCenterAction = new QAction("Align &Center", this);
