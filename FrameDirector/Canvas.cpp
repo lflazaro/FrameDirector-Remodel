@@ -1010,16 +1010,37 @@ void Canvas::cleanupInterpolatedItems(int layerIndex)
     }
 
     qDebug() << "Cleaning up" << m_layerInterpolatedItems[layerIndex].size()
-        << "interpolated items for layer" << layerIndex;
+             << "interpolated items for layer" << layerIndex;
 
-    // Remove from scene and delete
-    for (QGraphicsItem* item : m_layerInterpolatedItems[layerIndex]) {
-        if (item && scene()->items().contains(item)) {
+    // Retrieve layer pointer if available for safety checks
+    LayerData* layer =
+        (layerIndex >= 0 && layerIndex < m_layers.size())
+            ? static_cast<LayerData*>(m_layers[layerIndex])
+            : nullptr;
+
+    QList<QGraphicsItem*>& items = m_layerInterpolatedItems[layerIndex];
+    for (QGraphicsItem* item : items) {
+        if (!item) {
+            continue;
+        }
+
+        // Determine whether the item is a temporary interpolated clone. If an
+        // interpolated item has been promoted to a real layer item (for
+        // example, when editing on a tweened frame), it will also appear in the
+        // layer's data structures. Such items must not be deleted here.
+        const bool isInterpolatedClone = item->data(999).toString() == "interpolated";
+        const bool belongsToLayer = layer && layer->containsItem(item);
+
+        if (scene()->items().contains(item)) {
             scene()->removeItem(item);
+        }
+
+        if (isInterpolatedClone && !belongsToLayer) {
             delete item;
         }
     }
-    m_layerInterpolatedItems[layerIndex].clear();
+
+    items.clear();
     m_layerShowingInterpolated[layerIndex] = false;
 }
 
