@@ -83,7 +83,7 @@ MainWindow::MainWindow(QWidget* parent)
     , m_currentFile("")
     , m_isModified(false)
     , m_currentFrame(1)
-    , m_totalFrames(500)
+    , m_totalFrames(150)
     , m_currentZoom(1.0)
     , m_frameRate(24)
     , m_isPlaying(false)
@@ -498,10 +498,10 @@ void MainWindow::createActions()
     m_exportFrameAction->setStatusTip("Export current frame as image");
     connect(m_exportFrameAction, &QAction::triggered, this, &MainWindow::exportFrame);
 
-    m_exportSVGAction = new QAction("Export &SVG", this);
-    m_exportSVGAction->setIcon(QIcon(":/icons/export.png"));
-    m_exportSVGAction->setStatusTip("Export as SVG file");
-    connect(m_exportSVGAction, &QAction::triggered, this, &MainWindow::exportSVG);
+    //m_exportSVGAction = new QAction("Export &SVG", this);
+    //m_exportSVGAction->setIcon(QIcon(":/icons/export.png"));
+    //m_exportSVGAction->setStatusTip("Export as SVG file");
+    //connect(m_exportSVGAction, &QAction::triggered, this, &MainWindow::exportSVG);
 
     m_exitAction = new QAction("E&xit", this);
     m_exitAction->setIcon(QIcon(":/icons/exit.png"));
@@ -1219,7 +1219,7 @@ void MainWindow::newFile()
         m_layers.clear();
         m_keyframes.clear();
         m_currentFrame = 1;
-        m_totalFrames = 500;
+        m_totalFrames = 150;
         m_currentFile.clear();
         m_isModified = false;
         addLayer();
