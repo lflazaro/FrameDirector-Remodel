@@ -355,14 +355,18 @@ bool AnimationController::exportAnimation(const QString& filename, const QString
 
     emit exportProgress(0, m_totalFrames);
 
+    // Store original frame so it can be restored after export
+    int originalFrame = m_currentFrame;
+
     // Render each frame
     for (int frame = 1; frame <= m_totalFrames; ++frame) {
         emit exportProgress(frame, m_totalFrames);
-        QApplication::processEvents();
 
         // Set animation to this frame
-        int originalFrame = m_currentFrame;
         setCurrentFrame(frame);
+
+        // Allow UI to update after changing frame
+        QApplication::processEvents();
 
         // Render frame
         QImage frameImage(sceneRect.size().toSize(), QImage::Format_ARGB32);
@@ -379,10 +383,10 @@ bool AnimationController::exportAnimation(const QString& filename, const QString
         QString frameFile = QString("%1/frame_%2.png").arg(tempDir).arg(frame, 4, 10, QChar('0'));
         frameImage.save(frameFile, "PNG");
         frameFiles.append(frameFile);
-
-        // Restore original frame
-        setCurrentFrame(originalFrame);
     }
+
+    // Restore original frame once after rendering all frames
+    setCurrentFrame(originalFrame);
 
     bool success = false;
 
