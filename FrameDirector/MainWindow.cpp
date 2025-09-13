@@ -613,26 +613,12 @@ void MainWindow::createActions()
     connect(m_prevFrameAction, &QAction::triggered, this, &MainWindow::previousFrame);
 
     m_firstFrameAction = new QAction("&First Frame", this);
-    // Create a double left arrow for first frame
-    QPixmap firstFrame = QIcon(":/icons/arrow-right.png").pixmap(16, 16);
-    QPixmap doubleLeft(32, 16);
-    doubleLeft.fill(Qt::transparent);
-    QPainter painter(&doubleLeft);
-    painter.drawPixmap(0, 0, firstFrame.transformed(transform));
-    painter.drawPixmap(10, 0, firstFrame.transformed(transform));
-    m_firstFrameAction->setIcon(QIcon(doubleLeft));
+    m_firstFrameAction->setIcon(QIcon(":/icons/double-arrow-left.png"));
     m_firstFrameAction->setShortcut(QKeySequence("Home"));
     connect(m_firstFrameAction, &QAction::triggered, this, &MainWindow::firstFrame);
 
     m_lastFrameAction = new QAction("&Last Frame", this);
-    // Create a double right arrow for last frame
-    QPixmap lastFrame = QIcon(":/icons/arrow-right.png").pixmap(16, 16);
-    QPixmap doubleRight(32, 16);
-    doubleRight.fill(Qt::transparent);
-    QPainter painter2(&doubleRight);
-    painter2.drawPixmap(0, 0, lastFrame);
-    painter2.drawPixmap(10, 0, lastFrame);
-    m_lastFrameAction->setIcon(QIcon(doubleRight));
+    m_lastFrameAction->setIcon(QIcon(":/icons/double-arrow-right.png"));
     m_lastFrameAction->setShortcut(QKeySequence("End"));
     connect(m_lastFrameAction, &QAction::triggered, this, &MainWindow::lastFrame);
 
