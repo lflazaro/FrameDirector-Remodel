@@ -9,6 +9,7 @@
         <!-- UI Control Icons (16x16) -->
         <file>icons/check.png</file>
         <file>icons/arrow-right.png</file>
+        <file>icons/arrow-left.png</file>
         <file>icons/close.png</file>
         <file>icons/float.png</file>
         <file>icons/dropdown.png</file>
