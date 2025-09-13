@@ -342,10 +342,10 @@ bool AnimationController::exportAnimation(const QString& filename, const QString
     }
 
     QGraphicsScene* scene = canvas->scene();
-    QRectF sceneRect = scene->itemsBoundingRect();
-    if (sceneRect.isEmpty()) {
-        sceneRect = scene->sceneRect();
-    }
+    // Use the canvas's defined rectangle to ensure export size matches the
+    // intended canvas dimensions (default 1920x1080) rather than expanding to
+    // include items that extend beyond the canvas area.
+    QRectF sceneRect = canvas->getCanvasRect();
 
     // Create temporary directory for frames
     QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/framedirector_export";
@@ -433,10 +433,9 @@ void AnimationController::exportFrame(int frame, const QString& filename)
     setCurrentFrame(frame);
 
     QGraphicsScene* scene = canvas->scene();
-    QRectF sceneRect = scene->itemsBoundingRect();
-    if (sceneRect.isEmpty()) {
-        sceneRect = scene->sceneRect();
-    }
+    // Restrict export to the canvas bounds to avoid resizing when items extend
+    // beyond the visible canvas area.
+    QRectF sceneRect = canvas->getCanvasRect();
 
     // Determine format from filename
     QFileInfo fileInfo(filename);
