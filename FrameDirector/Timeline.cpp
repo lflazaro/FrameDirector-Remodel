@@ -629,11 +629,7 @@ void Timeline::setupControls()
     m_firstFrameButton->setToolTip("First Frame");
 
     m_prevFrameButton = new QPushButton();
-    // Create left arrow by rotating right arrow
-    QPixmap leftArrow = QIcon(":/icons/arrow-right.png").pixmap(16, 16);
-    QTransform transform;
-    transform.rotate(180);
-    m_prevFrameButton->setIcon(QIcon(leftArrow.transformed(transform)));
+    m_prevFrameButton->setIcon(QIcon(":/icons/arrow-left.png"));
     m_prevFrameButton->setToolTip("Previous Frame");
 
     // FIX: Use proper icons for play/pause

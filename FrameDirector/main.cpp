@@ -101,7 +101,7 @@ int main(int argc, char* argv[])
     FrameDirectorApplication app(argc, argv);
 
     // Show splash screen
-    QPixmap splashPixmap(":/images/splash.png");
+    QPixmap splashPixmap(":/icons/splash.png");
     QSplashScreen splash(splashPixmap);
     splash.show();
     app.processEvents();
