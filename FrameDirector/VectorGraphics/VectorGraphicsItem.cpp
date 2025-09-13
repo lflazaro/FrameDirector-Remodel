@@ -4,10 +4,12 @@
 #include <QStyleOptionGraphicsItem>
 #include <QGraphicsSceneMouseEvent>
 #include <QGraphicsScene>
+#include <QGraphicsView>
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QCursor>
 #include <QtMath>
+#include "Canvas.h"
 
 VectorGraphicsItem::VectorGraphicsItem(QGraphicsItem* parent)
     : QGraphicsItem(parent)
@@ -342,6 +344,18 @@ void VectorGraphicsItem::mouseReleaseEvent(QGraphicsSceneMouseEvent* event)
         m_resizing = false;
         m_resizeHandle = -1;
         setCursor(Qt::ArrowCursor);
+
+        // Persist resized state to current frame
+        if (scene()) {
+            const auto views = scene()->views();
+            for (QGraphicsView* view : views) {
+                if (auto canvas = dynamic_cast<Canvas*>(view)) {
+                    canvas->storeCurrentFrameState();
+                    break;
+                }
+            }
+        }
+
         event->accept();
         return;
     }

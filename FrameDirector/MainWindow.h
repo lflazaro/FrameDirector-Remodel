@@ -277,6 +277,7 @@ private:
     struct FrameClipboard {
         QList<QGraphicsItem*> items;
         QHash<QGraphicsItem*, QVariantMap> itemStates;
+        QHash<QGraphicsItem*, int> itemLayers; // Track original layer for each item
         FrameType frameType;
         bool hasData;
 
@@ -289,6 +290,7 @@ private:
             }
             items.clear();
             itemStates.clear();
+            itemLayers.clear();
             hasData = false;
         }
     } m_frameClipboard;
