@@ -1699,11 +1699,24 @@ void MainWindow::exportAnimation()
 void MainWindow::exportFrame()
 {
     QString fileName = QFileDialog::getSaveFileName(this,
-        "Export Frame", "", "Image Files (*.png *.jpg *.jpeg)");
-    if (!fileName.isEmpty()) {
-        // Implementation for exporting current frame
-        m_statusLabel->setText("Frame exported");
-    }
+        "Export Frame", "", "Image Files (*.png *.jpg *.jpeg *.svg)");
+    if (fileName.isEmpty())
+        return;
+
+    // Ensure the filename has an extension; default to PNG if none provided
+    QFileInfo info(fileName);
+    if (info.suffix().isEmpty())
+        fileName += ".png";
+
+    // Determine the frame to export (timeline is 1-based)
+    int frame = m_timeline ? m_timeline->getCurrentFrame() : 1;
+
+    AnimationController controller(this);
+    if (m_timeline)
+        controller.setTotalFrames(m_timeline->getTotalFrames());
+
+    controller.exportFrame(frame, fileName);
+    m_statusLabel->setText("Frame exported");
 }
 
 void MainWindow::exportSVG()
