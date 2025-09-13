@@ -2417,6 +2417,10 @@ void MainWindow::copyCurrentFrame()
         if (copiedItem) {
             m_frameClipboard.items.append(copiedItem);
 
+            // Record the original layer of this item
+            int layerIndex = m_canvas->getItemLayerIndex(item);
+            m_frameClipboard.itemLayers[copiedItem] = layerIndex;
+
             // Store item state for positioning and properties
             QVariantMap state;
             state["position"] = item->pos();
@@ -2456,20 +2460,34 @@ void MainWindow::pasteFrame()
         return;
     }
 
-    // Clear current frame content first
-    m_canvas->clearCurrentFrameContent();
+    // Determine unique layers in clipboard
+    QSet<int> targetLayers;
+    for (QGraphicsItem* item : m_frameClipboard.items) {
+        int layerIdx = m_frameClipboard.itemLayers.value(item, m_canvas->getCurrentLayer());
+        targetLayers.insert(layerIdx);
+    }
 
-    // Create a new keyframe at current position
-    m_canvas->createKeyframe(m_currentFrame);
+    int originalLayer = m_canvas->getCurrentLayer();
+
+    // Clear content and create keyframe for each target layer
+    for (int layerIdx : targetLayers) {
+        m_canvas->setCurrentLayer(layerIdx);
+        m_canvas->clearCurrentFrameContent();
+        m_canvas->createKeyframe(m_currentFrame);
+    }
+
+    m_canvas->setCurrentLayer(originalLayer);
 
     m_undoStack->beginMacro("Paste Frame");
 
     QList<QGraphicsItem*> pastedItems;
 
-    // Paste all items from clipboard
-    for (int i = 0; i < m_frameClipboard.items.size(); ++i) {
-        QGraphicsItem* clipboardItem = m_frameClipboard.items[i];
+    // Paste all items from clipboard into their original layers
+    for (QGraphicsItem* clipboardItem : m_frameClipboard.items) {
         if (!clipboardItem) continue;
+
+        int targetLayer = m_frameClipboard.itemLayers.value(clipboardItem, originalLayer);
+        m_canvas->setCurrentLayer(targetLayer);
 
         // Create a new copy of the clipboard item
         QGraphicsItem* pastedItem = duplicateGraphicsItem(clipboardItem);
@@ -2491,6 +2509,9 @@ void MainWindow::pasteFrame()
         m_canvas->addItemToCurrentLayer(pastedItem);
         pastedItems.append(pastedItem);
     }
+
+    // Restore original layer
+    m_canvas->setCurrentLayer(originalLayer);
 
     m_undoStack->endMacro();
 
