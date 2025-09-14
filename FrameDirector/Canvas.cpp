@@ -650,7 +650,7 @@ void Canvas::loadFrameState(int frame)
     // Clear current items first
     QList<QGraphicsItem*> currentItems;
     for (QGraphicsItem* item : scene()->items()) {
-        if (item != m_backgroundRect && item->zValue() > -999) {
+        if (item != m_backgroundRect && item->zValue() > -999 && !item->parentItem()) {
             currentItems.append(item);
         }
     }
@@ -844,28 +844,9 @@ void Canvas::deleteSelected()
 
     qDebug() << "Deleting" << selectedItems.size() << "selected items";
 
-    // Remove deleted items from layer tracking AND frame states
+    // Remove deleted items from every tracking structure
     for (QGraphicsItem* item : selectedItems) {
-        // Remove from layer and all frame data
-        int layerIndex = getItemLayerIndex(item);
-        if (layerIndex >= 0) {
-            LayerData* layer = static_cast<LayerData*>(m_layers[layerIndex]);
-            layer->removeItemFromAllFrames(item);
-
-            if (m_layerFrameData.contains(layerIndex)) {
-                auto& layerFrameData = m_layerFrameData[layerIndex];
-                for (auto it = layerFrameData.begin(); it != layerFrameData.end(); ++it) {
-                    it.value().items.removeAll(item);
-                    it.value().itemStates.remove(item);
-                }
-            }
-        }
-
-        // Remove item from compatibility frame tracking
-        for (auto& frameEntry : m_frameItems) {
-            frameEntry.second.removeAll(item);
-        }
-
+        removeItemFromAllFrames(item);
         // Remove from scene (let scene handle actual deletion)
         m_scene->removeItem(item);
     }
