@@ -593,6 +593,9 @@
     <Image Include="..\..\32x32-free-design-icons\png\32x32\tool-gradient.png">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="C:\Users\Luis\Downloads\FrameDirector.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\styles\dark-theme.qss">

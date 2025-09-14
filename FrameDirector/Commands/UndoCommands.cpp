@@ -193,6 +193,10 @@ void RemoveItemCommand::redo()
 
         for (QGraphicsItem* item : m_items) {
             if (item && isItemValid(item)) {
+                // Ensure any graphics effects are cleared before removing the item
+                if (item->graphicsEffect()) {
+                    item->setGraphicsEffect(nullptr);
+                }
                 m_canvas->scene()->removeItem(item);
                 actuallyRemoved.append(item);
             }

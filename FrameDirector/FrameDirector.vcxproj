@@ -93,7 +93,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
@@ -259,6 +259,7 @@
     <Image Include="..\..\32x32-free-design-icons\png\32x32\tool-gradient.png">
       <DeploymentContent>true</DeploymentContent>
     </Image>
+    <Image Include="C:\Users\Luis\Downloads\FrameDirector.ico" />
     <Image Include="resources\icons\arrow-right.png">
       <DeploymentContent>true</DeploymentContent>
     </Image>
