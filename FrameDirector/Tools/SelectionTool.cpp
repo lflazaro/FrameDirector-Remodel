@@ -248,14 +248,8 @@ void SelectionTool::groupSelectedItems()
         qDebug() << "SelectionTool: Created group command for" << selectedItems.size() << "items";
     }
     else {
-        // Fallback: group directly
-        QGraphicsItemGroup* group = m_canvas->scene()->createItemGroup(selectedItems);
-        group->setFlag(QGraphicsItem::ItemIsSelectable, true);
-        group->setFlag(QGraphicsItem::ItemIsMovable, true);
-
-        if (m_canvas) {
-            m_canvas->storeCurrentFrameState();
-        }
+        // Fallback: use canvas helper for grouping
+        m_canvas->groupSelectedItems();
     }
 
     updateSelectionHandles();
@@ -265,27 +259,20 @@ void SelectionTool::ungroupSelectedItems()
 {
     if (!m_canvas || !m_canvas->scene()) return;
 
-    QList<QGraphicsItem*> selectedItems = m_canvas->scene()->selectedItems();
-
-    for (QGraphicsItem* item : selectedItems) {
-        QGraphicsItemGroup* group = qgraphicsitem_cast<QGraphicsItemGroup*>(item);
-        if (group) {
-            // Create ungroup command for undo system
-            if (m_mainWindow && m_mainWindow->m_undoStack) {
+    if (m_mainWindow && m_mainWindow->m_undoStack) {
+        QList<QGraphicsItem*> selectedItems = m_canvas->scene()->selectedItems();
+        for (QGraphicsItem* item : selectedItems) {
+            if (QGraphicsItemGroup* group = qgraphicsitem_cast<QGraphicsItemGroup*>(item)) {
                 UngroupCommand* ungroupCommand = new UngroupCommand(m_canvas, group);
                 m_mainWindow->m_undoStack->push(ungroupCommand);
                 qDebug() << "SelectionTool: Created ungroup command";
+                break; // Only ungroup one at a time
             }
-            else {
-                // Fallback: ungroup directly
-                m_canvas->scene()->destroyItemGroup(group);
-
-                if (m_canvas) {
-                    m_canvas->storeCurrentFrameState();
-                }
-            }
-            break; // Only ungroup one at a time
         }
+    }
+    else {
+        // Fallback: use canvas helper for ungrouping
+        m_canvas->ungroupSelectedItems();
     }
 
     updateSelectionHandles();
