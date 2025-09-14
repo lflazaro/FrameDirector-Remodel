@@ -13,6 +13,7 @@
 #include <QGraphicsPathItem>
 #include <QGraphicsPixmapItem>
 #include <QGraphicsTextItem>
+#include <QGraphicsItemGroup>
 #include <QGraphicsBlurEffect>
 #include <QMouseEvent>
 #include <QWheelEvent>
@@ -649,7 +650,7 @@ void Canvas::loadFrameState(int frame)
     // Clear current items first
     QList<QGraphicsItem*> currentItems;
     for (QGraphicsItem* item : scene()->items()) {
-        if (item != m_backgroundRect && item->zValue() > -999) {
+        if (item != m_backgroundRect && item->zValue() > -999 && !item->parentItem()) {
             currentItems.append(item);
         }
     }
@@ -843,28 +844,9 @@ void Canvas::deleteSelected()
 
     qDebug() << "Deleting" << selectedItems.size() << "selected items";
 
-    // Remove deleted items from layer tracking AND frame states
+    // Remove deleted items from every tracking structure
     for (QGraphicsItem* item : selectedItems) {
-        // Remove from layer and all frame data
-        int layerIndex = getItemLayerIndex(item);
-        if (layerIndex >= 0) {
-            LayerData* layer = static_cast<LayerData*>(m_layers[layerIndex]);
-            layer->removeItemFromAllFrames(item);
-
-            if (m_layerFrameData.contains(layerIndex)) {
-                auto& layerFrameData = m_layerFrameData[layerIndex];
-                for (auto it = layerFrameData.begin(); it != layerFrameData.end(); ++it) {
-                    it.value().items.removeAll(item);
-                    it.value().itemStates.remove(item);
-                }
-            }
-        }
-
-        // Remove item from compatibility frame tracking
-        for (auto& frameEntry : m_frameItems) {
-            frameEntry.second.removeAll(item);
-        }
-
+        removeItemFromAllFrames(item);
         // Remove from scene (let scene handle actual deletion)
         m_scene->removeItem(item);
     }
@@ -1241,6 +1223,15 @@ QGraphicsItem* Canvas::cloneGraphicsItem(QGraphicsItem* item)
         newPath->setPen(originalPen);  // This should preserve brush stroke width
         newPath->setBrush(pathItem->brush());
         copy = newPath;
+    }
+    else if (auto groupItem = qgraphicsitem_cast<QGraphicsItemGroup*>(item)) {
+        auto newGroup = new QGraphicsItemGroup();
+        for (QGraphicsItem* child : groupItem->childItems()) {
+            if (QGraphicsItem* childClone = cloneGraphicsItem(child)) {
+                newGroup->addToGroup(childClone);
+            }
+        }
+        copy = newGroup;
     }
     else if (auto pixmapItem = qgraphicsitem_cast<QGraphicsPixmapItem*>(item)) {
         // Handle imported images
@@ -1766,9 +1757,13 @@ void Canvas::groupSelectedItems()
     if (!m_scene) return;
     QList<QGraphicsItem*> selectedItems = m_scene->selectedItems();
     if (selectedItems.count() > 1) {
+        // Clear current selection so child items don't remain individually selected
+        m_scene->clearSelection();
+
         QGraphicsItemGroup* group = m_scene->createItemGroup(selectedItems);
         group->setFlag(QGraphicsItem::ItemIsSelectable, true);
         group->setFlag(QGraphicsItem::ItemIsMovable, true);
+        group->setHandlesChildEvents(false);
 
         // Remove individual items from tracking structures
         for (QGraphicsItem* child : selectedItems) {
@@ -1789,16 +1784,12 @@ void Canvas::groupSelectedItems()
             for (auto& frameEntry : m_frameItems) {
                 frameEntry.second.removeAll(child);
             }
-
-            child->setSelected(false);
         }
 
         // Add group as single item to current layer
         addItemToCurrentLayer(group);
 
-        // Ensure the new group becomes the active selection so subsequent
-        // operations operate on the group rather than the previously selected items
-        m_scene->clearSelection();
+        // Select the new group so subsequent operations affect it
         group->setSelected(true);
 
         if (!m_destroying) {
