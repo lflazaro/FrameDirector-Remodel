@@ -560,11 +560,21 @@ void Canvas::addItemToCurrentLayer(QGraphicsItem* item)
         }
     }
 
+    // Determine appropriate Z-value to preserve relative ordering
+    int baseZ = m_currentLayerIndex * 1000;
+    int maxZ = -1;
+    for (QGraphicsItem* existing : currentLayer->items) {
+        int z = static_cast<int>(existing->zValue()) % 1000;
+        if (z > maxZ) {
+            maxZ = z;
+        }
+    }
+
     // Add item to current layer and frame
     currentLayer->addItem(item, m_currentFrame);
 
     // Set properties based on layer state
-    item->setZValue(m_currentLayerIndex * 1000);
+    item->setZValue(baseZ + maxZ + 1);
     item->setFlag(QGraphicsItem::ItemIsSelectable, !currentLayer->locked);
     item->setFlag(QGraphicsItem::ItemIsMovable, !currentLayer->locked);
     item->setVisible(currentLayer->visible);
@@ -667,12 +677,13 @@ void Canvas::loadFrameState(int frame)
         QList<QGraphicsItem*> layerFrameItems = layer->getFrameItems(frame);
 
         // Add items for this layer to scene with proper validation
+        int order = 0;
         for (QGraphicsItem* item : layerFrameItems) {
             // CRITICAL: Validate item pointer before using it
             if (item && isValidItem(item)) {
                 m_scene->addItem(item);
-                // Ensure proper layer Z-ordering
-                item->setZValue(layerIndex * 1000 + static_cast<int>(item->zValue()) % 1000);
+                // Ensure proper layer Z-ordering based on stored order
+                item->setZValue(layerIndex * 1000 + order++);
                 // Apply layer properties
                 item->setVisible(layer->visible);
                 item->setOpacity(item->data(0).toDouble() * layer->opacity);
