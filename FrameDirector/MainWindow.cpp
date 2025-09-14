@@ -638,7 +638,7 @@ void MainWindow::createActions()
     connect(m_pasteFrameAction, &QAction::triggered, this, &MainWindow::pasteFrame);
 
     m_blankKeyframeAction = new QAction("Create &Blank Keyframe", this);
-    m_blankKeyframeAction->setIcon(QIcon(":/icons/branch-closed.png"));
+    m_blankKeyframeAction->setIcon(QIcon(":/icons/add-empty.png"));
     m_blankKeyframeAction->setShortcut(QKeySequence("Ctrl+Shift+K"));
     m_blankKeyframeAction->setStatusTip("Create blank keyframe (clear current frame)");
     connect(m_blankKeyframeAction, &QAction::triggered, this, &MainWindow::createBlankKeyframe);
@@ -651,13 +651,13 @@ void MainWindow::createActions()
     connect(m_insertFrameAction, &QAction::triggered, this, &MainWindow::insertFrame);
 
     m_insertBlankKeyframeAction = new QAction("Insert &Blank Keyframe", this);
-    m_insertBlankKeyframeAction->setIcon(QIcon(":/icons/branch-closed.png"));  // Reuse existing icon
+    m_insertBlankKeyframeAction->setIcon(QIcon(":/icons/add-empty.png"));  // Reuse existing icon
     m_insertBlankKeyframeAction->setShortcut(QKeySequence("F7"));
     m_insertBlankKeyframeAction->setStatusTip("Insert blank keyframe (clears content)");
     connect(m_insertBlankKeyframeAction, &QAction::triggered, this, &MainWindow::insertBlankKeyframe);
 
     m_clearFrameAction = new QAction("&Clear Frame", this);
-    m_clearFrameAction->setIcon(QIcon(":/icons/stop.png"));  // Reuse stop icon for "clear"
+    m_clearFrameAction->setIcon(QIcon(":/icons/close.png"));  // Reuse stop icon for "clear"
     m_clearFrameAction->setShortcut(QKeySequence("Shift+F5"));
     m_clearFrameAction->setStatusTip("Clear current frame content");
     connect(m_clearFrameAction, &QAction::triggered, this, &MainWindow::clearCurrentFrame);

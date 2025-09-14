@@ -17,6 +17,7 @@
         <file>icons/down-arrow.png</file>
         <file>icons/branch-closed.png</file>
         <file>icons/branch-open.png</file>
+        <file>icons/add-empty.png</file>
 
         <!-- File Operation Icons (24x24) -->
         <file>icons/new.png</file>
