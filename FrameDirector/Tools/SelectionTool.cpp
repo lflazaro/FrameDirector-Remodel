@@ -181,6 +181,7 @@ void SelectionTool::deleteSelectedItems()
     else {
         // Fallback: delete directly
         for (QGraphicsItem* item : selectedItems) {
+            m_canvas->removeItemFromAllFrames(item);
             m_canvas->scene()->removeItem(item);
             delete item;
         }
