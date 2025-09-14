@@ -198,6 +198,7 @@ void RemoveItemCommand::redo()
                     item->setGraphicsEffect(nullptr);
                 }
                 m_canvas->scene()->removeItem(item);
+                m_canvas->removeItemFromAllFrames(item);
                 actuallyRemoved.append(item);
             }
         }

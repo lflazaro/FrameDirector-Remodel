@@ -13,6 +13,7 @@
 #include <QGraphicsPathItem>
 #include <QGraphicsPixmapItem>
 #include <QGraphicsTextItem>
+#include <QGraphicsItemGroup>
 #include <QGraphicsBlurEffect>
 #include <QMouseEvent>
 #include <QWheelEvent>
@@ -1242,6 +1243,15 @@ QGraphicsItem* Canvas::cloneGraphicsItem(QGraphicsItem* item)
         newPath->setBrush(pathItem->brush());
         copy = newPath;
     }
+    else if (auto groupItem = qgraphicsitem_cast<QGraphicsItemGroup*>(item)) {
+        auto newGroup = new QGraphicsItemGroup();
+        for (QGraphicsItem* child : groupItem->childItems()) {
+            if (QGraphicsItem* childClone = cloneGraphicsItem(child)) {
+                newGroup->addToGroup(childClone);
+            }
+        }
+        copy = newGroup;
+    }
     else if (auto pixmapItem = qgraphicsitem_cast<QGraphicsPixmapItem*>(item)) {
         // Handle imported images
         auto newPixmap = new QGraphicsPixmapItem(pixmapItem->pixmap());
@@ -1766,9 +1776,13 @@ void Canvas::groupSelectedItems()
     if (!m_scene) return;
     QList<QGraphicsItem*> selectedItems = m_scene->selectedItems();
     if (selectedItems.count() > 1) {
+        // Clear current selection so child items don't remain individually selected
+        m_scene->clearSelection();
+
         QGraphicsItemGroup* group = m_scene->createItemGroup(selectedItems);
         group->setFlag(QGraphicsItem::ItemIsSelectable, true);
         group->setFlag(QGraphicsItem::ItemIsMovable, true);
+        group->setHandlesChildEvents(false);
 
         // Remove individual items from tracking structures
         for (QGraphicsItem* child : selectedItems) {
@@ -1789,16 +1803,12 @@ void Canvas::groupSelectedItems()
             for (auto& frameEntry : m_frameItems) {
                 frameEntry.second.removeAll(child);
             }
-
-            child->setSelected(false);
         }
 
         // Add group as single item to current layer
         addItemToCurrentLayer(group);
 
-        // Ensure the new group becomes the active selection so subsequent
-        // operations operate on the group rather than the previously selected items
-        m_scene->clearSelection();
+        // Select the new group so subsequent operations affect it
         group->setSelected(true);
 
         if (!m_destroying) {
