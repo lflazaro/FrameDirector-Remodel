@@ -845,14 +845,22 @@ void Canvas::deleteSelected()
 
     // Remove deleted items from layer tracking AND frame states
     for (QGraphicsItem* item : selectedItems) {
-        // Remove from layer
+        // Remove from layer and all frame data
         int layerIndex = getItemLayerIndex(item);
         if (layerIndex >= 0) {
             LayerData* layer = static_cast<LayerData*>(m_layers[layerIndex]);
-            layer->items.removeAll(item);
+            layer->removeItemFromAllFrames(item);
+
+            if (m_layerFrameData.contains(layerIndex)) {
+                auto& layerFrameData = m_layerFrameData[layerIndex];
+                for (auto it = layerFrameData.begin(); it != layerFrameData.end(); ++it) {
+                    it.value().items.removeAll(item);
+                    it.value().itemStates.remove(item);
+                }
+            }
         }
 
-        // Remove item from all frames that reference it
+        // Remove item from compatibility frame tracking
         for (auto& frameEntry : m_frameItems) {
             frameEntry.second.removeAll(item);
         }
@@ -1761,11 +1769,35 @@ void Canvas::groupSelectedItems()
         QGraphicsItemGroup* group = m_scene->createItemGroup(selectedItems);
         group->setFlag(QGraphicsItem::ItemIsSelectable, true);
         group->setFlag(QGraphicsItem::ItemIsMovable, true);
+
+        // Remove individual items from tracking structures
+        for (QGraphicsItem* child : selectedItems) {
+            int layerIndex = getItemLayerIndex(child);
+            if (layerIndex >= 0) {
+                LayerData* layer = static_cast<LayerData*>(m_layers[layerIndex]);
+                layer->removeItemFromAllFrames(child);
+
+                if (m_layerFrameData.contains(layerIndex)) {
+                    auto& layerFrameData = m_layerFrameData[layerIndex];
+                    for (auto it = layerFrameData.begin(); it != layerFrameData.end(); ++it) {
+                        it.value().items.removeAll(child);
+                        it.value().itemStates.remove(child);
+                    }
+                }
+            }
+
+            for (auto& frameEntry : m_frameItems) {
+                frameEntry.second.removeAll(child);
+            }
+
+            child->setSelected(false);
+        }
+
+        // Add group as single item to current layer
         addItemToCurrentLayer(group);
 
         // Ensure the new group becomes the active selection so subsequent
-        // operations (move, transform, etc.) operate on the group rather than
-        // the previously selected individual items.
+        // operations operate on the group rather than the previously selected items
         m_scene->clearSelection();
         group->setSelected(true);
 
@@ -1783,8 +1815,30 @@ void Canvas::ungroupSelectedItems()
         QGraphicsItemGroup* group = qgraphicsitem_cast<QGraphicsItemGroup*>(item);
         if (group) {
             QList<QGraphicsItem*> children = group->childItems();
+
+            int layerIndex = getItemLayerIndex(group);
+            if (layerIndex >= 0) {
+                LayerData* layer = static_cast<LayerData*>(m_layers[layerIndex]);
+                layer->removeItemFromAllFrames(group);
+
+                if (m_layerFrameData.contains(layerIndex)) {
+                    auto& layerFrameData = m_layerFrameData[layerIndex];
+                    for (auto it = layerFrameData.begin(); it != layerFrameData.end(); ++it) {
+                        it.value().items.removeAll(group);
+                        it.value().itemStates.remove(group);
+                    }
+                }
+            }
+
+            for (auto& frameEntry : m_frameItems) {
+                frameEntry.second.removeAll(group);
+            }
+
             m_scene->destroyItemGroup(group);
+            m_scene->clearSelection();
+
             for (QGraphicsItem* child : children) {
+                addItemToCurrentLayer(child);
                 child->setSelected(true);
             }
         }
