@@ -590,8 +590,10 @@ void Canvas::saveFrameState(int frame)
     qDebug() << "Saving frame state for frame:" << frame << "layer:" << m_currentLayerIndex;
 
     // Collect current layer items from scene
+    // Use ascending order so items are stored from back to front,
+    // ensuring their stacking order is preserved when reloaded
     QList<QGraphicsItem*> currentLayerItems;
-    for (QGraphicsItem* item : m_scene->items()) {
+    for (QGraphicsItem* item : m_scene->items(Qt::AscendingOrder)) {
         if (item != m_backgroundRect &&
             getItemLayerIndex(item) == m_currentLayerIndex &&
             !m_onionSkinItems.contains(item)) {
