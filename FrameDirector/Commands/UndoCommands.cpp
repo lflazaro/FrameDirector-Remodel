@@ -401,8 +401,16 @@ GroupCommand::~GroupCommand()
 void GroupCommand::undo()
 {
     if (m_canvas && m_canvas->scene() && m_group && isItemValid(m_group)) {
+        QList<QGraphicsItem*> children = m_group->childItems();
         m_canvas->scene()->destroyItemGroup(m_group);
+        m_group = nullptr;
         m_grouped = false;
+        m_canvas->scene()->clearSelection();
+        for (QGraphicsItem* child : children) {
+            if (isItemValid(child)) {
+                child->setSelected(true);
+            }
+        }
         m_canvas->storeCurrentFrameState();
     }
 }
@@ -422,6 +430,9 @@ void GroupCommand::redo()
             m_group = m_canvas->scene()->createItemGroup(validItems);
             m_group->setFlag(QGraphicsItem::ItemIsSelectable, true);
             m_group->setFlag(QGraphicsItem::ItemIsMovable, true);
+            m_canvas->addItemToCurrentLayer(m_group);
+            m_canvas->scene()->clearSelection();
+            m_group->setSelected(true);
             m_grouped = true;
             m_canvas->storeCurrentFrameState();
         }
@@ -458,6 +469,9 @@ void UngroupCommand::undo()
             m_group = m_canvas->scene()->createItemGroup(validItems);
             m_group->setFlag(QGraphicsItem::ItemIsSelectable, true);
             m_group->setFlag(QGraphicsItem::ItemIsMovable, true);
+            m_canvas->addItemToCurrentLayer(m_group);
+            m_canvas->scene()->clearSelection();
+            m_group->setSelected(true);
             m_ungrouped = false;
             m_canvas->storeCurrentFrameState();
         }
@@ -467,7 +481,15 @@ void UngroupCommand::undo()
 void UngroupCommand::redo()
 {
     if (m_canvas && m_canvas->scene() && m_group && isItemValid(m_group)) {
+        QList<QGraphicsItem*> children = m_group->childItems();
         m_canvas->scene()->destroyItemGroup(m_group);
+        m_group = nullptr;
+        m_canvas->scene()->clearSelection();
+        for (QGraphicsItem* child : children) {
+            if (isItemValid(child)) {
+                child->setSelected(true);
+            }
+        }
         m_ungrouped = true;
         m_canvas->storeCurrentFrameState();
     }
