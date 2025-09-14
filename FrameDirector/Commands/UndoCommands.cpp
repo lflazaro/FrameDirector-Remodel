@@ -184,7 +184,7 @@ RemoveItemCommand::~RemoveItemCommand()
         }
     }
 }
-
+//needs tweaking
 void RemoveItemCommand::redo()
 {
     if (m_canvas && m_canvas->scene()) {
