@@ -1191,26 +1191,44 @@ void MainWindow::connectLayerManager()
 // File operations
 void MainWindow::newFile()
 {
-    if (maybeSave()) {
+    if (!maybeSave())
+        return;
+
+    if (m_canvas) {
         m_canvas->clear();
-        m_layers.clear();
-        m_keyframes.clear();
-        m_currentFrame = 1;
-        m_totalFrames = 150;
-        m_currentFile.clear();
-        m_isModified = false;
-
-        if (m_timeline) {
-            m_timeline->clearKeyframes();
-            m_timeline->setTotalFrames(m_totalFrames);
-            m_timeline->setCurrentFrame(m_currentFrame);
-            m_timeline->updateLayersFromCanvas();
-        }
-
-        addLayer();
-        updateUI();
-        setWindowTitle("FrameDirector - Untitled");
     }
+
+    m_layers.clear();
+    m_keyframes.clear();
+    m_currentFrame = 1;
+    m_totalFrames = 150;
+    m_currentFile.clear();
+    m_isModified = false;
+
+    // Reset audio state for a completely blank project
+    m_audioFile.clear();
+    m_audioFrameLength = 0;
+    m_audioWaveform = QPixmap();
+    if (m_audioPlayer) {
+        m_audioPlayer->stop();
+        m_audioPlayer->setSource(QUrl());
+    }
+
+    if (m_timeline) {
+        m_timeline->resetForNewProject();
+        m_timeline->setTotalFrames(m_totalFrames);
+        m_timeline->updateLayersFromCanvas();
+
+        int defaultLayer = 0;
+        if (m_canvas && m_canvas->getLayerCount() > 1) {
+            defaultLayer = 1; // Prefer the primary drawing layer when it exists
+        }
+        m_timeline->setSelectedLayer(defaultLayer);
+    }
+
+    addLayer();
+    updateUI();
+    setWindowTitle("FrameDirector - Untitled");
 }
 
 void MainWindow::open()

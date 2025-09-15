@@ -872,59 +872,43 @@ void Canvas::deleteSelected()
 
 void Canvas::clear()
 {
-    if (m_scene) {
-        qDebug() << "Canvas::clear() called";
+    if (!m_scene)
+        return;
 
-        // FIXED: Clear data structures first before removing items
-        m_frameItems.clear();
-        m_layerKeyframes.clear();
+    qDebug() << "Canvas::clear() called";
 
-        // Clear all layer data except background
-        for (int i = m_layers.size() - 1; i >= 0; --i) {
-            LayerData* layer = static_cast<LayerData*>(m_layers[i]);
+    // Ensure no interpolated artifacts remain
+    cleanupInterpolatedItems();
+    m_interpolatedItems.clear();
 
-            // Remove all items except background from layer tracking
-            QList<QGraphicsItem*> itemsToRemove;
-            for (QGraphicsItem* item : layer->items) {
-                if (item != m_backgroundRect) {
-                    itemsToRemove.append(item);
-                }
-            }
+    // Reset all frame/layer bookkeeping so no stale state survives
+    m_frameData.clear();
+    m_frameItems.clear();
+    m_layerKeyframes.clear();
+    m_layerFrameData.clear();
+    m_layerInterpolatedItems.clear();
+    m_layerShowingInterpolated.clear();
+    m_onionSkinItems.clear();
 
-            // Remove items from layer tracking first
-            for (QGraphicsItem* item : itemsToRemove) {
-                layer->items.removeAll(item);
-            }
-
-            // Delete layer data (except background layer)
-            if (i > 0) {
-                delete layer;
-                m_layers.erase(m_layers.begin() + i);
-            }
+    // Remove every item except the background from the scene
+    QList<QGraphicsItem*> allItems = m_scene->items();
+    for (QGraphicsItem* item : allItems) {
+        if (item != m_backgroundRect) {
+            m_scene->removeItem(item);
         }
-
-        // FIXED: Let the scene handle item deletion
-        // Get all items except background
-        QList<QGraphicsItem*> allItems = m_scene->items();
-        for (QGraphicsItem* item : allItems) {
-            if (item != m_backgroundRect) {
-                m_scene->removeItem(item);
-                // Let the scene delete the items automatically
-            }
-        }
-
-        // Reset to have background + one drawing layer
-        if (m_layers.size() == 1) {
-            LayerData* drawingLayer = new LayerData("Layer 1");
-            m_layers.push_back(drawingLayer);
-        }
-
-        setCurrentLayer(1);
-        createKeyframe(1);
-        emit selectionChanged();
-
-        qDebug() << "Canvas::clear() completed";
     }
+
+    // Force layer rebuilding to recreate just the background + Layer 1
+    m_currentLayerIndex = -1; // guarantee setupDefaultLayers selects Layer 1
+    m_currentFrame = 1;
+    setupDefaultLayers();
+
+    // Make sure the new default state is reflected in the scene/UI
+    loadFrameState(m_currentFrame);
+    emit selectionChanged();
+    emit layerChanged(m_currentLayerIndex);
+
+    qDebug() << "Canvas::clear() completed";
 }
 
 // [All other Canvas methods remain the same as in the original...]
