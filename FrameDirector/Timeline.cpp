@@ -390,6 +390,39 @@ void Timeline::clearKeyframes()
     }
 }
 
+void Timeline::resetForNewProject()
+{
+    clearKeyframes();
+
+    // Remove any timeline-specific layer state so we rebuild from the canvas
+    m_layers.clear();
+    if (m_layerList) {
+        QSignalBlocker blocker(m_layerList);
+        m_layerList->clear();
+    }
+
+    // Clear audio information and force the layout to shrink
+    setAudioTrack(0, QPixmap(), QString());
+
+    // Reset frame controls back to the first frame without emitting signals
+    m_currentFrame = 1;
+    if (m_frameSpinBox) {
+        QSignalBlocker blocker(m_frameSpinBox);
+        m_frameSpinBox->setValue(1);
+    }
+    if (m_frameSlider) {
+        QSignalBlocker blocker(m_frameSlider);
+        m_frameSlider->setValue(1);
+    }
+
+    m_selectedLayer = -1;
+
+    updateLayout();
+    if (m_drawingArea) {
+        m_drawingArea->update();
+    }
+}
+
 void Timeline::setupUI()
 {
     m_mainLayout = new QVBoxLayout(this);
