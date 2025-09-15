@@ -95,6 +95,7 @@ public:
 
     void selectKeyframe(int layer, int frame);
     void clearKeyframeSelection();
+    void clearKeyframes();
     void toggleKeyframe(int layer, int frame);
 
     // Layers

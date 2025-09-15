@@ -381,6 +381,15 @@ void Timeline::toggleKeyframe(int layer, int frame)
     }
 }
 
+void Timeline::clearKeyframes()
+{
+    m_keyframes.clear();
+    m_selectedKeyframes.clear();
+    if (m_drawingArea) {
+        m_drawingArea->update();
+    }
+}
+
 void Timeline::setupUI()
 {
     m_mainLayout = new QVBoxLayout(this);

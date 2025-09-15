@@ -1199,6 +1199,14 @@ void MainWindow::newFile()
         m_totalFrames = 150;
         m_currentFile.clear();
         m_isModified = false;
+
+        if (m_timeline) {
+            m_timeline->clearKeyframes();
+            m_timeline->setTotalFrames(m_totalFrames);
+            m_timeline->setCurrentFrame(m_currentFrame);
+            m_timeline->updateLayersFromCanvas();
+        }
+
         addLayer();
         updateUI();
         setWindowTitle("FrameDirector - Untitled");
