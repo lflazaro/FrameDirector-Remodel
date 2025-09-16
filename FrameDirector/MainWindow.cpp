@@ -56,8 +56,14 @@
 #include <QFileInfo>
 #include <QPixmap>
 #include <QSvgRenderer>
+#include <QSvgGenerator>
 #include <QGraphicsPixmapItem>
 #include <QGraphicsSvgItem>
+#include <QPainter>
+#include <QBuffer>
+#include <QIODevice>
+#include <algorithm>
+#include <cmath>
 #include <QImageReader>
 #include <QSvgWidget>
 #include <QDir>
@@ -69,6 +75,148 @@
 #include <QEventLoop>
 #include <QImage>
 #include <QVector>
+
+namespace {
+constexpr int SvgRawDataRole = Qt::UserRole + 200;
+constexpr int SvgSourcePathRole = Qt::UserRole + 201;
+
+QRectF resolveSvgBounds(const QGraphicsSvgItem* svgItem, QSvgRenderer* renderer)
+{
+    if (!renderer) {
+        return QRectF();
+    }
+
+    const QString elementId = svgItem ? svgItem->elementId() : QString();
+    if (!elementId.isEmpty()) {
+        QRectF elementBounds = renderer->boundsOnElement(elementId);
+        if (elementBounds.isValid() && !elementBounds.isEmpty()) {
+            return elementBounds;
+        }
+    }
+
+    QRectF bounds = svgItem ? svgItem->boundingRect() : QRectF();
+    if (!bounds.isValid() || bounds.isEmpty()) {
+        QRectF viewBox = renderer->viewBoxF();
+        if (viewBox.isValid() && !viewBox.isEmpty()) {
+            bounds = viewBox;
+        }
+    }
+
+    if ((!bounds.isValid() || bounds.isEmpty()) && renderer) {
+        QSize defaultSize = renderer->defaultSize();
+        if (!defaultSize.isEmpty()) {
+            bounds = QRectF(QPointF(0, 0), QSizeF(defaultSize));
+        }
+    }
+
+    if (!bounds.isValid() || bounds.isEmpty()) {
+        bounds = QRectF(0, 0, 100, 100);
+    }
+
+    return bounds;
+}
+
+QSize ensureValidSvgSize(const QSizeF& size)
+{
+    int width = static_cast<int>(std::ceil(size.width()));
+    int height = static_cast<int>(std::ceil(size.height()));
+
+    width = std::max(1, width);
+    height = std::max(1, height);
+
+    return QSize(width, height);
+}
+
+QByteArray captureSvgData(const QGraphicsSvgItem* svgItem)
+{
+    if (!svgItem) {
+        return QByteArray();
+    }
+
+    QVariant rawData = svgItem->data(SvgRawDataRole);
+    if (rawData.canConvert<QByteArray>()) {
+        QByteArray stored = rawData.toByteArray();
+        if (!stored.isEmpty()) {
+            return stored;
+        }
+    }
+
+    QSvgRenderer* renderer = svgItem->renderer();
+    if (!renderer) {
+        return QByteArray();
+    }
+
+    QByteArray svgData;
+    QBuffer buffer(&svgData);
+    if (!buffer.open(QIODevice::WriteOnly)) {
+        return QByteArray();
+    }
+
+    QSvgGenerator generator;
+    generator.setOutputDevice(&buffer);
+
+    QRectF bounds = resolveSvgBounds(svgItem, renderer);
+    generator.setViewBox(bounds);
+    generator.setSize(ensureValidSvgSize(bounds.size()));
+
+    QPainter painter(&generator);
+    const QString elementId = svgItem->elementId();
+    if (!elementId.isEmpty()) {
+        renderer->render(&painter, elementId, bounds);
+    }
+    else {
+        renderer->render(&painter, bounds);
+    }
+    painter.end();
+
+    buffer.close();
+
+    if (!svgData.isEmpty() && (!rawData.isValid() || rawData.toByteArray().isEmpty())) {
+        auto* mutableItem = const_cast<QGraphicsSvgItem*>(svgItem);
+        mutableItem->setData(SvgRawDataRole, svgData);
+    }
+
+    return svgData;
+}
+
+QGraphicsSvgItem* createSvgItemFromData(const QByteArray& svgData, const QVariant& sourceData)
+{
+    auto* svgItem = new QGraphicsSvgItem();
+    if (!svgData.isEmpty()) {
+        if (QSvgRenderer* renderer = svgItem->renderer()) {
+            renderer->load(svgData);
+        }
+        svgItem->setData(SvgRawDataRole, svgData);
+    }
+
+    if (sourceData.isValid()) {
+        svgItem->setData(SvgSourcePathRole, sourceData);
+    }
+
+    return svgItem;
+}
+
+QGraphicsSvgItem* deepCopySvgItem(const QGraphicsSvgItem* svgItem)
+{
+    if (!svgItem) {
+        return nullptr;
+    }
+
+    QByteArray svgData = captureSvgData(svgItem);
+    if (svgData.isEmpty()) {
+        return nullptr;
+    }
+
+    QVariant sourceData = svgItem->data(SvgSourcePathRole);
+    QGraphicsSvgItem* copy = createSvgItemFromData(svgData, sourceData);
+    if (!copy) {
+        return nullptr;
+    }
+
+    copy->setElementId(svgItem->elementId());
+    return copy;
+}
+}
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
@@ -1402,17 +1550,37 @@ void MainWindow::importVector()
             return;
         }
 
+        QFile file(fileName);
+        if (!file.open(QIODevice::ReadOnly)) {
+            QMessageBox::warning(this, "Import Error",
+                QString("Could not open SVG file:\n%1\n%2").arg(fileName, file.errorString()));
+            return;
+        }
+
+        QByteArray svgData = file.readAll();
+        file.close();
+
+        if (svgData.isEmpty()) {
+            QMessageBox::warning(this, "Import Error",
+                QString("SVG file was empty or unreadable:\n%1").arg(fileName));
+            return;
+        }
+
         // Test if the SVG can be loaded
-        QSvgRenderer* renderer = new QSvgRenderer(fileName);
-        if (!renderer->isValid()) {
+        QSvgRenderer renderer(svgData);
+        if (!renderer.isValid()) {
             QMessageBox::warning(this, "Import Error",
                 QString("Could not load SVG file:\n%1\nThe file may be corrupted or use unsupported features.").arg(fileName));
-            delete renderer;
             return;
         }
 
         // Create SVG graphics item
-        QGraphicsSvgItem* svgItem = new QGraphicsSvgItem(fileName);
+        QGraphicsSvgItem* svgItem = createSvgItemFromData(svgData, fileInfo.absoluteFilePath());
+        if (!svgItem) {
+            QMessageBox::warning(this, "Import Error",
+                QString("Failed to create SVG item from file:\n%1").arg(fileName));
+            return;
+        }
         svgItem->setFlag(QGraphicsItem::ItemIsSelectable, true);
         svgItem->setFlag(QGraphicsItem::ItemIsMovable, true);
 
@@ -1436,7 +1604,6 @@ void MainWindow::importVector()
             m_undoStack->push(command);
         }
 
-        delete renderer;
         m_statusLabel->setText(QString("SVG imported: %1").arg(fileInfo.fileName()));
         m_isModified = true;
     }
@@ -1486,24 +1653,49 @@ void MainWindow::importMultipleFiles()
 
             if (fileInfo.suffix().toLower() == "svg") {
                 // Import SVG
-                QSvgRenderer* renderer = new QSvgRenderer(fileName);
-                if (renderer->isValid()) {
-                    QGraphicsSvgItem* svgItem = new QGraphicsSvgItem(fileName);
-                    svgItem->setFlag(QGraphicsItem::ItemIsSelectable, true);
-                    svgItem->setFlag(QGraphicsItem::ItemIsMovable, true);
-
-                    // Position items in a grid
-                    int gridX = (imported % 5) * 150;
-                    int gridY = (imported / 5) * 150;
-                    svgItem->setPos(gridX, gridY);
-
-                    if (m_canvas) {
-                        QUndoCommand* command = new AddItemCommand(m_canvas, svgItem);
-                        m_undoStack->push(command);
-                        success = true;
-                    }
+                QFile file(fileName);
+                if (!file.open(QIODevice::ReadOnly)) {
+                    failedFiles << fileInfo.fileName();
+                    ++failed;
+                    continue;
                 }
-                delete renderer;
+
+                QByteArray svgData = file.readAll();
+                file.close();
+
+                if (svgData.isEmpty()) {
+                    failedFiles << fileInfo.fileName();
+                    ++failed;
+                    continue;
+                }
+
+                QSvgRenderer renderer(svgData);
+                if (!renderer.isValid()) {
+                    failedFiles << fileInfo.fileName();
+                    ++failed;
+                    continue;
+                }
+
+                QGraphicsSvgItem* svgItem = createSvgItemFromData(svgData, fileInfo.absoluteFilePath());
+                if (!svgItem) {
+                    failedFiles << fileInfo.fileName();
+                    ++failed;
+                    continue;
+                }
+
+                svgItem->setFlag(QGraphicsItem::ItemIsSelectable, true);
+                svgItem->setFlag(QGraphicsItem::ItemIsMovable, true);
+
+                // Position items in a grid
+                int gridX = (imported % 5) * 150;
+                int gridY = (imported / 5) * 150;
+                svgItem->setPos(gridX, gridY);
+
+                if (m_canvas) {
+                    QUndoCommand* command = new AddItemCommand(m_canvas, svgItem);
+                    m_undoStack->push(command);
+                    success = true;
+                }
             }
             else {
                 // Import image
@@ -1830,12 +2022,12 @@ void MainWindow::copy()
             copy = newPixmap;
         }
         else if (auto svgItem = qgraphicsitem_cast<QGraphicsSvgItem*>(item)) {
-            auto newSvg = new QGraphicsSvgItem();
-            newSvg->setSharedRenderer(svgItem->renderer());
-            newSvg->setElementId(svgItem->elementId());
-            newSvg->setTransform(svgItem->transform());
-            newSvg->setPos(svgItem->pos());
-            copy = newSvg;
+            auto newSvg = deepCopySvgItem(svgItem);
+            if (newSvg) {
+                newSvg->setTransform(svgItem->transform());
+                newSvg->setPos(svgItem->pos());
+                copy = newSvg;
+            }
         }
 
         if (copy) {
@@ -1911,11 +2103,11 @@ void MainWindow::paste()
             pastedItem = newPixmap;
         }
         else if (auto svgItem = qgraphicsitem_cast<QGraphicsSvgItem*>(clipboardItem)) {
-            auto newSvg = new QGraphicsSvgItem();
-            newSvg->setSharedRenderer(svgItem->renderer());
-            newSvg->setElementId(svgItem->elementId());
-            newSvg->setTransform(svgItem->transform());
-            pastedItem = newSvg;
+            auto newSvg = deepCopySvgItem(svgItem);
+            if (newSvg) {
+                newSvg->setTransform(svgItem->transform());
+                pastedItem = newSvg;
+            }
         }
 
         if (pastedItem) {
@@ -2609,10 +2801,7 @@ QGraphicsItem* MainWindow::duplicateGraphicsItem(QGraphicsItem* item)
     }
     // FIX: Add support for QGraphicsSvgItem (vectors)
     else if (auto svgItem = qgraphicsitem_cast<QGraphicsSvgItem*>(item)) {
-        auto newSvg = new QGraphicsSvgItem();
-        newSvg->setSharedRenderer(svgItem->renderer());
-        newSvg->setElementId(svgItem->elementId());
-        copy = newSvg;
+        copy = deepCopySvgItem(svgItem);
     }
     // FIX: Add support for QGraphicsItemGroup (grouped items)
     else if (auto groupItem = qgraphicsitem_cast<QGraphicsItemGroup*>(item)) {
