@@ -559,7 +559,7 @@ void Canvas::addItemToCurrentLayer(QGraphicsItem* item)
             }
         }
     }
-
+	// CRITICAL: Prevent adding the background rectangle to other layers
     // Determine appropriate Z-value to preserve relative ordering
     int baseZ = m_currentLayerIndex * 1000;
     int maxZ = -1;
