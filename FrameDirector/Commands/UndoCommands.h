@@ -70,6 +70,7 @@ public:
 private:
     QList<QGraphicsItem*> m_items;
     bool m_itemsRemoved;
+    int m_frame;
 };
 
 // Transform command (rotate, scale)

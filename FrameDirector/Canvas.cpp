@@ -30,6 +30,7 @@
 #include <QLinearGradient>
 #include <QRadialGradient>
 #include <QConicalGradient>
+#include <algorithm>
 
 // ROBUST: Enhanced layer data structure with better state management
 struct LayerData {
@@ -50,12 +51,42 @@ struct LayerData {
         uuid = QString("layer_%1_%2").arg(layerName).arg(QDateTime::currentMSecsSinceEpoch());
     }
 
-    void addItem(QGraphicsItem* item, int frame) {
-        if (!item || allTimeItems.contains(item)) return;
+    void syncCaches() {
+        QSet<QGraphicsItem*> uniqueItems;
+        QList<QGraphicsItem*> orderedItems;
 
-        items.append(item);
-        frameItems[frame].append(item);
-        allTimeItems.insert(item);
+        QList<int> frameKeys = frameItems.keys();
+        std::sort(frameKeys.begin(), frameKeys.end());
+
+        for (int key : frameKeys) {
+            const QList<QGraphicsItem*>& perFrame = frameItems[key];
+            for (QGraphicsItem* frameItem : perFrame) {
+                if (frameItem && !uniqueItems.contains(frameItem)) {
+                    uniqueItems.insert(frameItem);
+                    orderedItems.append(frameItem);
+                }
+            }
+        }
+
+        allTimeItems = uniqueItems;
+        items = orderedItems;
+    }
+
+    void addItem(QGraphicsItem* item, int frame) {
+        if (!item) return;
+
+        QList<QGraphicsItem*>& perFrame = frameItems[frame];
+        if (!perFrame.contains(item)) {
+            perFrame.append(item);
+        }
+
+        if (!allTimeItems.contains(item)) {
+            allTimeItems.insert(item);
+        }
+
+        if (!items.contains(item)) {
+            items.append(item);
+        }
     }
 
     void removeItem(QGraphicsItem* item) {
@@ -76,19 +107,11 @@ struct LayerData {
 
     void setFrameItems(int frame, const QList<QGraphicsItem*>& itemList) {
         frameItems[frame] = itemList;
-
-        // Update allTimeItems to include all items from all frames
-        for (QGraphicsItem* item : itemList) {
-            if (item && !allTimeItems.contains(item)) {
-                allTimeItems.insert(item);
-            }
-        }
+        syncCaches();
     }
     void clearFrame(int frame) {
-        auto it = frameItems.find(frame);
-        if (it != frameItems.end()) {
-            it.value().clear();
-        }
+        frameItems.remove(frame);
+        syncCaches();
     }
 
     QList<QGraphicsItem*> getFrameItems(int frame) const {
@@ -108,14 +131,14 @@ struct LayerData {
     void removeItemFromAllFrames(QGraphicsItem* item) {
         if (!item) return;
 
-        // Remove from main items list
-        items.removeAll(item);
-        allTimeItems.remove(item);
-
         // Remove from all frame-specific data
         for (auto& frameEntry : frameItems) {
             frameEntry.removeAll(item);
         }
+
+        // Remove from cached collections
+        items.removeAll(item);
+        allTimeItems.remove(item);
 
         qDebug() << "Removed item from all frames in layer" << uuid;
     }
@@ -126,6 +149,20 @@ struct LayerData {
         auto it = frameItems.find(frame);
         if (it != frameItems.end()) {
             it.value().removeAll(item);
+        }
+
+        // If the item is no longer referenced by any frame, drop it from caches
+        bool stillUsed = false;
+        for (auto frameIt = frameItems.begin(); frameIt != frameItems.end(); ++frameIt) {
+            if (frameIt.value().contains(item)) {
+                stillUsed = true;
+                break;
+            }
+        }
+
+        if (!stillUsed) {
+            items.removeAll(item);
+            allTimeItems.remove(item);
         }
     }
 };
@@ -870,11 +907,18 @@ void Canvas::deleteSelected()
 
     qDebug() << "Deleting" << selectedItems.size() << "selected items";
 
-    // Remove deleted items from every tracking structure
+    const int frame = m_currentFrame;
     for (QGraphicsItem* item : selectedItems) {
-        removeItemFromAllFrames(item);
-        // Remove from scene (let scene handle actual deletion)
+        if (!item) {
+            continue;
+        }
+
         m_scene->removeItem(item);
+        detachItemFromFrame(item, frame);
+
+        if (!isValidItem(item)) {
+            delete item;
+        }
     }
 
     storeCurrentFrameState();
@@ -2201,14 +2245,19 @@ void Canvas::clearCurrentFrameContent()
         }
     }
 
-    // Remove items from scene and delete them
+    // Remove items from scene and detach them from this frame only
     for (QGraphicsItem* item : itemsToRemove) {
-        if (item && m_scene->items().contains(item)) {
+        if (!item) {
+            continue;
+        }
+
+        if (m_scene->items().contains(item)) {
             m_scene->removeItem(item);
+        }
 
-            // CRITICAL: Remove item from ALL data structures before deletion
-            removeItemFromAllFrames(item);
+        detachItemFromFrame(item, m_currentFrame);
 
+        if (!isValidItem(item)) {
             delete item;
         }
     }
@@ -2270,6 +2319,49 @@ void Canvas::removeItemFromAllFrames(QGraphicsItem* item)
     }
 
     qDebug() << "Removed item from all frame data structures";
+}
+
+void Canvas::detachItemFromFrame(QGraphicsItem* item, int frame)
+{
+    if (!item) {
+        return;
+    }
+
+    const int targetFrame = frame > 0 ? frame : m_currentFrame;
+    if (targetFrame < 1) {
+        return;
+    }
+
+    // Update legacy per-frame caches
+    auto frameItemsIt = m_frameItems.find(targetFrame);
+    if (frameItemsIt != m_frameItems.end()) {
+        frameItemsIt->second.removeAll(item);
+    }
+
+    auto frameDataIt = m_frameData.find(targetFrame);
+    if (frameDataIt != m_frameData.end()) {
+        frameDataIt->second.items.removeAll(item);
+        frameDataIt->second.itemStates.remove(item);
+    }
+
+    const int layerIndex = getItemLayerIndex(item);
+    if (layerIndex < 0 || layerIndex >= m_layers.size()) {
+        return;
+    }
+
+    // Update layer-specific frame data structures
+    if (m_layerFrameData.contains(layerIndex)) {
+        auto& frameHash = m_layerFrameData[layerIndex];
+        auto frameIt = frameHash.find(targetFrame);
+        if (frameIt != frameHash.end()) {
+            FrameData& data = frameIt.value();
+            data.items.removeAll(item);
+            data.itemStates.remove(item);
+        }
+    }
+
+    LayerData* layer = static_cast<LayerData*>(m_layers[layerIndex]);
+    layer->removeItemFromFrame(targetFrame, item);
 }
 
 bool Canvas::hasFrameTweening(int frame, int layerIndex) const

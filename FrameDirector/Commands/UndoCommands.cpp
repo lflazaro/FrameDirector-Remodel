@@ -157,6 +157,7 @@ RemoveItemCommand::RemoveItemCommand(Canvas* canvas, const QList<QGraphicsItem*>
     : GraphicsItemCommand(canvas, parent)
     , m_items(items)
     , m_itemsRemoved(false)
+    , m_frame(canvas ? canvas->getCurrentFrame() : -1)
 {
     setText(QString("Remove %1 item(s)").arg(items.count()));
 
@@ -186,12 +187,18 @@ RemoveItemCommand::~RemoveItemCommand()
             }
 
             if (!inScene) {
-                try {
-                    delete item;
+                const bool stillTracked = m_canvas && m_canvas->isValidItem(item);
+                if (!stillTracked) {
+                    try {
+                        delete item;
+                    }
+                    catch (...) {
+                        // Ignore deletion errors - item might already be deleted
+                        qDebug() << "RemoveItemCommand: Error deleting item (probably already deleted)";
+                    }
                 }
-                catch (...) {
-                    // Ignore deletion errors - item might already be deleted
-                    qDebug() << "RemoveItemCommand: Error deleting item (probably already deleted)";
+                else {
+                    qDebug() << "RemoveItemCommand: Item still tracked, skipping deletion";
                 }
             }
             else {
@@ -211,13 +218,15 @@ void RemoveItemCommand::redo()
     QList<QGraphicsItem*> actuallyRemoved;
     bool changed = false;
 
+    const int targetFrame = (m_frame > 0) ? m_frame : (m_canvas ? m_canvas->getCurrentFrame() : -1);
+
     for (QGraphicsItem* item : m_items) {
         if (!item) {
             continue;
         }
 
         const bool wasInScene = scene && item->scene() == scene;
-        const bool wasTracked = m_canvas->isValidItem(item);
+        const bool wasTracked = m_canvas && m_canvas->isValidItem(item);
 
         if (wasInScene) {
             if (item->graphicsEffect()) {
@@ -226,8 +235,8 @@ void RemoveItemCommand::redo()
             scene->removeItem(item);
         }
 
-        if (wasTracked) {
-            m_canvas->removeItemFromAllFrames(item);
+        if (wasTracked && m_canvas) {
+            m_canvas->detachItemFromFrame(item, targetFrame);
         }
 
         if (wasInScene || wasTracked) {
@@ -239,7 +248,7 @@ void RemoveItemCommand::redo()
     m_items = actuallyRemoved;
     m_itemsRemoved = !m_items.isEmpty();
 
-    if (changed) {
+    if (changed && m_canvas && targetFrame == m_canvas->getCurrentFrame()) {
         m_canvas->storeCurrentFrameState();
     }
 }
@@ -254,7 +263,7 @@ void RemoveItemCommand::undo()
         }
         m_itemsRemoved = false;
 
-        if (m_canvas) {
+        if (m_canvas && m_canvas->getCurrentFrame() == m_frame) {
             m_canvas->storeCurrentFrameState();
         }
     }
