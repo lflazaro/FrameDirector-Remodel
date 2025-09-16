@@ -352,18 +352,14 @@ void Canvas::removeLayer(int layerIndex)
         qDebug() << "Removing layer" << layerIndex << "UUID:" << layer->uuid;
 
         // ROBUST: Remove all items in this layer from scene AND all frame tracking
-        for (QGraphicsItem* item : layer->allTimeItems) {
+        const QList<QGraphicsItem*> itemsToRemove = layer->allTimeItems.values();
+        for (QGraphicsItem* item : itemsToRemove) {
             if (item && item != m_backgroundRect) {
                 // Remove from scene
                 if (m_scene->items().contains(item)) {
                     m_scene->removeItem(item);
                 }
-
-                // Remove from ALL frame tracking in ALL layers (safety measure)
-                for (auto& frameEntry : m_frameItems) {
-                    frameEntry.second.removeAll(item);
-                }
-
+                removeItemFromAllFrames(item);
                 delete item;
             }
         }
@@ -804,17 +800,34 @@ void Canvas::applyOnionSkin(int frame)
 
 bool Canvas::isValidItem(QGraphicsItem* item) const
 {
-    if (!item) return false;
-
-    // Check if the item pointer is valid by testing a simple property access
-    try {
-        // Try to access a basic property - this will crash if pointer is invalid
-        item->type();
-        return true;
-    }
-    catch (...) {
+    if (!item) {
         return false;
     }
+
+    if (item == m_backgroundRect) {
+        return true;
+    }
+
+    // If the item is still tracked by any layer, consider it valid
+    for (void* layerPtr : m_layers) {
+        if (!layerPtr) {
+            continue;
+        }
+
+        LayerData* layer = static_cast<LayerData*>(layerPtr);
+        if (layer->allTimeItems.contains(item)) {
+            return true;
+        }
+    }
+
+    // Also check legacy frame item tracking structures
+    for (const auto& frameEntry : m_frameItems) {
+        if (frameEntry.second.contains(item)) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 int Canvas::getItemLayerIndex(QGraphicsItem* item) const
@@ -2028,7 +2041,18 @@ void Canvas::copyItemsToFrame(int fromFrame, int toFrame)
 
     for (QGraphicsItem* item : currentItems) {
         m_scene->removeItem(item);
-        delete item;
+
+        // Only delete transient items that are not tracked by any layer
+        const int ownerLayer = getItemLayerIndex(item);
+        if (ownerLayer == -1 && item && item != m_backgroundRect) {
+            m_interpolatedItems.removeAll(item);
+            m_onionSkinItems.remove(item);
+            for (auto iter = m_layerInterpolatedItems.begin(); iter != m_layerInterpolatedItems.end(); ++iter) {
+                QList<QGraphicsItem*>& layerItems = iter.value();
+                layerItems.removeAll(item);
+            }
+            delete item;
+        }
     }
 
     // Load and duplicate items from source frame
@@ -2227,6 +2251,16 @@ void Canvas::removeItemFromAllFrames(QGraphicsItem* item)
     for (auto& frameEntry : m_frameData) {
         frameEntry.second.items.removeAll(item);
         frameEntry.second.itemStates.remove(item);
+    }
+
+    // Remove from layer-specific frame data structures
+    for (auto layerIt = m_layerFrameData.begin(); layerIt != m_layerFrameData.end(); ++layerIt) {
+        QHash<int, FrameData>& frameHash = layerIt.value();
+        for (auto frameIt = frameHash.begin(); frameIt != frameHash.end(); ++frameIt) {
+            FrameData& data = frameIt.value();
+            data.items.removeAll(item);
+            data.itemStates.remove(item);
+        }
     }
 
     // Remove from all layer data
@@ -2723,12 +2757,18 @@ void Canvas::removeKeyframe(int layerIndex, int frame)
     if (layerIt != m_layerFrameData.end()) {
         auto frameIt = layerIt->find(frame);
         if (frameIt != layerIt->end()) {
-            for (QGraphicsItem* item : frameIt.value().items) {
-                if (item) {
-                    if (item->scene())
-                        m_scene->removeItem(item);
-                    delete item;
+            const QList<QGraphicsItem*> itemsToRemove = frameIt.value().items;
+            for (QGraphicsItem* item : itemsToRemove) {
+                if (!item) {
+                    continue;
                 }
+
+                if (item->scene()) {
+                    m_scene->removeItem(item);
+                }
+
+                removeItemFromAllFrames(item);
+                delete item;
             }
             layerIt->remove(frame);
         }
