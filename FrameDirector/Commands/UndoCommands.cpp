@@ -84,12 +84,18 @@ bool MoveCommand::mergeWith(const QUndoCommand* other)
 // FIXED: Add item validation helper
 bool GraphicsItemCommand::isItemValid(QGraphicsItem* item)
 {
-    if (!item || !m_canvas || !m_canvas->scene()) {
+    if (!item || !m_canvas) {
         return false;
     }
 
-    // Check if item is still in the scene
-    return m_canvas->scene()->items().contains(item);
+    QGraphicsScene* scene = m_canvas->scene();
+    if (scene && item->scene() == scene) {
+        return true;
+    }
+
+    // Fall back to the canvas tracking data for items that were temporarily
+    // removed from the scene (for example, during erase operations).
+    return m_canvas->isValidItem(item);
 }
 
 // AddItemCommand implementation
@@ -125,13 +131,23 @@ void AddItemCommand::redo()
 
 void AddItemCommand::undo()
 {
-    if (m_canvas && m_canvas->scene() && m_item) {
-        // Only remove if item is in scene
-        if (m_item->scene() == m_canvas->scene()) {
-            m_canvas->scene()->removeItem(m_item);
-            m_itemAdded = false;
-            m_canvas->storeCurrentFrameState();
+    if (!m_canvas || !m_item) {
+        return;
+    }
+
+    // Purge the item from all canvas bookkeeping before it potentially gets
+    // deleted by the command lifecycle. Otherwise stale pointers linger in the
+    // layer tracking structures and later queries may treat a freed item as
+    // still alive, leading to crashes deep inside Qt.
+    m_canvas->removeItemFromAllFrames(m_item);
+
+    m_itemAdded = false;
+
+    if (QGraphicsScene* scene = m_canvas->scene()) {
+        if (m_item->scene() == scene) {
+            scene->removeItem(m_item);
         }
+        m_canvas->storeCurrentFrameState();
     }
 }
 
@@ -141,6 +157,7 @@ RemoveItemCommand::RemoveItemCommand(Canvas* canvas, const QList<QGraphicsItem*>
     : GraphicsItemCommand(canvas, parent)
     , m_items(items)
     , m_itemsRemoved(false)
+    , m_frame(canvas ? canvas->getCurrentFrame() : -1)
 {
     setText(QString("Remove %1 item(s)").arg(items.count()));
 
@@ -170,12 +187,18 @@ RemoveItemCommand::~RemoveItemCommand()
             }
 
             if (!inScene) {
-                try {
-                    delete item;
+                const bool stillTracked = m_canvas && m_canvas->isValidItem(item);
+                if (!stillTracked) {
+                    try {
+                        delete item;
+                    }
+                    catch (...) {
+                        // Ignore deletion errors - item might already be deleted
+                        qDebug() << "RemoveItemCommand: Error deleting item (probably already deleted)";
+                    }
                 }
-                catch (...) {
-                    // Ignore deletion errors - item might already be deleted
-                    qDebug() << "RemoveItemCommand: Error deleting item (probably already deleted)";
+                else {
+                    qDebug() << "RemoveItemCommand: Item still tracked, skipping deletion";
                 }
             }
             else {
@@ -187,28 +210,46 @@ RemoveItemCommand::~RemoveItemCommand()
 //needs tweaking
 void RemoveItemCommand::redo()
 {
-    if (m_canvas && m_canvas->scene()) {
-        // Remove valid items from scene
-        QList<QGraphicsItem*> actuallyRemoved;
+    if (!m_canvas) {
+        return;
+    }
 
-        for (QGraphicsItem* item : m_items) {
-            if (item && isItemValid(item)) {
-                // Ensure any graphics effects are cleared before removing the item
-                if (item->graphicsEffect()) {
-                    item->setGraphicsEffect(nullptr);
-                }
-                m_canvas->scene()->removeItem(item);
-                m_canvas->removeItemFromAllFrames(item);
-                actuallyRemoved.append(item);
+    QGraphicsScene* scene = m_canvas->scene();
+    QList<QGraphicsItem*> actuallyRemoved;
+    bool changed = false;
+
+    const int targetFrame = (m_frame > 0) ? m_frame : (m_canvas ? m_canvas->getCurrentFrame() : -1);
+
+    for (QGraphicsItem* item : m_items) {
+        if (!item) {
+            continue;
+        }
+
+        const bool wasInScene = scene && item->scene() == scene;
+        const bool wasTracked = m_canvas && m_canvas->isValidItem(item);
+
+        if (wasInScene) {
+            if (item->graphicsEffect()) {
+                item->setGraphicsEffect(nullptr);
             }
+            scene->removeItem(item);
         }
 
-        m_items = actuallyRemoved; // Update list to only contain actually removed items
-        m_itemsRemoved = !m_items.isEmpty();
-
-        if (m_canvas) {
-            m_canvas->storeCurrentFrameState();
+        if (wasTracked && m_canvas) {
+            m_canvas->detachItemFromFrame(item, targetFrame);
         }
+
+        if (wasInScene || wasTracked) {
+            actuallyRemoved.append(item);
+            changed = true;
+        }
+    }
+
+    m_items = actuallyRemoved;
+    m_itemsRemoved = !m_items.isEmpty();
+
+    if (changed && m_canvas && targetFrame == m_canvas->getCurrentFrame()) {
+        m_canvas->storeCurrentFrameState();
     }
 }
 
@@ -222,7 +263,7 @@ void RemoveItemCommand::undo()
         }
         m_itemsRemoved = false;
 
-        if (m_canvas) {
+        if (m_canvas && m_canvas->getCurrentFrame() == m_frame) {
             m_canvas->storeCurrentFrameState();
         }
     }
@@ -405,19 +446,34 @@ GroupCommand::~GroupCommand()
 
 void GroupCommand::undo()
 {
-    if (m_canvas && m_canvas->scene() && m_group && isItemValid(m_group)) {
-        QList<QGraphicsItem*> children = m_group->childItems();
-        m_canvas->scene()->destroyItemGroup(m_group);
-        m_group = nullptr;
-        m_grouped = false;
-        m_canvas->scene()->clearSelection();
-        for (QGraphicsItem* child : children) {
-            if (isItemValid(child)) {
-                child->setSelected(true);
-            }
-        }
-        m_canvas->storeCurrentFrameState();
+    if (!m_canvas || !m_group || !isItemValid(m_group)) {
+        return;
     }
+
+    QGraphicsScene* scene = m_canvas->scene();
+    if (!scene) {
+        return;
+    }
+
+    QList<QGraphicsItem*> children = m_group->childItems();
+
+    // Ensure the temporary group item disappears from every tracking
+    // structure before Qt destroys it so we never hold dangling pointers to
+    // the soon-to-be-deleted group.
+    m_canvas->removeItemFromAllFrames(m_group);
+
+    scene->destroyItemGroup(m_group);
+    m_group = nullptr;
+    m_grouped = false;
+    scene->clearSelection();
+
+    for (QGraphicsItem* child : children) {
+        if (isItemValid(child)) {
+            child->setSelected(true);
+        }
+    }
+
+    m_canvas->storeCurrentFrameState();
 }
 
 void GroupCommand::redo()
@@ -485,19 +541,31 @@ void UngroupCommand::undo()
 
 void UngroupCommand::redo()
 {
-    if (m_canvas && m_canvas->scene() && m_group && isItemValid(m_group)) {
-        QList<QGraphicsItem*> children = m_group->childItems();
-        m_canvas->scene()->destroyItemGroup(m_group);
-        m_group = nullptr;
-        m_canvas->scene()->clearSelection();
-        for (QGraphicsItem* child : children) {
-            if (isItemValid(child)) {
-                child->setSelected(true);
-            }
-        }
-        m_ungrouped = true;
-        m_canvas->storeCurrentFrameState();
+    if (!m_canvas || !m_group || !isItemValid(m_group)) {
+        return;
     }
+
+    QGraphicsScene* scene = m_canvas->scene();
+    if (!scene) {
+        return;
+    }
+
+    QList<QGraphicsItem*> children = m_group->childItems();
+
+    m_canvas->removeItemFromAllFrames(m_group);
+
+    scene->destroyItemGroup(m_group);
+    m_group = nullptr;
+    scene->clearSelection();
+
+    for (QGraphicsItem* child : children) {
+        if (isItemValid(child)) {
+            child->setSelected(true);
+        }
+    }
+
+    m_ungrouped = true;
+    m_canvas->storeCurrentFrameState();
 }
 
 // PropertyChangeCommand implementation
@@ -636,9 +704,21 @@ void RemoveKeyframeCommand::undo() {
 
 void DrawCommand::undo()
 {
-    if (m_canvas && m_canvas->scene() && m_item && isItemValid(m_item)) {
-        m_canvas->scene()->removeItem(m_item);
-        m_itemAdded = false;
+    if (!m_canvas || !m_item) {
+        return;
+    }
+
+    // Remove the drawn item from every bookkeeping structure before it is
+    // potentially destroyed by the undo stack to avoid leaving dangling
+    // pointers inside the canvas' frame caches.
+    m_canvas->removeItemFromAllFrames(m_item);
+
+    m_itemAdded = false;
+
+    if (QGraphicsScene* scene = m_canvas->scene()) {
+        if (m_item->scene() == scene) {
+            scene->removeItem(m_item);
+        }
         m_canvas->storeCurrentFrameState();
     }
 }

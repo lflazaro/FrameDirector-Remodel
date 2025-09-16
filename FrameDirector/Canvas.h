@@ -196,6 +196,7 @@ public:
     void addItemToCurrentLayer(QGraphicsItem* item);
     void addItemWithUndo(QGraphicsItem* item);
     void removeItemWithUndo(QGraphicsItem* item);
+    void detachItemFromFrame(QGraphicsItem* item, int frame = -1);
 
     // Layer compatibility methods
     QList<QGraphicsItem*> getCurrentLayerItems() const;
