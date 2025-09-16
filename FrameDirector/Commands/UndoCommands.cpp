@@ -84,12 +84,18 @@ bool MoveCommand::mergeWith(const QUndoCommand* other)
 // FIXED: Add item validation helper
 bool GraphicsItemCommand::isItemValid(QGraphicsItem* item)
 {
-    if (!item || !m_canvas || !m_canvas->scene()) {
+    if (!item || !m_canvas) {
         return false;
     }
 
-    // Check if item is still in the scene
-    return m_canvas->scene()->items().contains(item);
+    QGraphicsScene* scene = m_canvas->scene();
+    if (scene && item->scene() == scene) {
+        return true;
+    }
+
+    // Fall back to the canvas tracking data for items that were temporarily
+    // removed from the scene (for example, during erase operations).
+    return m_canvas->isValidItem(item);
 }
 
 // AddItemCommand implementation
@@ -187,28 +193,44 @@ RemoveItemCommand::~RemoveItemCommand()
 //needs tweaking
 void RemoveItemCommand::redo()
 {
-    if (m_canvas && m_canvas->scene()) {
-        // Remove valid items from scene
-        QList<QGraphicsItem*> actuallyRemoved;
+    if (!m_canvas) {
+        return;
+    }
 
-        for (QGraphicsItem* item : m_items) {
-            if (item && isItemValid(item)) {
-                // Ensure any graphics effects are cleared before removing the item
-                if (item->graphicsEffect()) {
-                    item->setGraphicsEffect(nullptr);
-                }
-                m_canvas->scene()->removeItem(item);
-                m_canvas->removeItemFromAllFrames(item);
-                actuallyRemoved.append(item);
+    QGraphicsScene* scene = m_canvas->scene();
+    QList<QGraphicsItem*> actuallyRemoved;
+    bool changed = false;
+
+    for (QGraphicsItem* item : m_items) {
+        if (!item) {
+            continue;
+        }
+
+        const bool wasInScene = scene && item->scene() == scene;
+        const bool wasTracked = m_canvas->isValidItem(item);
+
+        if (wasInScene) {
+            if (item->graphicsEffect()) {
+                item->setGraphicsEffect(nullptr);
             }
+            scene->removeItem(item);
         }
 
-        m_items = actuallyRemoved; // Update list to only contain actually removed items
-        m_itemsRemoved = !m_items.isEmpty();
-
-        if (m_canvas) {
-            m_canvas->storeCurrentFrameState();
+        if (wasTracked) {
+            m_canvas->removeItemFromAllFrames(item);
         }
+
+        if (wasInScene || wasTracked) {
+            actuallyRemoved.append(item);
+            changed = true;
+        }
+    }
+
+    m_items = actuallyRemoved;
+    m_itemsRemoved = !m_items.isEmpty();
+
+    if (changed) {
+        m_canvas->storeCurrentFrameState();
     }
 }
 
