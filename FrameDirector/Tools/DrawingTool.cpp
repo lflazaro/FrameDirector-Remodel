@@ -8,6 +8,7 @@
 #include <QUndoStack>
 #include <QDebug>
 #include <QTimer>
+#include <QLineF>
 #include <QColorDialog>
 #include <QSpinBox>
 #include <QSlider>
@@ -269,6 +270,7 @@ DrawingTool::DrawingTool(MainWindow* mainWindow, QObject* parent)
     , m_smoothingEnabled(true)
     , m_pressureSensitive(false)
     , m_stabilizerTimer(new QTimer(this))
+    , m_hasSmoothedPoint(false)
 {
     // Setup stabilizer timer
     m_stabilizerTimer->setSingleShot(true);
@@ -289,6 +291,8 @@ void DrawingTool::mousePressEvent(QMouseEvent* event, const QPointF& scenePos)
         m_lastPoint = scenePos;
         m_stabilizerPoints.clear();
         m_stabilizerPoints.append(scenePos);
+        m_smoothedPoint = scenePos;
+        m_hasSmoothedPoint = true;
 
         m_currentPath = new QGraphicsPathItem();
         m_currentPath->setPath(m_path);
@@ -371,38 +375,95 @@ void DrawingTool::mouseReleaseEvent(QMouseEvent* event, const QPointF& scenePos)
 
         m_path = QPainterPath();
         m_stabilizerPoints.clear();
+        m_hasSmoothedPoint = false;
     }
 }
 
 void DrawingTool::onStabilizerTimeout()
 {
-    if (!m_drawing || m_stabilizerPoints.isEmpty())
+    if (m_stabilizerPoints.isEmpty())
         return;
 
-    // Suppose we keep a sliding‐window buffer of up to N points:
-    const int N = 8; // try 8–10 for stronger smoothing
-    int buffered = m_stabilizerPoints.size();
-    int windowSize = qMin(buffered, N);
+    // The stabilizer keeps a buffer of raw cursor samples and turns them into
+    // a smoothly filtered stroke. Instead of outputting the most recent point
+    // after a fixed delay, we build a trailing window average and blend it with
+    // the previous stabilized point. This behaves more like the "lazy" or
+    // "weighted" stabilizers in dedicated drawing apps – jitters are absorbed
+    // while the stroke still catches up to the cursor when it moves quickly.
 
-    // Compute a weighted average: w_i = (i+1) / sum_{j=1..windowSize}(j)
-    // Newest point has weight windowSize, oldest has weight 1.
-    double weightSum = (windowSize * (windowSize + 1)) / 2.0;
-    QPointF avg(0, 0);
+    const int kMinWindow = 2;
+    const int kMaxWindow = 20;
+    int desiredWindow = kMinWindow + qRound(m_stabilizerAmount * 0.6);
+    desiredWindow = qBound(kMinWindow, desiredWindow, kMaxWindow);
 
-    for (int i = 0; i < windowSize; ++i) {
-        // index from the *end* so that the newest point gets highest weight
-        int idx = buffered - 1 - i;
-        double w = (i + 1);
-        avg += m_stabilizerPoints[idx] * w;
+    int backlog = qMax(0, m_stabilizerPoints.size() - desiredWindow);
+    int iterations = backlog + 1;
+    if (!m_drawing) {
+        iterations = m_stabilizerPoints.size();
+    } else {
+        iterations = qBound(1, iterations, 96);
     }
-    avg /= weightSum;
 
-    // Now we pop just ONE point from the front so that the buffer
-    // slides by one each timer tick.
-    m_stabilizerPoints.removeFirst();
-    addPointToPath(avg);
+    for (int iter = 0; iter < iterations; ++iter) {
+        if (m_stabilizerPoints.isEmpty())
+            break;
 
-    // If there are still points left, restart the timer
+        int buffered = m_stabilizerPoints.size();
+        int windowSize = qMin(buffered, desiredWindow);
+        if (windowSize <= 0)
+            break;
+
+        QPointF target(0.0, 0.0);
+        for (int i = 0; i < windowSize; ++i) {
+            target += m_stabilizerPoints[buffered - 1 - i];
+        }
+        target /= static_cast<qreal>(windowSize);
+
+        if (!m_hasSmoothedPoint) {
+            m_smoothedPoint = target;
+            m_hasSmoothedPoint = true;
+        }
+
+        QPointF cursorPos = m_stabilizerPoints.last();
+        double distanceToCursor = QLineF(m_smoothedPoint, cursorPos).length();
+
+        double normalized = m_stabilizerAmount / 20.0;
+        double baseFollow = 0.55 - (0.35 * normalized);
+        baseFollow = qBound(0.18, baseFollow, 0.65);
+
+        double catchUpBoost = 0.0;
+        if (!m_drawing) {
+            catchUpBoost = 0.4; // Finish remaining points quickly when pen is released
+        } else if (distanceToCursor > 4.0) {
+            catchUpBoost = qBound(0.0, (distanceToCursor - 4.0) / 40.0, 0.45);
+        }
+
+        double follow = qBound(0.18, baseFollow + catchUpBoost, 0.95);
+
+        QPointF newPoint = m_smoothedPoint + (target - m_smoothedPoint) * follow;
+
+        if (distanceToCursor < 3.0) {
+            newPoint = (newPoint * 0.6) + (cursorPos * 0.4);
+        }
+
+        m_smoothedPoint = newPoint;
+        addPointToPath(newPoint);
+
+        m_stabilizerPoints.removeFirst();
+
+        if (!m_drawing) {
+            if (m_stabilizerPoints.isEmpty())
+                break;
+        } else {
+            if (m_stabilizerPoints.size() <= 1)
+                break;
+
+            int remainingBacklog = qMax(0, m_stabilizerPoints.size() - desiredWindow);
+            if (remainingBacklog <= 0)
+                break;
+        }
+    }
+
     if (!m_stabilizerPoints.isEmpty() && m_drawing) {
         m_stabilizerTimer->start();
     }
