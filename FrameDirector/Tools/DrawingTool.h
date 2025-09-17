@@ -69,6 +69,8 @@ private:
     // Stabilizer system
     QTimer* m_stabilizerTimer;
     QList<QPointF> m_stabilizerPoints;
+    QPointF m_smoothedPoint;
+    bool m_hasSmoothedPoint;
 };
 
 #endif // DRAWINGTOOL_H
