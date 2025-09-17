@@ -96,8 +96,8 @@ struct LayerData {
         allTimeItems.remove(item);
 
         // Remove from all frames
-        for (auto& frameList : frameItems) {
-            frameList.removeAll(item);
+        for (auto it = frameItems.begin(); it != frameItems.end(); ++it) {
+            it.value().removeAll(item);
         }
     }
 

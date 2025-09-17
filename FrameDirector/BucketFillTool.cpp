@@ -452,18 +452,35 @@ BucketFillTool::ClosedRegion BucketFillTool::buildClosedRegionFromSegments(const
     const qreal minArea = 4.0;
     QPainterPath candidatePath;
 
-    for (const QPolygonF& polygon : polygons) {
-        if (polygon.isEmpty()) {
-            continue;
+    const auto polygonArea = [](const QPolygonF& polygon) -> qreal {
+        const int pointCount = polygon.size();
+        if (pointCount < 3) {
+            return 0.0;
         }
 
-        if (qAbs(polygon.area()) < minArea) {
+        qreal area = 0.0;
+        for (int i = 0; i < pointCount; ++i) {
+            const QPointF& current = polygon[i];
+            const QPointF& next = polygon[(i + 1) % pointCount];
+            area += current.x() * next.y();
+            area -= next.x() * current.y();
+        }
+
+        return qAbs(area) * 0.5;
+        };
+
+    for (const QPolygonF& polygon : polygons) {
+        if (polygon.isEmpty()) {
             continue;
         }
 
         QPainterPath polygonPath;
         polygonPath.addPolygon(polygon);
         polygonPath.closeSubpath();
+
+        if (polygonArea(polygon) < minArea) {
+            continue;
+        }
 
         if (polygonPath.contains(seedPoint)) {
             candidatePath = polygonPath;
