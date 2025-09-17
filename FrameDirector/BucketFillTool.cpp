@@ -7,15 +7,20 @@
 #include <QGraphicsRectItem>
 #include <QGraphicsEllipseItem>
 #include <QGraphicsLineItem>
+#include <QAbstractGraphicsShapeItem>
 #include <QPainter>
 #include <QPainterPath>
+#include <QPainterPathStroker>
+#include <QPen>
 #include <QApplication>
 #include <QDebug>
 #include <QElapsedTimer>
 #include <QtMath>
 #include <QQueue>
 #include <QSet>
+#include <QVector>
 #include <QTimer>
+#include <limits>
 
 // Direction vectors for 8-connected neighbors (Moore neighborhood)
 const QPoint BucketFillTool::DIRECTIONS[8] = {
@@ -170,42 +175,56 @@ BucketFillTool::ClosedRegion BucketFillTool::findEnclosedRegion(const QPointF& p
     region.isValid = false;
 
     // Check if point is in canvas bounds
-    if (m_canvas && !m_canvas->getCanvasRect().contains(point)) {
+    if (!m_canvas || !m_canvas->getCanvasRect().contains(point)) {
         return region;
     }
 
-    // Collect nearby path segments
-    QList<PathSegment> nearbyPaths = collectNearbyPaths(point, m_searchRadius);
+    QRectF canvasRect = m_canvas->getCanvasRect();
+    qreal maxCanvasDim = qMax(canvasRect.width(), canvasRect.height());
 
-    if (nearbyPaths.isEmpty()) {
-        qDebug() << "BucketFill: No nearby paths found";
-        return region;
-    }
+    QVector<qreal> radii = { m_searchRadius, m_searchRadius * 1.5, m_searchRadius * 2.0 };
 
-    qDebug() << "BucketFill: Found" << nearbyPaths.size() << "nearby path segments";
+    for (qreal radius : radii) {
+        qreal clampedRadius = qBound<qreal>(20.0, radius, maxCanvasDim);
 
-    // Check if point is inside a closed path
-    for (const PathSegment& segment : nearbyPaths) {
-        if (isPathClosed(segment.path) && segment.path.contains(point)) {
-            region.outerBoundary = segment.path;
-            region.bounds = segment.bounds;
+        QList<PathSegment> nearbyPaths = collectNearbyPaths(point, clampedRadius);
+
+        if (nearbyPaths.isEmpty()) {
+            continue;
+        }
+
+        qDebug() << "BucketFill: Found" << nearbyPaths.size() << "path segments in radius" << clampedRadius;
+
+        // Check if point is inside a closed path already present
+        for (const PathSegment& segment : nearbyPaths) {
+            if (!segment.path.isEmpty() && isPathClosed(segment.path, m_connectionTolerance * 1.5) && segment.path.contains(point)) {
+                region.outerBoundary = segment.path;
+                region.bounds = segment.bounds;
+                region.isValid = true;
+                qDebug() << "BucketFill: Point inside existing closed path";
+                return region;
+            }
+        }
+
+        // Try advanced reconstruction using all nearby segments
+        ClosedRegion advancedRegion = buildClosedRegionFromSegments(nearbyPaths, point, clampedRadius);
+        if (advancedRegion.isValid) {
+            qDebug() << "BucketFill: Advanced region reconstruction succeeded";
+            return advancedRegion;
+        }
+
+        // Fallback to legacy path connection logic
+        QPainterPath closedPath = createClosedPath(nearbyPaths, point);
+        if (!closedPath.isEmpty() && closedPath.contains(point)) {
+            region.outerBoundary = closedPath;
+            region.bounds = closedPath.boundingRect();
             region.isValid = true;
-            qDebug() << "BucketFill: Point is inside existing closed path";
+            qDebug() << "BucketFill: Created closed path from segments";
             return region;
         }
     }
 
-    // Try to create a closed path from multiple segments
-    QPainterPath closedPath = createClosedPath(nearbyPaths, point);
-
-    if (!closedPath.isEmpty() && closedPath.contains(point)) {
-        region.outerBoundary = closedPath;
-        region.bounds = closedPath.boundingRect();
-        region.isValid = true;
-        qDebug() << "BucketFill: Created closed path from segments";
-        return region;
-    }
-
+    qDebug() << "BucketFill: No enclosed region could be determined";
     return region;
 }
 
@@ -229,6 +248,10 @@ QList<BucketFillTool::PathSegment> BucketFillTool::collectNearbyPaths(const QPoi
     for (QGraphicsItem* item : items) {
         // FIXED: Skip the background rectangle (it has zValue -1000)
         if (item->zValue() <= -999) {
+            continue;
+        }
+
+        if (item == m_previewItem) {
             continue;
         }
 
@@ -333,6 +356,142 @@ QPainterPath BucketFillTool::createClosedPath(const QList<PathSegment>& segments
     }
 
     return QPainterPath();
+}
+
+BucketFillTool::ClosedRegion BucketFillTool::buildClosedRegionFromSegments(const QList<PathSegment>& segments,
+    const QPointF& seedPoint, qreal searchRadius)
+{
+    ClosedRegion region;
+    region.isValid = false;
+
+    if (segments.isEmpty()) {
+        return region;
+    }
+
+    QRectF combinedBounds;
+    bool hasBounds = false;
+
+    for (const PathSegment& segment : segments) {
+        if (!hasBounds) {
+            combinedBounds = segment.bounds;
+            hasBounds = true;
+        }
+        else {
+            combinedBounds = combinedBounds.united(segment.bounds);
+        }
+    }
+
+    if (!hasBounds || combinedBounds.isNull()) {
+        return region;
+    }
+
+    if (!combinedBounds.contains(seedPoint)) {
+        qreal adjust = qMax(searchRadius * 0.5, m_connectionTolerance * 8.0);
+        combinedBounds = combinedBounds.united(QRectF(seedPoint.x() - adjust, seedPoint.y() - adjust, adjust * 2, adjust * 2));
+    }
+
+    qreal margin = qMax(qreal(12.0), qMax(searchRadius * 0.25, m_connectionTolerance * 6.0));
+    combinedBounds.adjust(-margin, -margin, margin, margin);
+
+    if (m_canvas) {
+        QRectF canvasRect = m_canvas->getCanvasRect();
+        combinedBounds = combinedBounds.intersected(canvasRect);
+        if (!combinedBounds.contains(seedPoint)) {
+            combinedBounds = canvasRect;
+        }
+    }
+
+    if (combinedBounds.isEmpty()) {
+        return region;
+    }
+
+    QPainterPath searchArea;
+    searchArea.addRect(combinedBounds);
+
+    QPainterPath obstacles;
+    QPainterPathStroker stroker;
+    stroker.setCapStyle(Qt::RoundCap);
+    stroker.setJoinStyle(Qt::RoundJoin);
+
+    qreal baseStrokeWidth = qMax(m_connectionTolerance * 2.0, 1.5);
+    qreal maxStrokeWidth = baseStrokeWidth;
+
+    for (const PathSegment& segment : segments) {
+        if (segment.path.isEmpty()) {
+            continue;
+        }
+
+        qreal strokeWidth = baseStrokeWidth;
+        if (auto shapeItem = qgraphicsitem_cast<QAbstractGraphicsShapeItem*>(segment.item)) {
+            strokeWidth = qMax(strokeWidth, shapeItem->pen().widthF() + m_connectionTolerance);
+        }
+
+        stroker.setWidth(strokeWidth);
+        maxStrokeWidth = qMax(maxStrokeWidth, strokeWidth);
+
+        QPainterPath thickPath = stroker.createStroke(segment.path);
+        obstacles = obstacles.united(thickPath);
+
+        if (auto shapeItem = qgraphicsitem_cast<QAbstractGraphicsShapeItem*>(segment.item)) {
+            if (shapeItem->brush().style() != Qt::NoBrush && shapeItem->brush().color().alpha() > 0) {
+                obstacles = obstacles.united(segment.path);
+            }
+        }
+    }
+
+    obstacles = obstacles.intersected(searchArea);
+
+    QPainterPath available = searchArea.subtracted(obstacles);
+    available = available.simplified();
+
+    if (available.isEmpty()) {
+        return region;
+    }
+
+    QList<QPolygonF> polygons = available.toFillPolygons();
+    const qreal minArea = 4.0;
+    QPainterPath candidatePath;
+
+    for (const QPolygonF& polygon : polygons) {
+        if (polygon.isEmpty()) {
+            continue;
+        }
+
+        if (qAbs(polygon.area()) < minArea) {
+            continue;
+        }
+
+        QPainterPath polygonPath;
+        polygonPath.addPolygon(polygon);
+        polygonPath.closeSubpath();
+
+        if (polygonPath.contains(seedPoint)) {
+            candidatePath = polygonPath;
+            break;
+        }
+    }
+
+    if (candidatePath.isEmpty()) {
+        return region;
+    }
+
+    candidatePath = candidatePath.simplified();
+
+    QRectF candidateRect = candidatePath.boundingRect();
+    qreal boundaryTolerance = qMax(maxStrokeWidth * 1.5, m_connectionTolerance * 4.0);
+
+    if (qAbs(candidateRect.left() - combinedBounds.left()) < boundaryTolerance ||
+        qAbs(candidateRect.right() - combinedBounds.right()) < boundaryTolerance ||
+        qAbs(candidateRect.top() - combinedBounds.top()) < boundaryTolerance ||
+        qAbs(candidateRect.bottom() - combinedBounds.bottom()) < boundaryTolerance) {
+        return region;
+    }
+
+    region.outerBoundary = candidatePath;
+    region.bounds = candidateRect;
+    region.isValid = true;
+
+    return region;
 }
 
 bool BucketFillTool::isPathClosed(const QPainterPath& path, qreal tolerance)
