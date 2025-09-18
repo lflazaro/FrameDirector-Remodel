@@ -5,6 +5,7 @@
 #include "Tools/Tool.h"
 #include "MainWindow.h"
 #include "Tools/SelectionTool.h"
+#include "Common/GraphicsItemRoles.h"
 #include <QGraphicsScene>
 #include <QGraphicsItem>
 #include <QGraphicsRectItem>
@@ -31,6 +32,7 @@
 #include <QRadialGradient>
 #include <QConicalGradient>
 #include <algorithm>
+#include <limits>
 
 // ROBUST: Enhanced layer data structure with better state management
 struct LayerData {
@@ -46,7 +48,7 @@ struct LayerData {
 
     LayerData(const QString& layerName)
         : name(layerName), visible(true), locked(false), opacity(1.0),
-          blendMode(QPainter::CompositionMode_SourceOver) {
+        blendMode(QPainter::CompositionMode_SourceOver) {
         // Generate unique ID to prevent layer confusion
         uuid = QString("layer_%1_%2").arg(layerName).arg(QDateTime::currentMSecsSinceEpoch());
     }
@@ -96,8 +98,8 @@ struct LayerData {
         allTimeItems.remove(item);
 
         // Remove from all frames
-        for (auto it = frameItems.begin(); it != frameItems.end(); ++it) {
-            it.value().removeAll(item);
+        for (auto& frameList : frameItems) {
+            frameList.removeAll(item);
         }
     }
 
@@ -338,7 +340,7 @@ void Canvas::setupDefaultLayers()
 
 
 int Canvas::addLayer(const QString& name, bool visible, double opacity,
-                     QPainter::CompositionMode blendMode)
+    QPainter::CompositionMode blendMode)
 {
     QString layerName = name.isEmpty() ? QString("Layer %1").arg(m_layers.size()) : name;
 
@@ -376,7 +378,7 @@ int Canvas::addLayer(const QString& name, bool visible, double opacity,
 }
 
 void Canvas::addLayerVoid(const QString& name, bool visible, double opacity,
-                          QPainter::CompositionMode blendMode)
+    QPainter::CompositionMode blendMode)
 {
     addLayer(name, visible, opacity, blendMode);
 }
@@ -593,13 +595,21 @@ void Canvas::addItemToCurrentLayer(QGraphicsItem* item)
         }
     }
 
+    const bool placeBehindStroke = item->data(GraphicsItemRoles::BucketFillBehindStrokeRole).toBool();
+    const qreal zEpsilon = 0.01;
+
     // Determine appropriate Z-value to preserve relative ordering
     int baseZ = m_currentLayerIndex * 1000;
     int maxZ = -1;
+    qreal minZ = std::numeric_limits<qreal>::max();
     for (QGraphicsItem* existing : currentLayer->items) {
         int z = static_cast<int>(existing->zValue()) % 1000;
         if (z > maxZ) {
             maxZ = z;
+        }
+
+        if (placeBehindStroke) {
+            minZ = qMin(minZ, existing->zValue());
         }
     }
 
@@ -607,7 +617,21 @@ void Canvas::addItemToCurrentLayer(QGraphicsItem* item)
     currentLayer->addItem(item, m_currentFrame);
 
     // Set properties based on layer state
-    item->setZValue(baseZ + maxZ + 1);
+    qreal targetZ = baseZ + maxZ + 1;
+    if (placeBehindStroke) {
+        qreal desired = (minZ == std::numeric_limits<qreal>::max())
+            ? baseZ - zEpsilon
+            : qMin(minZ - zEpsilon, targetZ);
+
+        const qreal minimumLayerZ = baseZ - 0.99;
+        if (desired < minimumLayerZ) {
+            desired = minimumLayerZ;
+        }
+
+        targetZ = desired;
+    }
+
+    item->setZValue(targetZ);
     item->setFlag(QGraphicsItem::ItemIsSelectable, !currentLayer->locked);
     item->setFlag(QGraphicsItem::ItemIsMovable, !currentLayer->locked);
     item->setVisible(currentLayer->visible);
@@ -660,7 +684,8 @@ void Canvas::saveFrameState(int frame)
             state["opacity"] = item->opacity();
             if (auto blur = dynamic_cast<QGraphicsBlurEffect*>(item->graphicsEffect())) {
                 state["blur"] = blur->blurRadius();
-            } else {
+            }
+            else {
                 state["blur"] = 0.0;
             }
             frameData.itemStates[item] = state;
@@ -1054,13 +1079,13 @@ void Canvas::cleanupInterpolatedItems(int layerIndex)
     }
 
     qDebug() << "Cleaning up" << m_layerInterpolatedItems[layerIndex].size()
-             << "interpolated items for layer" << layerIndex;
+        << "interpolated items for layer" << layerIndex;
 
     // Retrieve layer pointer if available for safety checks
     LayerData* layer =
         (layerIndex >= 0 && layerIndex < m_layers.size())
-            ? static_cast<LayerData*>(m_layers[layerIndex])
-            : nullptr;
+        ? static_cast<LayerData*>(m_layers[layerIndex])
+        : nullptr;
 
     QList<QGraphicsItem*>& items = m_layerInterpolatedItems[layerIndex];
     for (QGraphicsItem* item : items) {
@@ -1153,9 +1178,9 @@ void Canvas::interpolateFrame(int currentFrame, int startFrame, int endFrame, fl
 
         // Interpolate opacity
         qreal startOpacity = startItem->opacity();
-       qreal endOpacity = endItem->opacity();
-       qreal interpolatedOpacity = startOpacity + t * (endOpacity - startOpacity);
-       interpolatedItem->setOpacity(interpolatedOpacity);
+        qreal endOpacity = endItem->opacity();
+        qreal interpolatedOpacity = startOpacity + t * (endOpacity - startOpacity);
+        interpolatedItem->setOpacity(interpolatedOpacity);
 
         // Interpolate blur
         qreal startBlur = 0;
@@ -1172,7 +1197,8 @@ void Canvas::interpolateFrame(int currentFrame, int startFrame, int endFrame, fl
                 interpolatedItem->setGraphicsEffect(blurEffect);
             }
             blurEffect->setBlurRadius(interpolatedBlur);
-        } else if (interpolatedItem->graphicsEffect()) {
+        }
+        else if (interpolatedItem->graphicsEffect()) {
             interpolatedItem->setGraphicsEffect(nullptr);
         }
 
@@ -2903,9 +2929,10 @@ QJsonObject Canvas::serializeBrush(const QBrush& brush) const
     obj["style"] = static_cast<int>(brush.style());
     if (brush.style() == Qt::SolidPattern) {
         obj["color"] = brush.color().name();
-    } else if (brush.style() == Qt::LinearGradientPattern ||
-               brush.style() == Qt::RadialGradientPattern ||
-               brush.style() == Qt::ConicalGradientPattern) {
+    }
+    else if (brush.style() == Qt::LinearGradientPattern ||
+        brush.style() == Qt::RadialGradientPattern ||
+        brush.style() == Qt::ConicalGradientPattern) {
         const QGradient* grad = brush.gradient();
         if (grad) {
             obj["type"] = static_cast<int>(grad->type());
@@ -2925,21 +2952,24 @@ QJsonObject Canvas::serializeBrush(const QBrush& brush) const
                 obj["startY"] = lg->start().y();
                 obj["endX"] = lg->finalStop().x();
                 obj["endY"] = lg->finalStop().y();
-            } else if (grad->type() == QGradient::RadialGradient) {
+            }
+            else if (grad->type() == QGradient::RadialGradient) {
                 const QRadialGradient* rg = static_cast<const QRadialGradient*>(grad);
                 obj["centerX"] = rg->center().x();
                 obj["centerY"] = rg->center().y();
                 obj["focalX"] = rg->focalPoint().x();
                 obj["focalY"] = rg->focalPoint().y();
                 obj["radius"] = rg->radius();
-            } else if (grad->type() == QGradient::ConicalGradient) {
+            }
+            else if (grad->type() == QGradient::ConicalGradient) {
                 const QConicalGradient* cg = static_cast<const QConicalGradient*>(grad);
                 obj["centerX"] = cg->center().x();
                 obj["centerY"] = cg->center().y();
                 obj["angle"] = cg->angle();
             }
         }
-    } else if (brush.style() != Qt::NoBrush) {
+    }
+    else if (brush.style() != Qt::NoBrush) {
         obj["color"] = brush.color().name();
     }
     return obj;
@@ -2950,23 +2980,26 @@ QBrush Canvas::deserializeBrush(const QJsonObject& obj) const
     Qt::BrushStyle style = static_cast<Qt::BrushStyle>(obj["style"].toInt(static_cast<int>(Qt::NoBrush)));
     if (style == Qt::SolidPattern) {
         return QBrush(QColor(obj["color"].toString("#000000")));
-    } else if (style == Qt::LinearGradientPattern ||
-               style == Qt::RadialGradientPattern ||
-               style == Qt::ConicalGradientPattern) {
+    }
+    else if (style == Qt::LinearGradientPattern ||
+        style == Qt::RadialGradientPattern ||
+        style == Qt::ConicalGradientPattern) {
         QGradient::Type type = static_cast<QGradient::Type>(obj["type"].toInt());
         QGradient* grad = nullptr;
         if (type == QGradient::LinearGradient) {
             QLinearGradient* lg = new QLinearGradient(obj["startX"].toDouble(), obj["startY"].toDouble(),
-                                                      obj["endX"].toDouble(), obj["endY"].toDouble());
+                obj["endX"].toDouble(), obj["endY"].toDouble());
             grad = lg;
-        } else if (type == QGradient::RadialGradient) {
+        }
+        else if (type == QGradient::RadialGradient) {
             QRadialGradient* rg = new QRadialGradient(obj["centerX"].toDouble(), obj["centerY"].toDouble(),
-                                                     obj["radius"].toDouble(), obj["focalX"].toDouble(),
-                                                     obj["focalY"].toDouble());
+                obj["radius"].toDouble(), obj["focalX"].toDouble(),
+                obj["focalY"].toDouble());
             grad = rg;
-        } else if (type == QGradient::ConicalGradient) {
+        }
+        else if (type == QGradient::ConicalGradient) {
             QConicalGradient* cg = new QConicalGradient(obj["centerX"].toDouble(), obj["centerY"].toDouble(),
-                                                        obj["angle"].toDouble());
+                obj["angle"].toDouble());
             grad = cg;
         }
 
@@ -2982,7 +3015,8 @@ QBrush Canvas::deserializeBrush(const QJsonObject& obj) const
             brush.setStyle(style);
             return brush;
         }
-    } else if (style != Qt::NoBrush) {
+    }
+    else if (style != Qt::NoBrush) {
         return QBrush(QColor(obj["color"].toString("#000000")));
     }
     return QBrush();
@@ -3091,7 +3125,8 @@ QJsonObject Canvas::serializeGraphicsItem(QGraphicsItem* item) const
     json["visible"] = item->isVisible();
     if (auto blur = dynamic_cast<QGraphicsBlurEffect*>(item->graphicsEffect())) {
         json["blur"] = blur->blurRadius();
-    } else {
+    }
+    else {
         json["blur"] = 0.0;
     }
     return json;
@@ -3175,7 +3210,7 @@ QGraphicsItem* Canvas::deserializeGraphicsItem(const QJsonObject& json) const
 
     if (item) {
         QPointF origin(json["originX"].toDouble(item->boundingRect().center().x()),
-                       json["originY"].toDouble(item->boundingRect().center().y()));
+            json["originY"].toDouble(item->boundingRect().center().y()));
         item->setTransformOriginPoint(origin);
         QTransform transform;
         transform.scale(json["scaleX"].toDouble(1.0), json["scaleY"].toDouble(1.0));

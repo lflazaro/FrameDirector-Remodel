@@ -1,6 +1,7 @@
 #include "BucketFillTool.h"
 #include "MainWindow.h"
 #include "Canvas.h"
+#include "Common/GraphicsItemRoles.h"
 #include "Commands/UndoCommands.h"
 #include <QGraphicsScene>
 #include <QGraphicsPathItem>
@@ -19,8 +20,63 @@
 #include <QQueue>
 #include <QSet>
 #include <QVector>
-#include <QTimer>
 #include <limits>
+#include <vector>
+
+namespace {
+
+    qreal polygonArea(const QPolygonF& polygon)
+    {
+        const int count = polygon.size();
+        if (count < 3) {
+            return 0.0;
+        }
+
+        qreal area = 0.0;
+        for (int i = 0; i < count; ++i) {
+            const QPointF& p1 = polygon.at(i);
+            const QPointF& p2 = polygon.at((i + 1) % count);
+            area += (p1.x() * p2.y()) - (p2.x() * p1.y());
+        }
+
+        return qAbs(area) * 0.5;
+    }
+
+    QPolygonF smoothPolygonChaikin(const QPolygonF& polygon, int iterations, qreal weight)
+    {
+        if (polygon.size() < 3) {
+            return polygon;
+        }
+
+        QPolygonF result = polygon;
+
+        for (int iter = 0; iter < iterations; ++iter) {
+            if (result.size() < 3) {
+                break;
+            }
+
+            QPolygonF next;
+            next.reserve(result.size() * 2);
+
+            const int count = result.size();
+            for (int i = 0; i < count; ++i) {
+                const QPointF& current = result.at(i);
+                const QPointF& nextPoint = result.at((i + 1) % count);
+
+                const QPointF q = current * (1.0 - weight) + nextPoint * weight;
+                const QPointF r = current * weight + nextPoint * (1.0 - weight);
+
+                next.append(q);
+                next.append(r);
+            }
+
+            result = next;
+        }
+
+        return result;
+    }
+
+}
 
 // Direction vectors for 8-connected neighbors (Moore neighborhood)
 const QPoint BucketFillTool::DIRECTIONS[8] = {
@@ -76,43 +132,37 @@ void BucketFillTool::mousePressEvent(QMouseEvent* event, const QPointF& scenePos
         }
 
         try {
-            if (m_fillMode == 0) {
-                // Vector-based filling (preferred method)
-                ClosedRegion region = findEnclosedRegion(scenePos);
+            ClosedRegion region = findEnclosedRegion(scenePos);
 
-                if (region.isValid && !region.outerBoundary.isEmpty()) {
-                    // Validate region size to prevent filling entire canvas
-                    QRectF regionBounds = region.outerBoundary.boundingRect();
-                    QRectF canvasBounds = m_canvas->getCanvasRect();
+            if ((!region.isValid || region.outerBoundary.isEmpty()) && m_fillMode == 1) {
+                bool touchesEdge = false;
+                region = floodFillRegionFromArea(canvasRect, scenePos, touchesEdge);
+            }
 
-                    // Don't fill if region covers more than 80% of canvas
-                    double regionArea = regionBounds.width() * regionBounds.height();
-                    double canvasArea = canvasBounds.width() * canvasBounds.height();
+            if (region.isValid && !region.outerBoundary.isEmpty()) {
+                // Validate region size to prevent filling entire canvas unintentionally
+                QRectF regionBounds = region.outerBoundary.boundingRect();
+                QRectF canvasBounds = m_canvas->getCanvasRect();
 
-                    if (regionArea > canvasArea * 0.8) {
-                        qDebug() << "BucketFill: Region too large, probably canvas background. Skipping.";
-                        return;
-                    }
+                double regionArea = regionBounds.width() * regionBounds.height();
+                double canvasArea = canvasBounds.width() * canvasBounds.height();
 
-                    QGraphicsPathItem* fillItem = createFillItem(region.outerBoundary, m_fillColor);
-                    if (fillItem) {
-                        addFillToCanvas(fillItem);
-                        qDebug() << "BucketFill: Vector fill completed in" << timer.elapsed() << "ms";
-                    }
-                    else {
-                        qDebug() << "BucketFill: Failed to create vector fill item";
-                    }
+                if (m_fillMode == 0 && regionArea > canvasArea * 0.8) {
+                    qDebug() << "BucketFill: Region too large, probably canvas background. Skipping.";
+                    return;
+                }
+
+                QGraphicsPathItem* fillItem = createFillItem(region.outerBoundary, m_fillColor);
+                if (fillItem) {
+                    addFillToCanvas(fillItem);
+                    qDebug() << "BucketFill: Fill completed in" << timer.elapsed() << "ms";
                 }
                 else {
-                    qDebug() << "BucketFill: No enclosed region found, using raster fill";
-                    performRasterFill(scenePos);
-                    qDebug() << "BucketFill: Fallback raster fill completed in" << timer.elapsed() << "ms";
+                    qDebug() << "BucketFill: Failed to create fill item";
                 }
             }
             else {
-                // Raster-based filling
-                performRasterFill(scenePos);
-                qDebug() << "BucketFill: Raster fill completed in" << timer.elapsed() << "ms";
+                qDebug() << "BucketFill: No enclosed region found for fill";
             }
         }
         catch (const std::exception& e) {
@@ -171,61 +221,304 @@ QCursor BucketFillTool::getCursor() const
 
 BucketFillTool::ClosedRegion BucketFillTool::findEnclosedRegion(const QPointF& point)
 {
-    ClosedRegion region;
-    region.isValid = false;
+    ClosedRegion invalidRegion;
+    invalidRegion.isValid = false;
 
-    // Check if point is in canvas bounds
-    if (!m_canvas || !m_canvas->getCanvasRect().contains(point)) {
-        return region;
+    if (!m_canvas || !m_canvas->scene()) {
+        return invalidRegion;
     }
 
     QRectF canvasRect = m_canvas->getCanvasRect();
-    qreal maxCanvasDim = qMax(canvasRect.width(), canvasRect.height());
+    if (!canvasRect.contains(point)) {
+        return invalidRegion;
+    }
 
-    QVector<qreal> radii = { m_searchRadius, m_searchRadius * 1.5, m_searchRadius * 2.0 };
+    const qreal maxCanvasDim = qMax(canvasRect.width(), canvasRect.height());
+    const qreal safeMax = qMax<qreal>(maxCanvasDim, 1.0);
+    const qreal initialRadius = qMin<qreal>(qMax<qreal>(m_searchRadius, 40.0), safeMax);
 
-    for (qreal radius : radii) {
-        qreal clampedRadius = qBound<qreal>(20.0, radius, maxCanvasDim);
+    QVector<qreal> radii;
+    radii.append(initialRadius);
 
-        QList<PathSegment> nearbyPaths = collectNearbyPaths(point, clampedRadius);
-
-        if (nearbyPaths.isEmpty()) {
-            continue;
+    qreal radius = initialRadius;
+    const int maxSteps = 6;
+    for (int i = 0; i < maxSteps && radius < maxCanvasDim; ++i) {
+        radius = qMin(maxCanvasDim, radius * 1.6);
+        if (qFuzzyCompare(radius, radii.last())) {
+            break;
         }
-
-        qDebug() << "BucketFill: Found" << nearbyPaths.size() << "path segments in radius" << clampedRadius;
-
-        // Check if point is inside a closed path already present
-        for (const PathSegment& segment : nearbyPaths) {
-            if (!segment.path.isEmpty() && isPathClosed(segment.path, m_connectionTolerance * 1.5) && segment.path.contains(point)) {
-                region.outerBoundary = segment.path;
-                region.bounds = segment.bounds;
-                region.isValid = true;
-                qDebug() << "BucketFill: Point inside existing closed path";
-                return region;
-            }
-        }
-
-        // Try advanced reconstruction using all nearby segments
-        ClosedRegion advancedRegion = buildClosedRegionFromSegments(nearbyPaths, point, clampedRadius);
-        if (advancedRegion.isValid) {
-            qDebug() << "BucketFill: Advanced region reconstruction succeeded";
-            return advancedRegion;
-        }
-
-        // Fallback to legacy path connection logic
-        QPainterPath closedPath = createClosedPath(nearbyPaths, point);
-        if (!closedPath.isEmpty() && closedPath.contains(point)) {
-            region.outerBoundary = closedPath;
-            region.bounds = closedPath.boundingRect();
-            region.isValid = true;
-            qDebug() << "BucketFill: Created closed path from segments";
-            return region;
+        radii.append(radius);
+        if (radius >= maxCanvasDim) {
+            break;
         }
     }
 
+    if (radii.isEmpty() || !qFuzzyCompare(radii.last(), maxCanvasDim)) {
+        radii.append(maxCanvasDim);
+    }
+
+    ClosedRegion lastValidRegion;
+    bool hasCandidate = false;
+    bool lastTouchedEdge = false;
+
+    for (qreal currentRadius : radii) {
+        QRectF sampleRect(point.x() - currentRadius, point.y() - currentRadius,
+            currentRadius * 2.0, currentRadius * 2.0);
+        sampleRect = sampleRect.intersected(canvasRect);
+        if (sampleRect.isEmpty()) {
+            continue;
+        }
+
+        bool touchesEdge = false;
+        ClosedRegion candidate = floodFillRegionFromArea(sampleRect, point, touchesEdge);
+        if (!candidate.isValid || candidate.outerBoundary.isEmpty()) {
+            continue;
+        }
+
+        const qreal canvasArea = canvasRect.width() * canvasRect.height();
+        const qreal regionArea = candidate.bounds.width() * candidate.bounds.height();
+
+        if (canvasArea > 0.0 && regionArea > canvasArea * 0.9 && m_fillMode == 0) {
+            qDebug() << "BucketFill: Detected candidate covering most of the canvas; skipping.";
+            continue;
+        }
+
+        lastValidRegion = candidate;
+        hasCandidate = true;
+        lastTouchedEdge = touchesEdge;
+
+        if (!touchesEdge) {
+            return candidate;
+        }
+
+        if (sampleRect == canvasRect) {
+            if (m_fillMode == 1) {
+                return candidate;
+            }
+
+            if (canvasArea <= 0.0 || regionArea < canvasArea * 0.85) {
+                return candidate;
+            }
+
+            hasCandidate = false;
+        }
+    }
+
+    if (!hasCandidate) {
+        if (m_fillMode == 1) {
+            bool touchesEdge = false;
+            ClosedRegion canvasRegion = floodFillRegionFromArea(canvasRect, point, touchesEdge);
+            if (canvasRegion.isValid && !canvasRegion.outerBoundary.isEmpty()) {
+                return canvasRegion;
+            }
+        }
+
+    }
+    else if (!lastTouchedEdge || m_fillMode == 1) {
+        return lastValidRegion;
+    }
+
     qDebug() << "BucketFill: No enclosed region could be determined";
+    return invalidRegion;
+}
+
+BucketFillTool::ClosedRegion BucketFillTool::floodFillRegionFromArea(const QRectF& area,
+    const QPointF& scenePoint, bool& touchesEdge)
+{
+    ClosedRegion region;
+    region.isValid = false;
+    touchesEdge = false;
+
+    if (!m_canvas || !m_canvas->scene()) {
+        return region;
+    }
+
+    if (area.isEmpty()) {
+        return region;
+    }
+
+    const qreal maxDimension = qMax(area.width(), area.height());
+    if (maxDimension <= 0.5) {
+        return region;
+    }
+
+    const qreal maxImageDim = 512.0;
+    qreal scale = maxImageDim / maxDimension;
+    scale = qBound<qreal>(0.1, scale, 3.0);
+
+    QImage image = renderSceneToImage(area, scale);
+    if (image.isNull() || image.width() <= 0 || image.height() <= 0) {
+        return region;
+    }
+
+    QPoint imagePoint(
+        qBound(0, static_cast<int>(qRound((scenePoint.x() - area.left()) * scale)), image.width() - 1),
+        qBound(0, static_cast<int>(qRound((scenePoint.y() - area.top()) * scale)), image.height() - 1));
+
+    const QRgb targetColor = image.pixel(imagePoint);
+
+    const int width = image.width();
+    const int height = image.height();
+    const int totalPixels = width * height;
+    if (totalPixels <= 0) {
+        return region;
+    }
+
+    std::vector<uchar> mask(static_cast<size_t>(totalPixels), 0);
+    QVector<QPoint> stack;
+    stack.reserve(qMin(totalPixels, 65536));
+    stack.append(imagePoint);
+
+    int filledPixels = 0;
+    int minX = width;
+    int minY = height;
+    int maxX = -1;
+    int maxY = -1;
+
+    while (!stack.isEmpty() && filledPixels < totalPixels) {
+        QPoint p = stack.back();
+        stack.pop_back();
+
+        if (p.x() < 0 || p.x() >= width || p.y() < 0 || p.y() >= height) {
+            continue;
+        }
+
+        const int index = p.y() * width + p.x();
+        if (mask[static_cast<size_t>(index)] != 0) {
+            continue;
+        }
+
+        const QRgb currentColor = image.pixel(p);
+        if (!colorsSimilar(currentColor, targetColor)) {
+            continue;
+        }
+
+        mask[static_cast<size_t>(index)] = 1;
+        ++filledPixels;
+
+        if (p.x() == 0 || p.x() == width - 1 || p.y() == 0 || p.y() == height - 1) {
+            touchesEdge = true;
+        }
+
+        minX = qMin(minX, p.x());
+        maxX = qMax(maxX, p.x());
+        minY = qMin(minY, p.y());
+        maxY = qMax(maxY, p.y());
+
+        stack.append(QPoint(p.x() + 1, p.y()));
+        stack.append(QPoint(p.x() - 1, p.y()));
+        stack.append(QPoint(p.x(), p.y() + 1));
+        stack.append(QPoint(p.x(), p.y() - 1));
+    }
+
+    if (filledPixels <= 0 || filledPixels >= totalPixels) {
+        return region;
+    }
+
+    if (minX > maxX || minY > maxY) {
+        return region;
+    }
+
+    QPainterPath rasterPath;
+    for (int y = minY; y <= maxY; ++y) {
+        const int rowOffset = y * width;
+        int x = minX;
+        while (x <= maxX) {
+            while (x <= maxX && mask[static_cast<size_t>(rowOffset + x)] == 0) {
+                ++x;
+            }
+            if (x > maxX) {
+                break;
+            }
+
+            const int start = x;
+            while (x <= maxX && mask[static_cast<size_t>(rowOffset + x)] != 0) {
+                ++x;
+            }
+            const int end = x;
+
+            rasterPath.addRect(QRectF(start, y, end - start, 1));
+        }
+    }
+
+    if (rasterPath.isEmpty()) {
+        return region;
+    }
+
+    QTransform transform;
+    transform.translate(area.left(), area.top());
+    const qreal invScale = 1.0 / scale;
+    transform.scale(invScale, invScale);
+
+    QPainterPath scenePath = transform.map(rasterPath);
+    scenePath = scenePath.simplified();
+
+    if (!scenePath.contains(scenePoint)) {
+        return region;
+    }
+
+    QPainterPathStroker stroker;
+    stroker.setCapStyle(Qt::SquareCap);
+    stroker.setJoinStyle(Qt::RoundJoin);
+    stroker.setWidth(qMax<qreal>(0.6, 1.4 / scale));
+    scenePath = scenePath.united(stroker.createStroke(scenePath)).simplified();
+
+    QPainterPath refinedPath = scenePath;
+
+    QPainterPath chaikinPath;
+    chaikinPath.setFillRule(refinedPath.fillRule());
+    const QVector<QPolygonF> polygons = refinedPath.toFillPolygons();
+    for (const QPolygonF& polygon : polygons) {
+        if (polygon.size() < 3) {
+            continue;
+        }
+
+        QPolygonF smoothedPolygon = smoothPolygonChaikin(polygon, 2, 0.25);
+        if (smoothedPolygon.size() < 3) {
+            continue;
+        }
+
+        QPainterPath smoothedPath;
+        smoothedPath.addPolygon(smoothedPolygon);
+        smoothedPath.closeSubpath();
+        chaikinPath.addPath(smoothedPath);
+    }
+
+    if (!chaikinPath.isEmpty()) {
+        QPainterPath candidate = chaikinPath.united(refinedPath).simplified();
+        if (candidate.contains(scenePoint)) {
+            refinedPath = candidate;
+        }
+    }
+
+    QPainterPath curvedPath = smoothContour(refinedPath, 1.35);
+    if (!curvedPath.isEmpty() && curvedPath.contains(scenePoint)) {
+        refinedPath = curvedPath.simplified();
+    }
+
+    scenePath = refinedPath;
+
+    region.outerBoundary = scenePath;
+    region.bounds = scenePath.boundingRect();
+    region.isValid = true;
+
     return region;
+}
+
+bool BucketFillTool::colorsSimilar(QRgb first, QRgb second) const
+{
+    if (qAlpha(first) < 10 && qAlpha(second) < 10) {
+        return true;
+    }
+
+    const int diff = qAbs(qRed(first) - qRed(second)) +
+        qAbs(qGreen(first) - qGreen(second)) +
+        qAbs(qBlue(first) - qBlue(second)) +
+        qAbs(qAlpha(first) - qAlpha(second));
+
+    const int baseTolerance = 12;
+    const int multiplier = 4;
+    return diff <= baseTolerance + m_tolerance * multiplier;
 }
 
 QList<BucketFillTool::PathSegment> BucketFillTool::collectNearbyPaths(const QPointF& center, qreal searchRadius)
@@ -452,23 +745,6 @@ BucketFillTool::ClosedRegion BucketFillTool::buildClosedRegionFromSegments(const
     const qreal minArea = 4.0;
     QPainterPath candidatePath;
 
-    const auto polygonArea = [](const QPolygonF& polygon) -> qreal {
-        const int pointCount = polygon.size();
-        if (pointCount < 3) {
-            return 0.0;
-        }
-
-        qreal area = 0.0;
-        for (int i = 0; i < pointCount; ++i) {
-            const QPointF& current = polygon[i];
-            const QPointF& next = polygon[(i + 1) % pointCount];
-            area += current.x() * next.y();
-            area -= next.x() * current.y();
-        }
-
-        return qAbs(area) * 0.5;
-        };
-
     for (const QPolygonF& polygon : polygons) {
         if (polygon.isEmpty()) {
             continue;
@@ -506,6 +782,166 @@ BucketFillTool::ClosedRegion BucketFillTool::buildClosedRegionFromSegments(const
 
     region.outerBoundary = candidatePath;
     region.bounds = candidateRect;
+    region.isValid = true;
+
+    return region;
+}
+
+BucketFillTool::ClosedRegion BucketFillTool::buildClosedRegionUsingRaster(const QList<PathSegment>& segments,
+    const QPointF& seedPoint, qreal searchRadius)
+{
+    ClosedRegion region;
+    region.isValid = false;
+
+    if (!m_canvas || !m_canvas->scene()) {
+        return region;
+    }
+
+    QRectF bounds;
+    bool hasBounds = false;
+
+    for (const PathSegment& segment : segments) {
+        if (!hasBounds) {
+            bounds = segment.bounds;
+            hasBounds = true;
+        }
+        else {
+            bounds = bounds.united(segment.bounds);
+        }
+    }
+
+    if (!hasBounds || bounds.isNull()) {
+        qreal fallbackRadius = qMax(searchRadius, qreal(48.0));
+        bounds = QRectF(seedPoint.x() - fallbackRadius, seedPoint.y() - fallbackRadius,
+            fallbackRadius * 2.0, fallbackRadius * 2.0);
+        hasBounds = true;
+    }
+
+    if (!bounds.contains(seedPoint)) {
+        qreal adjust = qMax(searchRadius * 0.5, m_connectionTolerance * 8.0);
+        QRectF seedBounds(seedPoint.x() - adjust, seedPoint.y() - adjust, adjust * 2.0, adjust * 2.0);
+        bounds = bounds.united(seedBounds);
+    }
+
+    qreal margin = qMax(qreal(18.0), qMax(searchRadius * 0.3, m_connectionTolerance * 6.0));
+    bounds.adjust(-margin, -margin, margin, margin);
+
+    QRectF canvasRect = m_canvas->getCanvasRect();
+    bounds = bounds.intersected(canvasRect);
+
+    if (bounds.isEmpty()) {
+        return region;
+    }
+
+    qreal area = bounds.width() * bounds.height();
+    if (area <= 0.0) {
+        return region;
+    }
+
+    const qreal maxPixels = 450000.0;
+    qreal scale = 3.0;
+    qreal scaledArea = area * scale * scale;
+
+    if (scaledArea > maxPixels) {
+        scale = qSqrt(maxPixels / area);
+    }
+
+    const qreal minScale = 0.75;
+    const qreal maxScale = 5.0;
+    scale = qBound(minScale, scale, maxScale);
+
+    if (area * scale * scale > maxPixels) {
+        qreal adjustedScale = qSqrt(maxPixels / area);
+        scale = qBound(qreal(0.4), adjustedScale, maxScale);
+    }
+
+    if (scale <= 0.0) {
+        return region;
+    }
+
+    if (area * scale * scale > maxPixels) {
+        return region;
+    }
+
+    QImage sceneImage = renderSceneToImage(bounds, scale);
+    if (sceneImage.isNull() || sceneImage.width() <= 0 || sceneImage.height() <= 0) {
+        return region;
+    }
+
+    QPointF relativePoint = seedPoint - bounds.topLeft();
+    QPoint imagePoint(qRound(relativePoint.x() * scale), qRound(relativePoint.y() * scale));
+
+    if (!sceneImage.rect().contains(imagePoint)) {
+        return region;
+    }
+
+    QColor targetColor = getPixelColor(sceneImage, imagePoint);
+    if (!targetColor.isValid()) {
+        return region;
+    }
+
+    QImage fillImage = sceneImage.copy();
+    QColor traceColor(255, 0, 255, 255);
+    if (traceColor == targetColor) {
+        traceColor = QColor(0, 255, 0, 255);
+    }
+
+    int totalPixels = sceneImage.width() * sceneImage.height();
+    int maxFillPixels = qMin(totalPixels, static_cast<int>(maxPixels));
+    if (maxFillPixels <= 0) {
+        return region;
+    }
+
+    int filledPixels = floodFillImageLimited(fillImage, imagePoint, targetColor, traceColor, maxFillPixels);
+    if (filledPixels <= 0 || filledPixels >= maxFillPixels) {
+        return region;
+    }
+
+    if (filledPixels > totalPixels * 0.85) {
+        return region;
+    }
+
+    QPainterPath tracedPath = traceFilledRegion(fillImage, traceColor);
+    if (tracedPath.isEmpty()) {
+        return region;
+    }
+
+    QTransform transform;
+    transform.translate(bounds.left(), bounds.top());
+    qreal invScale = 1.0 / scale;
+    transform.scale(invScale, invScale);
+    tracedPath = transform.map(tracedPath);
+    tracedPath = tracedPath.simplified();
+    tracedPath = smoothContour(tracedPath, 1.25);
+
+    if (!tracedPath.contains(seedPoint)) {
+        QPainterPath simplified = tracedPath.simplified();
+        if (!simplified.contains(seedPoint)) {
+            return region;
+        }
+    }
+
+    QRectF pathBounds = tracedPath.boundingRect();
+
+    qreal boundaryMargin = qMax(qreal(6.0), m_connectionTolerance * 2.0);
+    if (qAbs(pathBounds.left() - bounds.left()) < boundaryMargin ||
+        qAbs(pathBounds.right() - bounds.right()) < boundaryMargin ||
+        qAbs(pathBounds.top() - bounds.top()) < boundaryMargin ||
+        qAbs(pathBounds.bottom() - bounds.bottom()) < boundaryMargin) {
+        return region;
+    }
+
+    QRectF canvasBounds = m_canvas->getCanvasRect();
+    if (!canvasBounds.isEmpty()) {
+        qreal pathArea = pathBounds.width() * pathBounds.height();
+        qreal canvasArea = canvasBounds.width() * canvasBounds.height();
+        if (canvasArea > 0.0 && pathArea > canvasArea * 0.9) {
+            return region;
+        }
+    }
+
+    region.outerBoundary = tracedPath;
+    region.bounds = pathBounds;
     region.isValid = true;
 
     return region;
@@ -593,12 +1029,27 @@ void BucketFillTool::performRasterFill(const QPointF& point)
 {
     if (!m_canvas || !m_canvas->scene()) return;
 
-    // Reasonable fill area
-    qreal size = 200;
-    QRectF fillArea(point.x() - size / 2, point.y() - size / 2, size, size);
+    qreal searchRadius = qMax(m_searchRadius * 1.5, qreal(120.0));
+    QList<PathSegment> nearbySegments = collectNearbyPaths(point, searchRadius);
 
-    // Make sure fill area is within canvas bounds
+    ClosedRegion reconstructed = buildClosedRegionUsingRaster(nearbySegments, point, searchRadius);
+    if (reconstructed.isValid && !reconstructed.outerBoundary.isEmpty()) {
+        QGraphicsPathItem* fillItem = createFillItem(reconstructed.outerBoundary, m_fillColor);
+        if (fillItem) {
+            addFillToCanvas(fillItem);
+            qDebug() << "BucketFill: Raster fill via reconstructed region";
+        }
+        return;
+    }
+
+    if (nearbySegments.isEmpty()) {
+        qDebug() << "BucketFill: Raster fill aborted - no nearby segments";
+        return;
+    }
+
     QRectF canvasRect = m_canvas->getCanvasRect();
+    qreal size = qMax(qreal(200.0), searchRadius);
+    QRectF fillArea(point.x() - size / 2, point.y() - size / 2, size, size);
     fillArea = fillArea.intersected(canvasRect);
 
     if (fillArea.isEmpty()) {
@@ -606,79 +1057,74 @@ void BucketFillTool::performRasterFill(const QPointF& point)
         return;
     }
 
-    // Render scene to image with proper resolution
-    QImage sceneImage = renderSceneToImage(fillArea, 2.0);
+    qreal maxDimension = qMax(fillArea.width(), fillArea.height());
+    qreal scale = 2.0;
+    if (maxDimension * scale > 512.0) {
+        scale = qMax(qreal(1.0), 512.0 / maxDimension);
+    }
+
+    QImage sceneImage = renderSceneToImage(fillArea, scale);
 
     if (sceneImage.isNull()) {
         qDebug() << "BucketFill: Failed to render scene to image";
         return;
     }
 
-    // Convert scene point to image coordinates
     QPointF relativePoint = point - fillArea.topLeft();
-    QPoint imagePoint(relativePoint.x() * 2, relativePoint.y() * 2);
+    QPoint imagePoint(qRound(relativePoint.x() * scale), qRound(relativePoint.y() * scale));
 
     if (!sceneImage.rect().contains(imagePoint)) {
         qDebug() << "BucketFill: Click point outside rendered area";
         return;
     }
 
-    // Get target color at click point
     QColor targetColor = getPixelColor(sceneImage, imagePoint);
-    qDebug() << "BucketFill: Target color:" << targetColor.name() << "Fill color:" << m_fillColor.name();
 
-    // Check if colors are different enough
-    if (qAbs(targetColor.red() - m_fillColor.red()) <= m_tolerance / 2 &&
-        qAbs(targetColor.green() - m_fillColor.green()) <= m_tolerance / 2 &&
-        qAbs(targetColor.blue() - m_fillColor.blue()) <= m_tolerance / 2) {
-        qDebug() << "BucketFill: Target color too similar to fill color";
+    if (!targetColor.isValid()) {
+        qDebug() << "BucketFill: Invalid target color for raster fill";
         return;
     }
 
-    // Check if we're trying to fill transparent background
-    if (targetColor.alpha() < 50) {
-        qDebug() << "BucketFill: Not filling transparent background";
-        return;
-    }
-
-    // Create a copy for flood fill
     QImage fillImage = sceneImage.copy();
+    QColor traceColor(255, 0, 255, 255);
+    if (traceColor == targetColor) {
+        traceColor = QColor(0, 255, 0, 255);
+    }
 
-    // Perform flood fill with size limit
-    int filledPixels = floodFillImageLimited(fillImage, imagePoint, targetColor, m_fillColor, 8000);
+    int totalPixels = sceneImage.width() * sceneImage.height();
+    int maxFillPixels = qMin(totalPixels, 150000);
+    int filledPixels = floodFillImageLimited(fillImage, imagePoint, targetColor, traceColor, maxFillPixels);
 
-    qDebug() << "BucketFill: Filled" << filledPixels << "pixels";
+    qDebug() << "BucketFill: Fallback raster fill filled" << filledPixels << "pixels";
 
-    if (filledPixels == 0) {
-        qDebug() << "BucketFill: No pixels were filled";
+    if (filledPixels <= 0 || filledPixels >= maxFillPixels) {
+        qDebug() << "BucketFill: Raster fill fallback could not determine region";
         return;
     }
 
-    if (filledPixels > 6000) {
-        qDebug() << "BucketFill: Fill area too large (" << filledPixels << " pixels), aborting";
+    if (filledPixels > totalPixels * 0.85) {
+        qDebug() << "BucketFill: Raster fill fallback detected excessive area";
         return;
     }
 
-    // RESTORED: Trace the filled region with proper contour tracing
-    QPainterPath filledPath = traceFilledRegion(fillImage, m_fillColor);
+    QPainterPath filledPath = traceFilledRegion(fillImage, traceColor);
 
     if (!filledPath.isEmpty()) {
-        // Transform path back to scene coordinates
         QTransform transform;
         transform.translate(fillArea.x(), fillArea.y());
-        transform.scale(0.5, 0.5); // Scale back from 2x
+        qreal invScale = 1.0 / scale;
+        transform.scale(invScale, invScale);
         filledPath = transform.map(filledPath);
 
-        // Smooth the contour and create fill item
-        filledPath = smoothContour(filledPath, 1.5);
+        filledPath = smoothContour(filledPath, 1.4);
         QGraphicsPathItem* fillItem = createFillItem(filledPath, m_fillColor);
         if (fillItem) {
             addFillToCanvas(fillItem);
-            qDebug() << "BucketFill: Successfully added contour-traced fill to canvas";
+            qDebug() << "BucketFill: Successfully added contour-traced fallback fill";
         }
     }
     else {
-        qDebug() << "BucketFill: Failed to trace filled region";
+        qDebug() << "BucketFill: Fallback raster tracing failed";
     }
 }
 
@@ -686,8 +1132,9 @@ QImage BucketFillTool::renderSceneToImage(const QRectF& region, qreal scale)
 {
     if (!m_canvas || !m_canvas->scene()) return QImage();
 
-    QSize imageSize(region.width() * scale, region.height() * scale);
-    QImage image(imageSize, QImage::Format_ARGB32);
+    int width = qMax(1, static_cast<int>(qCeil(region.width() * scale)));
+    int height = qMax(1, static_cast<int>(qCeil(region.height() * scale)));
+    QImage image(QSize(width, height), QImage::Format_ARGB32);
     image.fill(Qt::transparent);
 
     QPainter painter(&image);
@@ -769,14 +1216,36 @@ void BucketFillTool::floodFillImage(QImage& image, const QPoint& startPoint,
     floodFillImageLimited(image, startPoint, targetColor, fillColor, 50000);
 }
 
+
 QPainterPath BucketFillTool::traceFilledRegion(const QImage& image, const QColor& fillColor)
 {
+    // 1. Find a filled start point
     QPoint startPoint = findStartPoint(image, fillColor);
     if (startPoint.x() == -1) {
-        return QPainterPath();
+        return QPainterPath(); // nothing to trace
     }
 
-    return traceContour(image, startPoint, fillColor);
+    // 2. Use improved marching-squares border walk to get raw contour
+    QVector<QPointF> contour = traceContour(image, startPoint, fillColor);
+
+    if (contour.size() < 3) {
+        return QPainterPath(); // not enough points to form a region
+    }
+
+    // 3. Simplify the contour using Ramer–Douglas–Peucker
+    contour = ramerDouglasPeucker(contour, 1.5);
+    // epsilon ~1.5 pixels gives a good balance
+    // Increase epsilon for smoother, looser outlines
+
+    // 4. Build QPainterPath from simplified contour
+    QPainterPath path;
+    path.moveTo(contour.first());
+    for (int i = 1; i < contour.size(); ++i) {
+        path.lineTo(contour[i]);
+    }
+    path.closeSubpath();
+
+    return path;
 }
 
 QPoint BucketFillTool::findStartPoint(const QImage& image, const QColor& fillColor)
@@ -792,43 +1261,106 @@ QPoint BucketFillTool::findStartPoint(const QImage& image, const QColor& fillCol
     return QPoint(-1, -1);
 }
 
-QPainterPath BucketFillTool::traceContour(const QImage& image, const QPoint& startPoint, const QColor& fillColor)
-{
-    QList<QPoint> contourPoints;
-    QPoint current = startPoint;
-    QPoint first = startPoint;
-    int direction = 0;
+// Helper to check if a pixel is inside bounds & filled
 
-    int maxPoints = qMin(1000, image.width() + image.height()); // Reasonable limit
-
-    do {
-        contourPoints.append(current);
-
-        bool foundNext = false;
-        int searchDir = (direction + 6) % 8;
-
-        for (int i = 0; i < 8; ++i) {
-            QPoint neighbor = current + DIRECTIONS[searchDir];
-
-            if (image.rect().contains(neighbor) &&
-                getPixelColor(image, neighbor) == fillColor) {
-                current = neighbor;
-                direction = searchDir;
-                foundNext = true;
-                break;
-            }
-
-            searchDir = (searchDir + 1) % 8;
-        }
-
-        if (!foundNext || contourPoints.size() >= maxPoints) {
-            break;
-        }
-
-    } while (current != first || contourPoints.size() < 3);
-
-    return pointsToPath(contourPoints);
+inline bool isFilled(const QImage& mask, int x, int y) {
+    if (x < 0 || y < 0 || x >= mask.width() || y >= mask.height())
+        return false;
+    return qAlpha(mask.pixel(x, y)) > 0; // Or mask.pixelColor(x,y).alpha() > 0
 }
+
+QVector<QPointF> BucketFillTool::traceContour(const QImage& mask, const QPoint& start, const QColor& fillColor)
+{
+    QVector<QPointF> contour;
+    const int w = mask.width();
+    const int h = mask.height();
+
+    auto isFilled = [&](int x, int y) {
+        if (x < 0 || y < 0 || x >= w || y >= h) return false;
+        return mask.pixelColor(x, y) == fillColor;
+        };
+
+    // Marching Squares directions: right, down, left, up
+    const QPoint dirs[4] = { {1,0}, {0,1}, {-1,0}, {0,-1} };
+
+    QPoint pos = start;
+    int dir = 0; // initial direction: right
+    do {
+        // Sub-pixel point at pixel edge
+        contour.append(QPointF(pos.x() + 0.5, pos.y() + 0.5));
+
+        // Build the 4-bit square mask
+        int bits = 0;
+        if (isFilled(pos.x(), pos.y())) bits |= 1; // top-left
+        if (isFilled(pos.x() + 1, pos.y())) bits |= 2; // top-right
+        if (isFilled(pos.x() + 1, pos.y() + 1)) bits |= 4; // bottom-right
+        if (isFilled(pos.x(), pos.y() + 1)) bits |= 8; // bottom-left
+
+        // Determine new direction based on configuration
+        switch (bits) {
+        case 1: case 5: case 13: dir = 3; break; // up
+        case 8: case 10: case 11: dir = 1; break; // down
+        case 4: case 12: case 14: dir = 0; break; // right
+        case 2: case 3: case 7: dir = 2; break;   // left
+        default: dir = (dir + 1) % 4; break;      // fallback turn
+        }
+
+        pos += dirs[dir];
+
+    } while (pos != start && contour.size() < (w * h * 4)); // safety cutoff
+
+    return contour;
+}
+
+
+// Recursive helper for RDP
+void BucketFillTool::rdpSimplify(const QVector<QPointF>& points, double epsilon,
+    int startIdx, int endIdx, QVector<bool>& keep)
+{
+    double maxDist = 0.0;
+    int index = startIdx;
+
+    const QPointF& start = points[startIdx];
+    const QPointF& end = points[endIdx];
+
+    // Line segment vector
+    const double dx = end.x() - start.x();
+    const double dy = end.y() - start.y();
+    const double lenSq = dx * dx + dy * dy;
+
+    for (int i = startIdx + 1; i < endIdx; ++i) {
+        // Perpendicular distance from point to line
+        double num = fabs(dy * points[i].x() - dx * points[i].y() + end.x() * start.y() - end.y() * start.x());
+        double dist = num / sqrt(lenSq);
+        if (dist > maxDist) {
+            index = i;
+            maxDist = dist;
+        }
+    }
+
+    if (maxDist > epsilon) {
+        keep[index] = true;
+        rdpSimplify(points, epsilon, startIdx, index, keep);
+        rdpSimplify(points, epsilon, index, endIdx, keep);
+    }
+}
+
+QVector<QPointF> BucketFillTool::ramerDouglasPeucker(const QVector<QPointF>& points, double epsilon)
+{
+    if (points.size() < 3) return points;
+
+    QVector<bool> keep(points.size(), false);
+    keep[0] = keep[points.size() - 1] = true;
+
+    rdpSimplify(points, epsilon, 0, points.size() - 1, keep);
+
+    QVector<QPointF> result;
+    for (int i = 0; i < points.size(); ++i)
+        if (keep[i]) result.append(points[i]);
+
+    return result;
+}
+
 
 QPainterPath BucketFillTool::pointsToPath(const QList<QPoint>& points)
 {
@@ -887,6 +1419,7 @@ QGraphicsPathItem* BucketFillTool::createFillItem(const QPainterPath& fillPath, 
     fillItem->setPen(QPen(Qt::NoPen));
     fillItem->setFlag(QGraphicsItem::ItemIsSelectable, true);
     fillItem->setFlag(QGraphicsItem::ItemIsMovable, true);
+    fillItem->setData(GraphicsItemRoles::BucketFillBehindStrokeRole, true);
 
     qDebug() << "BucketFill: Created fill item with color" << color.name();
     return fillItem;
@@ -896,19 +1429,17 @@ void BucketFillTool::addFillToCanvas(QGraphicsPathItem* fillItem)
 {
     if (!fillItem || !m_canvas) return;
 
+    const qreal fillZValue = -500.0;
+    fillItem->setZValue(fillZValue);
+
     if (m_mainWindow && m_mainWindow->m_undoStack) {
         DrawCommand* command = new DrawCommand(m_canvas, fillItem);
         m_mainWindow->m_undoStack->push(command);
-
-        QTimer::singleShot(0, [fillItem]() {
-            fillItem->setZValue(-100);
-            });
 
         qDebug() << "BucketFill: Added fill to canvas with undo support";
     }
     else {
         addItemToCanvas(fillItem);
-        fillItem->setZValue(-100);
         qDebug() << "BucketFill: Added fill directly to canvas";
     }
 }

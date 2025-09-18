@@ -654,6 +654,8 @@ void Timeline::updateLayersFromCanvas()
         m_layerList->addItem(item);
     }
 
+    updateLayout();
+
     if (m_drawingArea) {
         m_drawingArea->update();
     }

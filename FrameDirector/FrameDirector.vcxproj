@@ -225,6 +225,7 @@
     <ClInclude Include="Common\CommonIncludes.h" />
     <ClInclude Include="Common\FrameTypes.h" />
     <QtMoc Include="GradientDialog.h" />
+    <ClInclude Include="Common\GraphicsItemRoles.h" />
     <ClInclude Include="Import\LayerData.h" />
     <ClInclude Include="Import\ORAImporter.h" />
     <ClInclude Include="Import\PSDImporter.h" />

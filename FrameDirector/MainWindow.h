@@ -298,6 +298,7 @@ private:
     // Tool management
     void setupTools();
     void activateTool(ToolType tool);
+    void cleanupIfPreviewing(Tool* tool);
     Tool* getCurrentTool() const;
     void connectToolsAndCanvas();
     void setupColorConnections();
@@ -499,6 +500,7 @@ private:
     QAction* m_separatorAction;
     QAction* m_setTimelineLengthAction;
     QGraphicsItem* duplicateGraphicsItem(QGraphicsItem* item);
+
 }
 ;
 

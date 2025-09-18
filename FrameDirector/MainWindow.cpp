@@ -1493,12 +1493,12 @@ void MainWindow::importLayeredImage()
         return;
 
     int prevLayer = m_canvas->getCurrentLayer();
-    int prevFrame = m_canvas->getCurrentFrame();
-    m_canvas->setCurrentFrame(1);
+    int prevFrame = std::max(1, m_canvas->getCurrentFrame());
 
     for (const LayerData& layer : layers) {
         int idx = m_canvas->addLayer(layer.name, layer.visible, layer.opacity, layer.blendMode);
         m_canvas->setCurrentLayer(idx);
+        m_canvas->setCurrentFrame(prevFrame);
 
         auto animLayer = std::make_unique<AnimationLayer>(layer.name);
         animLayer->setVisible(layer.visible);
@@ -2916,6 +2916,7 @@ void MainWindow::setTool(ToolType tool)
         // FIXED: Clean up the previous tool before switching
         if (m_canvas && m_tools.find(m_currentTool) != m_tools.end()) {
             Tool* previousTool = m_tools[m_currentTool].get();
+            cleanupIfPreviewing(previousTool);
 
             // Special cleanup for eraser tool
             if (m_currentTool == EraseTool) {
@@ -2964,6 +2965,16 @@ void MainWindow::setTool(ToolType tool)
         }
 
         onToolChanged(tool);
+    }
+}
+
+void MainWindow::cleanupIfPreviewing(Tool* tool)
+{
+    if (!tool) return;
+
+    // Hide BucketFill preview if present
+    if (auto* bucket = dynamic_cast<::BucketFillTool*>(tool)) {
+        bucket->hideFillPreview();  // removes and deletes preview item
     }
 }
 

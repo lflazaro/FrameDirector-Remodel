@@ -5,6 +5,7 @@
 #include "../MainWindow.h"
 #include "../Timeline.h"
 #include "../Canvas.h"
+#include <QtGlobal>
 #include <QTimer>
 #include <QPropertyAnimation>
 #include <QEasingCurve>
@@ -500,23 +501,53 @@ void AnimationController::updateLayerAtFrame(AnimationLayer* layer, int frame)
 bool AnimationController::exportToGif(const QStringList& frameFiles, const QString& filename, bool loop)
 {
     // This requires an external tool like ImageMagick
-    QMessageBox::information(m_mainWindow, "GIF Export",
-        "GIF export requires ImageMagick to be installed.\n\n"
-        "Individual frames have been saved. You can use ImageMagick with:\n"
-        "convert -delay " + QString::number(100 / m_frameRate) + " frame_*.png " + filename);
+    QString convertCommand = "convert";
+#ifdef Q_OS_WIN
+    convertCommand = "magick";
+#endif
+
+    QString usageCommand;
+#ifdef Q_OS_WIN
+    usageCommand = "magick convert";
+#else
+    usageCommand = "convert";
+#endif
+
+    QString infoText = QStringLiteral("GIF export requires ImageMagick to be installed.\n\n"
+        "Individual frames have been saved. You can use ImageMagick with:\n")
+        + usageCommand + " -delay " + QString::number(100 / m_frameRate)
+        + " frame_*.png " + filename;
+
+    QMessageBox::information(m_mainWindow, "GIF Export", infoText);
 
     QProcess process;
     QStringList arguments;
+#ifdef Q_OS_WIN
+    arguments << "convert";
+#endif
     arguments << "-delay" << QString::number(100 / m_frameRate);
     arguments << "-loop" << (loop ? "0" : "1");
     arguments << frameFiles;
     arguments << filename;
     process.setWorkingDirectory(QFileInfo(frameFiles.first()).absolutePath());
 
-    process.start("convert", arguments);
+    process.start(convertCommand, arguments);
     if (!process.waitForStarted(3000)) {
-        QMessageBox::warning(m_mainWindow, "Export Error", "ImageMagick (convert) not found.");
+#ifdef Q_OS_WIN
+        QStringList fallbackArguments = arguments;
+        if (!fallbackArguments.isEmpty())
+            fallbackArguments.removeFirst();
+        process.start(QStringLiteral("convert"), fallbackArguments);
+        if (!process.waitForStarted(3000)) {
+            QMessageBox::warning(m_mainWindow, "Export Error",
+                "ImageMagick (convert/magick) not found.");
+            return false;
+        }
+#else
+        QMessageBox::warning(m_mainWindow, "Export Error",
+            "ImageMagick (convert/magick) not found.");
         return false;
+#endif
     }
     process.waitForFinished(-1);
     if (process.exitCode() == 0) {

@@ -426,6 +426,9 @@
     <ClInclude Include="third_party\src\psd_system.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Common\GraphicsItemRoles.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="resources\icons\arrow-right.png">
