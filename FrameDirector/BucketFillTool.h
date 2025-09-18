@@ -87,7 +87,7 @@ private:
 
     // Raster-based filling methods
     void performRasterFill(const QPointF& point);
-    QImage renderSceneToImage(const QRectF& region, qreal scale = 2.0);
+    QImage renderSceneToImage(const QRectF& region, qreal scale, bool antialiased);
     QColor getPixelColor(const QImage& image, const QPoint& point);
     void floodFillImage(QImage& image, const QPoint& startPoint,
         const QColor& targetColor, const QColor& fillColor);

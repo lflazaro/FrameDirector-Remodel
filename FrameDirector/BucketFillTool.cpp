@@ -346,7 +346,7 @@ BucketFillTool::ClosedRegion BucketFillTool::floodFillRegionFromArea(const QRect
     qreal scale = maxImageDim / maxDimension;
     scale = qBound<qreal>(0.1, scale, 3.0);
 
-    QImage image = renderSceneToImage(area, scale);
+    QImage image = renderSceneToImage(area, scale, true);
     if (image.isNull() || image.width() <= 0 || image.height() <= 0) {
         return region;
     }
@@ -863,7 +863,7 @@ BucketFillTool::ClosedRegion BucketFillTool::buildClosedRegionUsingRaster(const 
         return region;
     }
 
-    QImage sceneImage = renderSceneToImage(bounds, scale);
+    QImage sceneImage = renderSceneToImage(bounds, scale, true);
     if (sceneImage.isNull() || sceneImage.width() <= 0 || sceneImage.height() <= 0) {
         return region;
     }
@@ -1063,7 +1063,7 @@ void BucketFillTool::performRasterFill(const QPointF& point)
         scale = qMax(qreal(1.0), 512.0 / maxDimension);
     }
 
-    QImage sceneImage = renderSceneToImage(fillArea, scale);
+    QImage sceneImage = renderSceneToImage(fillArea, scale, true);
 
     if (sceneImage.isNull()) {
         qDebug() << "BucketFill: Failed to render scene to image";
@@ -1128,25 +1128,21 @@ void BucketFillTool::performRasterFill(const QPointF& point)
     }
 }
 
-QImage BucketFillTool::renderSceneToImage(const QRectF& region, qreal scale)
+QImage BucketFillTool::renderSceneToImage(const QRectF& region, qreal scale, bool antialiased)
 {
     if (!m_canvas || !m_canvas->scene()) return QImage();
+    int w = qMax(1, int(qCeil(region.width() * scale)));
+    int h = qMax(1, int(qCeil(region.height() * scale)));
+    QImage img(QSize(w, h), QImage::Format_ARGB32_Premultiplied);
+    img.fill(Qt::transparent);
 
-    int width = qMax(1, static_cast<int>(qCeil(region.width() * scale)));
-    int height = qMax(1, static_cast<int>(qCeil(region.height() * scale)));
-    QImage image(QSize(width, height), QImage::Format_ARGB32);
-    image.fill(Qt::transparent);
-
-    QPainter painter(&image);
-    painter.setRenderHint(QPainter::Antialiasing, false); // Sharp edges for flood fill
-    painter.scale(scale, scale);
-    painter.translate(-region.topLeft());
-
-    // FIXED: Use scene's built-in render method - much safer
-    m_canvas->scene()->render(&painter, QRectF(0, 0, region.width(), region.height()), region);
-
-    painter.end();
-    return image;
+    QPainter p(&img);
+    p.setRenderHint(QPainter::Antialiasing, antialiased);
+    p.scale(scale, scale);
+    p.translate(-region.topLeft());
+    m_canvas->scene()->render(&p, QRectF(0, 0, region.width(), region.height()), region);
+    p.end();
+    return img;
 }
 
 QColor BucketFillTool::getPixelColor(const QImage& image, const QPoint& point)
