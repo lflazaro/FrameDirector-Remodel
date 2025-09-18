@@ -90,6 +90,8 @@ private:
         const QColor& targetColor, const QColor& fillColor);
     int floodFillImageLimited(QImage& image, const QPoint& startPoint,
         const QColor& targetColor, const QColor& fillColor, int maxPixels);
+    ClosedRegion floodFillRegionFromArea(const QRectF& area, const QPointF& seedPoint, bool& touchesEdge);
+    bool colorsSimilar(QRgb first, QRgb second) const;
 
     // Advanced contour tracing (Moore neighborhood algorithm)
     QPainterPath traceFilledRegion(const QImage& image, const QColor& fillColor);
