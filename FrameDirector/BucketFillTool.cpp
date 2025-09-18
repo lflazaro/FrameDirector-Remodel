@@ -12,6 +12,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QPainterPathStroker>
+#include <QLineF>
 #include <QPen>
 #include <QApplication>
 #include <QDebug>
@@ -74,6 +75,167 @@ QPolygonF smoothPolygonChaikin(const QPolygonF& polygon, int iterations, qreal w
     }
 
     return result;
+}
+
+qreal averageEdgeLength(const QPolygonF& polygon)
+{
+    const int count = polygon.size();
+    if (count < 2) {
+        return 0.0;
+    }
+
+    qreal totalLength = 0.0;
+    for (int i = 0; i < count; ++i) {
+        const QPointF& current = polygon.at(i);
+        const QPointF& next = polygon.at((i + 1) % count);
+        totalLength += QLineF(current, next).length();
+    }
+
+    return (count > 0) ? totalLength / count : 0.0;
+}
+
+QPolygonF removeNearDuplicatePoints(const QPolygonF& polygon, qreal threshold)
+{
+    if (polygon.size() < 2) {
+        return polygon;
+    }
+
+    const qreal epsilon = qMax<qreal>(threshold, 0.0001);
+    QPolygonF result;
+    result.reserve(polygon.size());
+
+    for (const QPointF& point : polygon) {
+        if (result.isEmpty() || QLineF(result.last(), point).length() > epsilon) {
+            result.append(point);
+        }
+    }
+
+    if (result.size() > 2 && QLineF(result.first(), result.last()).length() <= epsilon) {
+        result.removeLast();
+    }
+
+    return result;
+}
+
+QPolygonF densifyPolygon(const QPolygonF& polygon, qreal maxSegmentLength)
+{
+    if (polygon.size() < 2 || maxSegmentLength <= 0.0) {
+        return polygon;
+    }
+
+    QPolygonF result;
+    const int count = polygon.size();
+    result.reserve(count * 2);
+
+    for (int i = 0; i < count; ++i) {
+        const QPointF& current = polygon.at(i);
+        const QPointF& next = polygon.at((i + 1) % count);
+
+        result.append(current);
+
+        QLineF edge(current, next);
+        qreal length = edge.length();
+
+        if (length > maxSegmentLength) {
+            int subdivisions = qBound(0, static_cast<int>(qFloor(length / maxSegmentLength)), 64);
+            for (int s = 1; s <= subdivisions; ++s) {
+                qreal t = static_cast<qreal>(s) / (subdivisions + 1);
+                result.append(current + (next - current) * t);
+            }
+        }
+    }
+
+    return result;
+}
+
+QPolygonF relaxPolygon(const QPolygonF& polygon, qreal factor, int iterations)
+{
+    if (polygon.size() < 3 || factor <= 0.0 || iterations <= 0) {
+        return polygon;
+    }
+
+    QPolygonF result = polygon;
+    const int count = polygon.size();
+
+    for (int iter = 0; iter < iterations; ++iter) {
+        QPolygonF next;
+        next.reserve(count);
+
+        for (int i = 0; i < count; ++i) {
+            const QPointF& prev = result.at((i - 1 + count) % count);
+            const QPointF& current = result.at(i);
+            const QPointF& nextPoint = result.at((i + 1) % count);
+
+            QPointF relaxed = current * (1.0 - factor) + (prev + nextPoint) * (factor * 0.5);
+            next.append(relaxed);
+        }
+
+        result = next;
+    }
+
+    return result;
+}
+
+struct PathSmoothingData
+{
+    QPainterPath path;
+    qreal averageEdgeLength = 0.0;
+    int polygonCount = 0;
+};
+
+PathSmoothingData buildSmoothPath(const QPainterPath& sourcePath, qreal baseSpacing)
+{
+    PathSmoothingData data;
+    data.path.setFillRule(sourcePath.fillRule());
+
+    if (sourcePath.isEmpty() || baseSpacing <= 0.0) {
+        return data;
+    }
+
+    const qreal spacing = qMax<qreal>(baseSpacing, 0.5);
+    const QVector<QPolygonF> polygons = sourcePath.toFillPolygons();
+
+    for (const QPolygonF& polygon : polygons) {
+        if (polygon.size() < 3) {
+            continue;
+        }
+
+        QPolygonF cleaned = removeNearDuplicatePoints(polygon, spacing * 0.2);
+        if (cleaned.size() < 3) {
+            continue;
+        }
+
+        qreal averageEdge = averageEdgeLength(cleaned);
+        if (!qIsFinite(averageEdge) || averageEdge <= 0.0) {
+            averageEdge = spacing;
+        }
+
+        qreal segmentLength = qBound<qreal>(spacing * 0.8, averageEdge, spacing * 3.5);
+        QPolygonF densified = densifyPolygon(cleaned, segmentLength);
+
+        int iterations = (averageEdge <= spacing * 1.4) ? 3 : 2;
+        qreal weight = (averageEdge <= spacing * 1.2) ? 0.36 : 0.32;
+        QPolygonF smoothed = smoothPolygonChaikin(densified, iterations, weight);
+
+        qreal relaxFactor = (averageEdge <= spacing * 1.6) ? 0.26 : 0.2;
+        smoothed = relaxPolygon(smoothed, relaxFactor, 1);
+        smoothed = removeNearDuplicatePoints(smoothed, spacing * 0.15);
+
+        if (smoothed.size() < 3) {
+            continue;
+        }
+
+        QPainterPath polyPath;
+        polyPath.addPolygon(smoothed);
+        polyPath.closeSubpath();
+        data.path.addPath(polyPath);
+
+        data.averageEdgeLength += averageEdge;
+        ++data.polygonCount;
+    }
+
+    data.path = data.path.simplified();
+    return data;
 }
 
 }
@@ -457,49 +619,52 @@ BucketFillTool::ClosedRegion BucketFillTool::floodFillRegionFromArea(const QRect
         return region;
     }
 
-    QPainterPathStroker stroker;
-    stroker.setCapStyle(Qt::SquareCap);
-    stroker.setJoinStyle(Qt::RoundJoin);
-    stroker.setWidth(qMax<qreal>(0.6, 1.4 / scale));
-    scenePath = scenePath.united(stroker.createStroke(scenePath)).simplified();
+    QPainterPath clipPath;
+    clipPath.addRect(area);
 
-    QPainterPath refinedPath = scenePath;
+    const qreal pixelStep = (scale > 0.0) ? (1.0 / scale) : 1.0;
+    const qreal smoothingPixel = qBound<qreal>(0.5, pixelStep, 2.4);
 
-    QPainterPath chaikinPath;
-    chaikinPath.setFillRule(refinedPath.fillRule());
-    const QVector<QPolygonF> polygons = refinedPath.toFillPolygons();
-    for (const QPolygonF& polygon : polygons) {
-        if (polygon.size() < 3) {
-            continue;
-        }
+    QPainterPathStroker expansionStroker;
+    expansionStroker.setCapStyle(Qt::RoundCap);
+    expansionStroker.setJoinStyle(Qt::RoundJoin);
+    expansionStroker.setWidth(qBound<qreal>(0.65, smoothingPixel * 1.6, 1.9));
+    QPainterPath refinedPath = scenePath.united(expansionStroker.createStroke(scenePath)).simplified();
+    refinedPath = refinedPath.intersected(clipPath);
 
-        QPolygonF smoothedPolygon = smoothPolygonChaikin(polygon, 2, 0.25);
-        if (smoothedPolygon.size() < 3) {
-            continue;
-        }
-
-        QPainterPath smoothedPath;
-        smoothedPath.addPolygon(smoothedPolygon);
-        smoothedPath.closeSubpath();
-        chaikinPath.addPath(smoothedPath);
-    }
-
-    if (!chaikinPath.isEmpty()) {
-        QPainterPath candidate = chaikinPath.united(refinedPath).simplified();
+    PathSmoothingData smoothingData = buildSmoothPath(refinedPath, smoothingPixel);
+    if (!smoothingData.path.isEmpty()) {
+        QPainterPath candidate = smoothingData.path.united(refinedPath).simplified();
+        candidate = candidate.intersected(clipPath);
         if (candidate.contains(scenePoint)) {
             refinedPath = candidate;
         }
     }
 
-    QPainterPath curvedPath = smoothContour(refinedPath, 1.35);
+    if (smoothingData.polygonCount > 0) {
+        qreal averageEdge = smoothingData.averageEdgeLength / smoothingData.polygonCount;
+        qreal roundWidth = qBound<qreal>(0.6, qMax(averageEdge, smoothingPixel) * 1.05, 1.7);
+        QPainterPathStroker rounder;
+        rounder.setCapStyle(Qt::RoundCap);
+        rounder.setJoinStyle(Qt::RoundJoin);
+        rounder.setWidth(roundWidth);
+        QPainterPath candidate = refinedPath.united(rounder.createStroke(refinedPath)).simplified();
+        candidate = candidate.intersected(clipPath);
+        if (candidate.contains(scenePoint)) {
+            refinedPath = candidate;
+        }
+    }
+
+    qreal contourSpacing = qBound<qreal>(0.55, smoothingPixel * 1.3, 1.8);
+    QPainterPath curvedPath = smoothContour(refinedPath, contourSpacing);
     if (!curvedPath.isEmpty() && curvedPath.contains(scenePoint)) {
         refinedPath = curvedPath.simplified();
     }
 
-    scenePath = refinedPath;
+    refinedPath = refinedPath.intersected(clipPath);
 
-    region.outerBoundary = scenePath;
-    region.bounds = scenePath.boundingRect();
+    region.outerBoundary = refinedPath;
+    region.bounds = refinedPath.boundingRect();
     region.isValid = true;
 
     return region;
@@ -1295,34 +1460,38 @@ QPainterPath BucketFillTool::pointsToPath(const QList<QPoint>& points)
 
 QPainterPath BucketFillTool::smoothContour(const QPainterPath& roughPath, qreal smoothing)
 {
-    if (roughPath.elementCount() < 4) return roughPath;
-
-    QPainterPath smoothPath;
-    QList<QPointF> points;
-
-    for (int i = 0; i < roughPath.elementCount(); ++i) {
-        QPainterPath::Element elem = roughPath.elementAt(i);
-        points.append(QPointF(elem.x, elem.y));
+    if (roughPath.isEmpty() || roughPath.elementCount() < 4) {
+        return roughPath;
     }
 
-    if (points.size() < 4) return roughPath;
+    QPainterPath simplified = roughPath.simplified();
 
-    smoothPath.moveTo(points.first());
+    qreal baseSpacing = qBound<qreal>(0.5, smoothing, 2.4);
 
-    for (int i = 1; i < points.size() - 2; ++i) {
-        QPointF p0 = points[i - 1];
-        QPointF p1 = points[i];
-        QPointF p2 = points[i + 1];
-        QPointF p3 = (i + 2 < points.size()) ? points[i + 2] : points.first();
+    QPainterPathStroker stroker;
+    stroker.setCapStyle(Qt::RoundCap);
+    stroker.setJoinStyle(Qt::RoundJoin);
+    stroker.setWidth(qBound<qreal>(0.55, baseSpacing * 1.8, 1.8));
+    simplified = simplified.united(stroker.createStroke(simplified)).simplified();
 
-        QPointF cp1 = p1 + (p2 - p0) / (6.0 * smoothing);
-        QPointF cp2 = p2 - (p3 - p1) / (6.0 * smoothing);
-
-        smoothPath.cubicTo(cp1, cp2, p2);
+    PathSmoothingData data = buildSmoothPath(simplified, baseSpacing);
+    if (data.path.isEmpty()) {
+        return simplified;
     }
 
-    smoothPath.closeSubpath();
-    return smoothPath;
+    QPainterPath result = data.path.united(simplified).simplified();
+
+    if (data.polygonCount > 0) {
+        qreal averageEdge = data.averageEdgeLength / data.polygonCount;
+        qreal extraWidth = qBound<qreal>(0.5, qMax(averageEdge, baseSpacing) * 0.9, 1.5);
+        QPainterPathStroker rounder;
+        rounder.setCapStyle(Qt::RoundCap);
+        rounder.setJoinStyle(Qt::RoundJoin);
+        rounder.setWidth(extraWidth);
+        result = result.united(rounder.createStroke(result)).simplified();
+    }
+
+    return result;
 }
 
 QGraphicsPathItem* BucketFillTool::createFillItem(const QPainterPath& fillPath, const QColor& color)
