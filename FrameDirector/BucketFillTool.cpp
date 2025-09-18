@@ -463,13 +463,13 @@ BucketFillTool::ClosedRegion BucketFillTool::buildClosedRegionFromSegments(const
             continue;
         }
 
-        if (qAbs(polygon.area()) < minArea) {
-            continue;
-        }
-
         QPainterPath polygonPath;
         polygonPath.addPolygon(polygon);
         polygonPath.closeSubpath();
+
+        if (qAbs(polygonPath.area()) < minArea) {
+            continue;
+        }
 
         if (polygonPath.contains(seedPoint)) {
             candidatePath = polygonPath;
