@@ -64,7 +64,8 @@ private:
     // Note: Contour tracing uses simple QPoint lists for better performance
 
     // Vector-based filling methods
-    ClosedRegion findEnclosedRegion(const QPointF& point);
+    ClosedRegion findEnclosedRegion(const QPointF& point, bool forPreview = false,
+        QRectF* outSampleRect = nullptr);
     QList<PathSegment> collectNearbyPaths(const QPointF& center, qreal searchRadius = 50.0);
     QPainterPath mergeIntersectingPaths(const QList<PathSegment>& segments);
     QPainterPath createClosedPath(const QList<PathSegment>& segments, const QPointF& seedPoint);
@@ -90,7 +91,8 @@ private:
         const QColor& targetColor, const QColor& fillColor);
     int floodFillImageLimited(QImage& image, const QPoint& startPoint,
         const QColor& targetColor, const QColor& fillColor, int maxPixels);
-    ClosedRegion floodFillRegionFromArea(const QRectF& area, const QPointF& seedPoint, bool& touchesEdge);
+    ClosedRegion floodFillRegionFromArea(const QRectF& area, const QPointF& seedPoint,
+        bool& touchesEdge, bool forPreview);
     bool colorsSimilar(QRgb first, QRgb second) const;
 
     // Advanced contour tracing (Moore neighborhood algorithm)
@@ -115,6 +117,7 @@ private:
     // Visual feedback and preview
     void showFillPreview(const QPainterPath& path);
     void hideFillPreview();
+    void clearPreviewCache();
 
     // Performance optimization
     void cacheNearbyItems(const QRectF& region);
@@ -140,6 +143,10 @@ private:
 
     // Visual feedback
     QGraphicsPathItem* m_previewItem;
+    ClosedRegion m_lastPreviewRegion;
+    QRectF m_lastPreviewSampleRect;
+    QPointF m_lastPreviewPoint;
+    bool m_hasPreviewRegion;
 
     // Constants for contour tracing
     static const int DIRECTION_COUNT = 8;
