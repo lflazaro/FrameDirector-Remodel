@@ -708,8 +708,28 @@ BucketFillTool::ClosedRegion BucketFillTool::floodFillRegionFromArea(const QRect
     PathSmoothingData smoothingData = buildSmoothPath(scenePath, smoothingPixel);
 
     QPainterPath refinedPath = scenePath;
-    if (!smoothingData.path.isEmpty() && smoothingData.path.contains(scenePoint)) {
-        refinedPath = smoothingData.path;
+    if (!smoothingData.path.isEmpty()) {
+        QPainterPath candidate = smoothingData.path;
+        bool candidateContainsPoint = candidate.contains(scenePoint);
+
+        if (!candidateContainsPoint) {
+            QPainterPathStroker toleranceStroker;
+            toleranceStroker.setCapStyle(Qt::RoundCap);
+            toleranceStroker.setJoinStyle(Qt::RoundJoin);
+            toleranceStroker.setWidth(qBound<qreal>(0.45, smoothingPixel * 1.5, 2.4));
+
+            QPainterPath expandedCandidate = candidate.united(toleranceStroker.createStroke(candidate)).simplified();
+            expandedCandidate = expandedCandidate.intersected(clipPath);
+
+            if (expandedCandidate.contains(scenePoint)) {
+                candidate = expandedCandidate;
+                candidateContainsPoint = true;
+            }
+        }
+
+        if (candidateContainsPoint) {
+            refinedPath = candidate;
+        }
     }
 
     refinedPath = refinedPath.simplified();
@@ -730,7 +750,19 @@ BucketFillTool::ClosedRegion BucketFillTool::floodFillRegionFromArea(const QRect
         previewStroker.setWidth(qBound<qreal>(0.45, smoothingPixel * 1.15, 1.35));
         QPainterPath previewPath = refinedPath.united(previewStroker.createStroke(refinedPath)).simplified();
         previewPath = previewPath.intersected(clipPath);
-        if (previewPath.contains(scenePoint)) {
+        if (!previewPath.contains(scenePoint)) {
+            QPainterPathStroker toleranceStroker;
+            toleranceStroker.setCapStyle(Qt::RoundCap);
+            toleranceStroker.setJoinStyle(Qt::RoundJoin);
+            toleranceStroker.setWidth(qBound<qreal>(0.45, smoothingPixel * 1.5, 2.2));
+
+            QPainterPath expandedPreview = previewPath.united(toleranceStroker.createStroke(previewPath)).simplified();
+            expandedPreview = expandedPreview.intersected(clipPath);
+            if (expandedPreview.contains(scenePoint)) {
+                refinedPath = expandedPreview;
+            }
+        }
+        else {
             refinedPath = previewPath;
         }
 
@@ -746,7 +778,19 @@ BucketFillTool::ClosedRegion BucketFillTool::floodFillRegionFromArea(const QRect
 
         QPainterPath expanded = refinedPath.united(dilationStroker.createStroke(refinedPath)).simplified();
         expanded = expanded.intersected(clipPath);
-        if (expanded.contains(scenePoint)) {
+        if (!expanded.contains(scenePoint)) {
+            QPainterPathStroker toleranceStroker;
+            toleranceStroker.setCapStyle(Qt::RoundCap);
+            toleranceStroker.setJoinStyle(Qt::RoundJoin);
+            toleranceStroker.setWidth(qBound<qreal>(0.6, smoothingPixel * 1.8, 2.6));
+
+            QPainterPath expandedTolerance = expanded.united(toleranceStroker.createStroke(expanded)).simplified();
+            expandedTolerance = expandedTolerance.intersected(clipPath);
+            if (expandedTolerance.contains(scenePoint)) {
+                refinedPath = expandedTolerance;
+            }
+        }
+        else {
             refinedPath = expanded;
         }
 
@@ -760,8 +804,27 @@ BucketFillTool::ClosedRegion BucketFillTool::floodFillRegionFromArea(const QRect
 
         qreal contourSpacing = qBound<qreal>(0.65, baseSpacing * 1.1, 1.8);
         QPainterPath curvedPath = smoothContour(refinedPath, contourSpacing);
-        if (!curvedPath.isEmpty() && curvedPath.contains(scenePoint)) {
-            refinedPath = curvedPath.simplified();
+        if (!curvedPath.isEmpty()) {
+            QPainterPath candidate = curvedPath.simplified();
+            bool candidateContainsPoint = candidate.contains(scenePoint);
+
+            if (!candidateContainsPoint) {
+                QPainterPathStroker toleranceStroker;
+                toleranceStroker.setCapStyle(Qt::RoundCap);
+                toleranceStroker.setJoinStyle(Qt::RoundJoin);
+                toleranceStroker.setWidth(qBound<qreal>(0.6, contourSpacing * 2.0, 3.0));
+
+                QPainterPath expandedCandidate = candidate.united(toleranceStroker.createStroke(candidate)).simplified();
+                expandedCandidate = expandedCandidate.intersected(clipPath);
+                if (expandedCandidate.contains(scenePoint)) {
+                    candidate = expandedCandidate;
+                    candidateContainsPoint = true;
+                }
+            }
+
+            if (candidateContainsPoint) {
+                refinedPath = candidate;
+            }
         }
     }
 
