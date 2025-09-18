@@ -294,11 +294,11 @@ void BucketFillTool::mousePressEvent(QMouseEvent* event, const QPointF& scenePos
         }
 
         try {
-            ClosedRegion region = findEnclosedRegion(scenePos);
+            ClosedRegion region = findEnclosedRegion(scenePos, false);
 
             if ((!region.isValid || region.outerBoundary.isEmpty()) && m_fillMode == 1) {
                 bool touchesEdge = false;
-                region = floodFillRegionFromArea(canvasRect, scenePos, touchesEdge);
+                region = floodFillRegionFromArea(canvasRect, scenePos, touchesEdge, false);
             }
 
             if (region.isValid && !region.outerBoundary.isEmpty()) {
@@ -345,7 +345,7 @@ void BucketFillTool::mouseMoveEvent(QMouseEvent* event, const QPointF& scenePos)
 
         try {
             if (m_fillMode == 0) {
-                ClosedRegion region = findEnclosedRegion(scenePos);
+                ClosedRegion region = findEnclosedRegion(scenePos, true);
                 if (region.isValid && !region.outerBoundary.isEmpty()) {
                     // FIXED: Only show preview for reasonable-sized regions
                     QRectF regionBounds = region.outerBoundary.boundingRect();
@@ -381,7 +381,7 @@ QCursor BucketFillTool::getCursor() const
     return QCursor(Qt::PointingHandCursor);
 }
 
-BucketFillTool::ClosedRegion BucketFillTool::findEnclosedRegion(const QPointF& point)
+BucketFillTool::ClosedRegion BucketFillTool::findEnclosedRegion(const QPointF& point, bool forPreview)
 {
     ClosedRegion invalidRegion;
     invalidRegion.isValid = false;
@@ -403,7 +403,7 @@ BucketFillTool::ClosedRegion BucketFillTool::findEnclosedRegion(const QPointF& p
     radii.append(initialRadius);
 
     qreal radius = initialRadius;
-    const int maxSteps = 6;
+    const int maxSteps = forPreview ? 3 : 6;
     for (int i = 0; i < maxSteps && radius < maxCanvasDim; ++i) {
         radius = qMin(maxCanvasDim, radius * 1.6);
         if (qFuzzyCompare(radius, radii.last())) {
@@ -432,7 +432,7 @@ BucketFillTool::ClosedRegion BucketFillTool::findEnclosedRegion(const QPointF& p
         }
 
         bool touchesEdge = false;
-        ClosedRegion candidate = floodFillRegionFromArea(sampleRect, point, touchesEdge);
+        ClosedRegion candidate = floodFillRegionFromArea(sampleRect, point, touchesEdge, forPreview);
         if (!candidate.isValid || candidate.outerBoundary.isEmpty()) {
             continue;
         }
@@ -454,6 +454,9 @@ BucketFillTool::ClosedRegion BucketFillTool::findEnclosedRegion(const QPointF& p
         }
 
         if (sampleRect == canvasRect) {
+            if (forPreview) {
+                break;
+            }
             if (m_fillMode == 1) {
                 return candidate;
             }
@@ -467,9 +470,12 @@ BucketFillTool::ClosedRegion BucketFillTool::findEnclosedRegion(const QPointF& p
     }
 
     if (!hasCandidate) {
+        if (forPreview) {
+            return invalidRegion;
+        }
         if (m_fillMode == 1) {
             bool touchesEdge = false;
-            ClosedRegion canvasRegion = floodFillRegionFromArea(canvasRect, point, touchesEdge);
+            ClosedRegion canvasRegion = floodFillRegionFromArea(canvasRect, point, touchesEdge, forPreview);
             if (canvasRegion.isValid && !canvasRegion.outerBoundary.isEmpty()) {
                 return canvasRegion;
             }
@@ -485,7 +491,7 @@ BucketFillTool::ClosedRegion BucketFillTool::findEnclosedRegion(const QPointF& p
 }
 
 BucketFillTool::ClosedRegion BucketFillTool::floodFillRegionFromArea(const QRectF& area,
-    const QPointF& scenePoint, bool& touchesEdge)
+    const QPointF& scenePoint, bool& touchesEdge, bool forPreview)
 {
     ClosedRegion region;
     region.isValid = false;
@@ -504,7 +510,7 @@ BucketFillTool::ClosedRegion BucketFillTool::floodFillRegionFromArea(const QRect
         return region;
     }
 
-    const qreal maxImageDim = 512.0;
+    const qreal maxImageDim = forPreview ? 256.0 : 512.0;
     qreal scale = maxImageDim / maxDimension;
     scale = qBound<qreal>(0.1, scale, 3.0);
 
@@ -528,7 +534,7 @@ BucketFillTool::ClosedRegion BucketFillTool::floodFillRegionFromArea(const QRect
 
     std::vector<uchar> mask(static_cast<size_t>(totalPixels), 0);
     QVector<QPoint> stack;
-    stack.reserve(qMin(totalPixels, 65536));
+    stack.reserve(qMin(totalPixels, forPreview ? 32768 : 65536));
     stack.append(imagePoint);
 
     int filledPixels = 0;
@@ -632,33 +638,35 @@ BucketFillTool::ClosedRegion BucketFillTool::floodFillRegionFromArea(const QRect
     QPainterPath refinedPath = scenePath.united(expansionStroker.createStroke(scenePath)).simplified();
     refinedPath = refinedPath.intersected(clipPath);
 
-    PathSmoothingData smoothingData = buildSmoothPath(refinedPath, smoothingPixel);
-    if (!smoothingData.path.isEmpty()) {
-        QPainterPath candidate = smoothingData.path.united(refinedPath).simplified();
-        candidate = candidate.intersected(clipPath);
-        if (candidate.contains(scenePoint)) {
-            refinedPath = candidate;
+    if (!forPreview) {
+        PathSmoothingData smoothingData = buildSmoothPath(refinedPath, smoothingPixel);
+        if (!smoothingData.path.isEmpty()) {
+            QPainterPath candidate = smoothingData.path.united(refinedPath).simplified();
+            candidate = candidate.intersected(clipPath);
+            if (candidate.contains(scenePoint)) {
+                refinedPath = candidate;
+            }
         }
-    }
 
-    if (smoothingData.polygonCount > 0) {
-        qreal averageEdge = smoothingData.averageEdgeLength / smoothingData.polygonCount;
-        qreal roundWidth = qBound<qreal>(0.6, qMax(averageEdge, smoothingPixel) * 1.05, 1.7);
-        QPainterPathStroker rounder;
-        rounder.setCapStyle(Qt::RoundCap);
-        rounder.setJoinStyle(Qt::RoundJoin);
-        rounder.setWidth(roundWidth);
-        QPainterPath candidate = refinedPath.united(rounder.createStroke(refinedPath)).simplified();
-        candidate = candidate.intersected(clipPath);
-        if (candidate.contains(scenePoint)) {
-            refinedPath = candidate;
+        if (smoothingData.polygonCount > 0) {
+            qreal averageEdge = smoothingData.averageEdgeLength / smoothingData.polygonCount;
+            qreal roundWidth = qBound<qreal>(0.6, qMax(averageEdge, smoothingPixel) * 1.05, 1.7);
+            QPainterPathStroker rounder;
+            rounder.setCapStyle(Qt::RoundCap);
+            rounder.setJoinStyle(Qt::RoundJoin);
+            rounder.setWidth(roundWidth);
+            QPainterPath candidate = refinedPath.united(rounder.createStroke(refinedPath)).simplified();
+            candidate = candidate.intersected(clipPath);
+            if (candidate.contains(scenePoint)) {
+                refinedPath = candidate;
+            }
         }
-    }
 
-    qreal contourSpacing = qBound<qreal>(0.55, smoothingPixel * 1.3, 1.8);
-    QPainterPath curvedPath = smoothContour(refinedPath, contourSpacing);
-    if (!curvedPath.isEmpty() && curvedPath.contains(scenePoint)) {
-        refinedPath = curvedPath.simplified();
+        qreal contourSpacing = qBound<qreal>(0.55, smoothingPixel * 1.3, 1.8);
+        QPainterPath curvedPath = smoothContour(refinedPath, contourSpacing);
+        if (!curvedPath.isEmpty() && curvedPath.contains(scenePoint)) {
+            refinedPath = curvedPath.simplified();
+        }
     }
 
     refinedPath = refinedPath.intersected(clipPath);
