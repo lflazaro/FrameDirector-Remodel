@@ -22,6 +22,27 @@
 #include <QTimer>
 #include <limits>
 
+namespace {
+
+qreal polygonArea(const QPolygonF& polygon)
+{
+    const int count = polygon.size();
+    if (count < 3) {
+        return 0.0;
+    }
+
+    qreal area = 0.0;
+    for (int i = 0; i < count; ++i) {
+        const QPointF& p1 = polygon.at(i);
+        const QPointF& p2 = polygon.at((i + 1) % count);
+        area += (p1.x() * p2.y()) - (p2.x() * p1.y());
+    }
+
+    return qAbs(area) * 0.5;
+}
+
+}
+
 // Direction vectors for 8-connected neighbors (Moore neighborhood)
 const QPoint BucketFillTool::DIRECTIONS[8] = {
     QPoint(1, 0),   // 0: East
@@ -467,7 +488,7 @@ BucketFillTool::ClosedRegion BucketFillTool::buildClosedRegionFromSegments(const
         polygonPath.addPolygon(polygon);
         polygonPath.closeSubpath();
 
-        if (qAbs(polygonPath.area()) < minArea) {
+        if (polygonArea(polygon) < minArea) {
             continue;
         }
 
