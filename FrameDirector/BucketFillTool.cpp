@@ -1,6 +1,7 @@
 #include "BucketFillTool.h"
 #include "MainWindow.h"
 #include "Canvas.h"
+#include "Common/GraphicsItemRoles.h"
 #include "Commands/UndoCommands.h"
 #include <QGraphicsScene>
 #include <QGraphicsPathItem>
@@ -39,6 +40,40 @@ qreal polygonArea(const QPolygonF& polygon)
     }
 
     return qAbs(area) * 0.5;
+}
+
+QPolygonF smoothPolygonChaikin(const QPolygonF& polygon, int iterations, qreal weight)
+{
+    if (polygon.size() < 3) {
+        return polygon;
+    }
+
+    QPolygonF result = polygon;
+
+    for (int iter = 0; iter < iterations; ++iter) {
+        if (result.size() < 3) {
+            break;
+        }
+
+        QPolygonF next;
+        next.reserve(result.size() * 2);
+
+        const int count = result.size();
+        for (int i = 0; i < count; ++i) {
+            const QPointF& current = result.at(i);
+            const QPointF& nextPoint = result.at((i + 1) % count);
+
+            const QPointF q = current * (1.0 - weight) + nextPoint * weight;
+            const QPointF r = current * weight + nextPoint * (1.0 - weight);
+
+            next.append(q);
+            next.append(r);
+        }
+
+        result = next;
+    }
+
+    return result;
 }
 
 }
@@ -427,6 +462,41 @@ BucketFillTool::ClosedRegion BucketFillTool::floodFillRegionFromArea(const QRect
     stroker.setJoinStyle(Qt::RoundJoin);
     stroker.setWidth(qMax<qreal>(0.6, 1.4 / scale));
     scenePath = scenePath.united(stroker.createStroke(scenePath)).simplified();
+
+    QPainterPath refinedPath = scenePath;
+
+    QPainterPath chaikinPath;
+    chaikinPath.setFillRule(refinedPath.fillRule());
+    const QVector<QPolygonF> polygons = refinedPath.toFillPolygons();
+    for (const QPolygonF& polygon : polygons) {
+        if (polygon.size() < 3) {
+            continue;
+        }
+
+        QPolygonF smoothedPolygon = smoothPolygonChaikin(polygon, 2, 0.25);
+        if (smoothedPolygon.size() < 3) {
+            continue;
+        }
+
+        QPainterPath smoothedPath;
+        smoothedPath.addPolygon(smoothedPolygon);
+        smoothedPath.closeSubpath();
+        chaikinPath.addPath(smoothedPath);
+    }
+
+    if (!chaikinPath.isEmpty()) {
+        QPainterPath candidate = chaikinPath.united(refinedPath).simplified();
+        if (candidate.contains(scenePoint)) {
+            refinedPath = candidate;
+        }
+    }
+
+    QPainterPath curvedPath = smoothContour(refinedPath, 1.35);
+    if (!curvedPath.isEmpty() && curvedPath.contains(scenePoint)) {
+        refinedPath = curvedPath.simplified();
+    }
+
+    scenePath = refinedPath;
 
     region.outerBoundary = scenePath;
     region.bounds = scenePath.boundingRect();
@@ -1264,6 +1334,7 @@ QGraphicsPathItem* BucketFillTool::createFillItem(const QPainterPath& fillPath, 
     fillItem->setPen(QPen(Qt::NoPen));
     fillItem->setFlag(QGraphicsItem::ItemIsSelectable, true);
     fillItem->setFlag(QGraphicsItem::ItemIsMovable, true);
+    fillItem->setData(GraphicsItemRoles::BucketFillBehindStrokeRole, true);
 
     qDebug() << "BucketFill: Created fill item with color" << color.name();
     return fillItem;

@@ -5,6 +5,7 @@
 #include "Tools/Tool.h"
 #include "MainWindow.h"
 #include "Tools/SelectionTool.h"
+#include "Common/GraphicsItemRoles.h"
 #include <QGraphicsScene>
 #include <QGraphicsItem>
 #include <QGraphicsRectItem>
@@ -31,6 +32,7 @@
 #include <QRadialGradient>
 #include <QConicalGradient>
 #include <algorithm>
+#include <limits>
 
 // ROBUST: Enhanced layer data structure with better state management
 struct LayerData {
@@ -593,13 +595,21 @@ void Canvas::addItemToCurrentLayer(QGraphicsItem* item)
         }
     }
 
+    const bool placeBehindStroke = item->data(GraphicsItemRoles::BucketFillBehindStrokeRole).toBool();
+    const qreal zEpsilon = 0.01;
+
     // Determine appropriate Z-value to preserve relative ordering
     int baseZ = m_currentLayerIndex * 1000;
     int maxZ = -1;
+    qreal minZ = std::numeric_limits<qreal>::max();
     for (QGraphicsItem* existing : currentLayer->items) {
         int z = static_cast<int>(existing->zValue()) % 1000;
         if (z > maxZ) {
             maxZ = z;
+        }
+
+        if (placeBehindStroke) {
+            minZ = qMin(minZ, existing->zValue());
         }
     }
 
@@ -607,7 +617,21 @@ void Canvas::addItemToCurrentLayer(QGraphicsItem* item)
     currentLayer->addItem(item, m_currentFrame);
 
     // Set properties based on layer state
-    item->setZValue(baseZ + maxZ + 1);
+    qreal targetZ = baseZ + maxZ + 1;
+    if (placeBehindStroke) {
+        qreal desired = (minZ == std::numeric_limits<qreal>::max())
+            ? baseZ - zEpsilon
+            : qMin(minZ - zEpsilon, targetZ);
+
+        const qreal minimumLayerZ = baseZ - 0.99;
+        if (desired < minimumLayerZ) {
+            desired = minimumLayerZ;
+        }
+
+        targetZ = desired;
+    }
+
+    item->setZValue(targetZ);
     item->setFlag(QGraphicsItem::ItemIsSelectable, !currentLayer->locked);
     item->setFlag(QGraphicsItem::ItemIsMovable, !currentLayer->locked);
     item->setVisible(currentLayer->visible);
