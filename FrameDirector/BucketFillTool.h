@@ -64,7 +64,7 @@ private:
     // Note: Contour tracing uses simple QPoint lists for better performance
 
     // Vector-based filling methods
-    ClosedRegion findEnclosedRegion(const QPointF& point);
+    ClosedRegion findEnclosedRegion(const QPointF& point, bool forPreview = false);
     QList<PathSegment> collectNearbyPaths(const QPointF& center, qreal searchRadius = 50.0);
     QPainterPath mergeIntersectingPaths(const QList<PathSegment>& segments);
     QPainterPath createClosedPath(const QList<PathSegment>& segments, const QPointF& seedPoint);
@@ -90,7 +90,8 @@ private:
         const QColor& targetColor, const QColor& fillColor);
     int floodFillImageLimited(QImage& image, const QPoint& startPoint,
         const QColor& targetColor, const QColor& fillColor, int maxPixels);
-    ClosedRegion floodFillRegionFromArea(const QRectF& area, const QPointF& seedPoint, bool& touchesEdge);
+    ClosedRegion floodFillRegionFromArea(const QRectF& area, const QPointF& seedPoint,
+        bool& touchesEdge, bool forPreview);
     bool colorsSimilar(QRgb first, QRgb second) const;
 
     // Advanced contour tracing (Moore neighborhood algorithm)
