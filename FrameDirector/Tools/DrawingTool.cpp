@@ -91,8 +91,20 @@ private:
     {
         if (m_drawingTool) {
             m_drawingTool->setStabilizerAmount(value);
+            int delayMs = m_drawingTool->getStabilizerDelayMs();
+
+            if (value == 0) {
+                m_stabilizerLabel->setText("Stabilizer: Off");
+            }
+            else {
+                m_stabilizerLabel->setText(QString("Stabilizer: %1 (delay %2ms)")
+                                               .arg(value)
+                                               .arg(delayMs));
+            }
         }
-        m_stabilizerLabel->setText(QString("Stabilizer: %1ms").arg(value * 10));
+        else {
+            m_stabilizerLabel->setText(QString("Stabilizer: %1").arg(value));
+        }
     }
 
     void onColorButtonClicked()
@@ -147,7 +159,7 @@ private:
         QGroupBox* stabilizerGroup = new QGroupBox("Stabilizer Settings");
         QVBoxLayout* stabilizerLayout = new QVBoxLayout(stabilizerGroup);
         
-        m_stabilizerLabel = new QLabel("Stabilizer: 0ms");
+        m_stabilizerLabel = new QLabel("Stabilizer: Off");
         stabilizerLayout->addWidget(m_stabilizerLabel);
         
         m_stabilizerSlider = new QSlider(Qt::Horizontal);
@@ -274,6 +286,7 @@ DrawingTool::DrawingTool(MainWindow* mainWindow, QObject* parent)
 {
     // Setup stabilizer timer
     m_stabilizerTimer->setSingleShot(true);
+    m_stabilizerTimer->setTimerType(Qt::PreciseTimer);
     connect(m_stabilizerTimer, &QTimer::timeout, this, &DrawingTool::onStabilizerTimeout);
     
     // Initialize stabilizer settings
@@ -289,6 +302,7 @@ void DrawingTool::mousePressEvent(QMouseEvent* event, const QPointF& scenePos)
         m_path = QPainterPath();
         m_path.moveTo(scenePos);
         m_lastPoint = scenePos;
+        m_stabilizerTimer->stop();
         m_stabilizerPoints.clear();
         m_stabilizerPoints.append(scenePos);
         m_smoothedPoint = scenePos;
@@ -315,13 +329,9 @@ void DrawingTool::mouseMoveEvent(QMouseEvent* event, const QPointF& scenePos)
 {
     if (m_drawing && m_currentPath) {
         if (m_stabilizerAmount > 0) {
-            // Add point to stabilizer buffer
+            // Add point to stabilizer buffer and process immediately
             m_stabilizerPoints.append(scenePos);
-            
-            // Start stabilizer timer if not already running
-            if (!m_stabilizerTimer->isActive()) {
-                m_stabilizerTimer->start();
-            }
+            processStabilizerPoints(false);
         } else {
             // No stabilization - draw immediately
             addPointToPath(scenePos);
@@ -337,7 +347,11 @@ void DrawingTool::mouseReleaseEvent(QMouseEvent* event, const QPointF& scenePos)
         // Process any remaining stabilizer points
         if (m_stabilizerAmount > 0) {
             m_stabilizerTimer->stop();
-            onStabilizerTimeout(); // Process remaining points
+            if (m_stabilizerPoints.isEmpty() ||
+                QLineF(m_stabilizerPoints.last(), scenePos).length() > 0.01) {
+                m_stabilizerPoints.append(scenePos);
+            }
+            processStabilizerPoints(true); // Process remaining points
         }
 
         if (m_currentPath) {
@@ -381,27 +395,26 @@ void DrawingTool::mouseReleaseEvent(QMouseEvent* event, const QPointF& scenePos)
 
 void DrawingTool::onStabilizerTimeout()
 {
-    if (m_stabilizerPoints.isEmpty())
+    processStabilizerPoints(false);
+}
+
+void DrawingTool::processStabilizerPoints(bool forceFlush)
+{
+    if (m_stabilizerAmount <= 0 || m_stabilizerPoints.isEmpty())
         return;
 
-    // The stabilizer keeps a buffer of raw cursor samples and turns them into
-    // a smoothly filtered stroke. Instead of outputting the most recent point
-    // after a fixed delay, we build a trailing window average and blend it with
-    // the previous stabilized point. This behaves more like the "lazy" or
-    // "weighted" stabilizers in dedicated drawing apps – jitters are absorbed
-    // while the stroke still catches up to the cursor when it moves quickly.
-
-    const int kMinWindow = 2;
+    const double normalized = qBound(0.0, m_stabilizerAmount / 20.0, 1.0);
+    const int kMinWindow = 3;
     const int kMaxWindow = 20;
-    int desiredWindow = kMinWindow + qRound(m_stabilizerAmount * 0.6);
+    int desiredWindow = kMinWindow + qRound(normalized * 12.0);
     desiredWindow = qBound(kMinWindow, desiredWindow, kMaxWindow);
 
-    int backlog = qMax(0, m_stabilizerPoints.size() - desiredWindow);
-    int iterations = backlog + 1;
-    if (!m_drawing) {
+    int iterations = 1;
+    if (forceFlush) {
         iterations = m_stabilizerPoints.size();
     } else {
-        iterations = qBound(1, iterations, 96);
+        int backlog = qMax(0, m_stabilizerPoints.size() - desiredWindow);
+        iterations = qBound(1, backlog + 1, 96);
     }
 
     for (int iter = 0; iter < iterations; ++iter) {
@@ -414,10 +427,17 @@ void DrawingTool::onStabilizerTimeout()
             break;
 
         QPointF target(0.0, 0.0);
+        double totalWeight = 0.0;
+        const double weightStep = 0.55;
         for (int i = 0; i < windowSize; ++i) {
-            target += m_stabilizerPoints[buffered - 1 - i];
+            double weight = 1.0 + i * weightStep;
+            target += m_stabilizerPoints[buffered - 1 - i] * weight;
+            totalWeight += weight;
         }
-        target /= static_cast<qreal>(windowSize);
+
+        if (totalWeight > 0.0) {
+            target /= totalWeight;
+        }
 
         if (!m_hasSmoothedPoint) {
             m_smoothedPoint = target;
@@ -427,23 +447,33 @@ void DrawingTool::onStabilizerTimeout()
         QPointF cursorPos = m_stabilizerPoints.last();
         double distanceToCursor = QLineF(m_smoothedPoint, cursorPos).length();
 
-        double normalized = m_stabilizerAmount / 20.0;
-        double baseFollow = 0.55 - (0.35 * normalized);
-        baseFollow = qBound(0.18, baseFollow, 0.65);
+        double smoothingStrength = 0.25 + normalized * 0.6; // Higher values = smoother
+        double follow = 1.0 - smoothingStrength;            // How fast we move toward the target
+        follow = qBound(0.12, follow, 0.85);
 
-        double catchUpBoost = 0.0;
-        if (!m_drawing) {
-            catchUpBoost = 0.4; // Finish remaining points quickly when pen is released
-        } else if (distanceToCursor > 4.0) {
-            catchUpBoost = qBound(0.0, (distanceToCursor - 4.0) / 40.0, 0.45);
+        if (forceFlush) {
+            follow = qMax(follow, 0.45);
+        } else {
+            if (buffered > windowSize) {
+                double backlogRatio = qBound(0.0, double(buffered - windowSize) / windowSize, 1.0);
+                double catchUp = follow + backlogRatio * (0.7 - follow);
+                follow = qBound(follow, catchUp, 0.9);
+            }
+
+            double maxLag = 6.0 + normalized * 22.0;
+            if (distanceToCursor > maxLag) {
+                double over = distanceToCursor - maxLag;
+                double ratio = qBound(0.0, over / (maxLag * 1.2), 1.0);
+                double catchUp = follow + ratio * (0.85 - follow);
+                follow = qBound(follow, catchUp, 0.9);
+            }
         }
-
-        double follow = qBound(0.18, baseFollow + catchUpBoost, 0.95);
 
         QPointF newPoint = m_smoothedPoint + (target - m_smoothedPoint) * follow;
 
         if (distanceToCursor < 3.0) {
-            newPoint = (newPoint * 0.6) + (cursorPos * 0.4);
+            double closeness = qBound(0.0, (3.0 - distanceToCursor) / 3.0, 1.0);
+            newPoint = newPoint * (1.0 - closeness * 0.35) + cursorPos * (closeness * 0.35);
         }
 
         m_smoothedPoint = newPoint;
@@ -451,10 +481,13 @@ void DrawingTool::onStabilizerTimeout()
 
         m_stabilizerPoints.removeFirst();
 
-        if (!m_drawing) {
+        if (forceFlush) {
             if (m_stabilizerPoints.isEmpty())
                 break;
         } else {
+            if (m_stabilizerPoints.isEmpty())
+                break;
+
             if (m_stabilizerPoints.size() <= 1)
                 break;
 
@@ -464,7 +497,7 @@ void DrawingTool::onStabilizerTimeout()
         }
     }
 
-    if (!m_stabilizerPoints.isEmpty() && m_drawing) {
+    if (!forceFlush && m_drawing && m_stabilizerPoints.size() > 1) {
         m_stabilizerTimer->start();
     }
 }
@@ -518,8 +551,14 @@ void DrawingTool::applySmoothingToPath()
 
 void DrawingTool::updateStabilizerDelay()
 {
-    int delayMs = m_stabilizerAmount * 10; // Convert to milliseconds
+    double normalized = qBound(0.0, m_stabilizerAmount / 20.0, 1.0);
+    int delayMs = 8 + qRound(normalized * 24.0); // 8ms at low strength, up to ~32ms at max
     m_stabilizerTimer->setInterval(delayMs);
+}
+
+int DrawingTool::getStabilizerDelayMs() const
+{
+    return m_stabilizerTimer ? m_stabilizerTimer->interval() : 0;
 }
 
 void DrawingTool::showSettingsDialog()

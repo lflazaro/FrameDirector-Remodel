@@ -42,6 +42,7 @@ public:
     int getStabilizerAmount() const;
     bool isSmoothingEnabled() const;
     bool isPressureSensitive() const;
+    int getStabilizerDelayMs() const;
 
     // Settings dialog
     void showSettingsDialog();
@@ -53,6 +54,7 @@ private:
     void addPointToPath(const QPointF& point);
     void applySmoothingToPath();
     void updateStabilizerDelay();
+    void processStabilizerPoints(bool forceFlush);
     // Drawing state
     bool m_drawing;
     QGraphicsPathItem* m_currentPath;
