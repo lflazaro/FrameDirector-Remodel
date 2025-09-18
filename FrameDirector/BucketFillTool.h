@@ -64,7 +64,8 @@ private:
     // Note: Contour tracing uses simple QPoint lists for better performance
 
     // Vector-based filling methods
-    ClosedRegion findEnclosedRegion(const QPointF& point, bool forPreview = false);
+    ClosedRegion findEnclosedRegion(const QPointF& point, bool forPreview = false,
+        QRectF* outSampleRect = nullptr);
     QList<PathSegment> collectNearbyPaths(const QPointF& center, qreal searchRadius = 50.0);
     QPainterPath mergeIntersectingPaths(const QList<PathSegment>& segments);
     QPainterPath createClosedPath(const QList<PathSegment>& segments, const QPointF& seedPoint);
@@ -116,6 +117,7 @@ private:
     // Visual feedback and preview
     void showFillPreview(const QPainterPath& path);
     void hideFillPreview();
+    void clearPreviewCache();
 
     // Performance optimization
     void cacheNearbyItems(const QRectF& region);
@@ -141,6 +143,10 @@ private:
 
     // Visual feedback
     QGraphicsPathItem* m_previewItem;
+    ClosedRegion m_lastPreviewRegion;
+    QRectF m_lastPreviewSampleRect;
+    QPointF m_lastPreviewPoint;
+    bool m_hasPreviewRegion;
 
     // Constants for contour tracing
     static const int DIRECTION_COUNT = 8;
