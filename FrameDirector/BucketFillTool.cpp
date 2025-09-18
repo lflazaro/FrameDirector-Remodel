@@ -703,20 +703,31 @@ BucketFillTool::ClosedRegion BucketFillTool::floodFillRegionFromArea(const QRect
     clipPath.addRect(area);
 
     const qreal pixelStep = (scale > 0.0) ? (1.0 / scale) : 1.0;
-    const qreal smoothingPixel = qBound<qreal>(0.5, pixelStep, 2.4);
+    const qreal smoothingPixel = qBound<qreal>(0.6, pixelStep * 1.1, 2.4);
 
-    QPainterPathStroker expansionStroker;
-    expansionStroker.setCapStyle(Qt::RoundCap);
-    expansionStroker.setJoinStyle(Qt::RoundJoin);
-    expansionStroker.setWidth(qBound<qreal>(0.65, smoothingPixel * 1.6, 1.9));
-    QPainterPath refinedPath = scenePath.united(expansionStroker.createStroke(scenePath)).simplified();
+    PathSmoothingData smoothingData = buildSmoothPath(scenePath, smoothingPixel);
+
+    QPainterPath refinedPath = scenePath;
+    if (!smoothingData.path.isEmpty() && smoothingData.path.contains(scenePoint)) {
+        refinedPath = smoothingData.path;
+    }
+
+    refinedPath = refinedPath.simplified();
     refinedPath = refinedPath.intersected(clipPath);
+
+    if (!refinedPath.contains(scenePoint)) {
+        QPainterPath fallback = scenePath.intersected(clipPath).simplified();
+        if (!fallback.contains(scenePoint)) {
+            return region;
+        }
+        refinedPath = fallback;
+    }
 
     if (forPreview) {
         QPainterPathStroker previewStroker;
         previewStroker.setCapStyle(Qt::RoundCap);
         previewStroker.setJoinStyle(Qt::RoundJoin);
-        previewStroker.setWidth(qBound<qreal>(0.45, smoothingPixel * 1.35, 1.45));
+        previewStroker.setWidth(qBound<qreal>(0.45, smoothingPixel * 1.15, 1.35));
         QPainterPath previewPath = refinedPath.united(previewStroker.createStroke(refinedPath)).simplified();
         previewPath = previewPath.intersected(clipPath);
         if (previewPath.contains(scenePoint)) {
@@ -728,37 +739,37 @@ BucketFillTool::ClosedRegion BucketFillTool::floodFillRegionFromArea(const QRect
         }
     }
     else {
-        PathSmoothingData smoothingData = buildSmoothPath(refinedPath, smoothingPixel);
-        if (!smoothingData.path.isEmpty()) {
-            QPainterPath candidate = smoothingData.path.united(refinedPath).simplified();
-            candidate = candidate.intersected(clipPath);
-            if (candidate.contains(scenePoint)) {
-                refinedPath = candidate;
-            }
+        QPainterPathStroker dilationStroker;
+        dilationStroker.setCapStyle(Qt::RoundCap);
+        dilationStroker.setJoinStyle(Qt::RoundJoin);
+        dilationStroker.setWidth(qBound<qreal>(0.6, smoothingPixel * 1.25, 1.8));
+
+        QPainterPath expanded = refinedPath.united(dilationStroker.createStroke(refinedPath)).simplified();
+        expanded = expanded.intersected(clipPath);
+        if (expanded.contains(scenePoint)) {
+            refinedPath = expanded;
         }
 
+        qreal baseSpacing = smoothingPixel;
         if (smoothingData.polygonCount > 0) {
             qreal averageEdge = smoothingData.averageEdgeLength / smoothingData.polygonCount;
-            qreal roundWidth = qBound<qreal>(0.6, qMax(averageEdge, smoothingPixel) * 1.05, 1.7);
-            QPainterPathStroker rounder;
-            rounder.setCapStyle(Qt::RoundCap);
-            rounder.setJoinStyle(Qt::RoundJoin);
-            rounder.setWidth(roundWidth);
-            QPainterPath candidate = refinedPath.united(rounder.createStroke(refinedPath)).simplified();
-            candidate = candidate.intersected(clipPath);
-            if (candidate.contains(scenePoint)) {
-                refinedPath = candidate;
+            if (qIsFinite(averageEdge) && averageEdge > 0.0) {
+                baseSpacing = qMax(baseSpacing, averageEdge);
             }
         }
 
-        qreal contourSpacing = qBound<qreal>(0.55, smoothingPixel * 1.3, 1.8);
+        qreal contourSpacing = qBound<qreal>(0.65, baseSpacing * 1.1, 1.8);
         QPainterPath curvedPath = smoothContour(refinedPath, contourSpacing);
         if (!curvedPath.isEmpty() && curvedPath.contains(scenePoint)) {
             refinedPath = curvedPath.simplified();
         }
     }
 
-    refinedPath = refinedPath.intersected(clipPath);
+    refinedPath = refinedPath.intersected(clipPath).simplified();
+
+    if (refinedPath.isEmpty() || !refinedPath.contains(scenePoint)) {
+        return region;
+    }
 
     region.outerBoundary = refinedPath;
     region.bounds = refinedPath.boundingRect();
