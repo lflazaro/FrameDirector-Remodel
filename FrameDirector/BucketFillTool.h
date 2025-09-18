@@ -70,6 +70,8 @@ private:
     QPainterPath createClosedPath(const QList<PathSegment>& segments, const QPointF& seedPoint);
     ClosedRegion buildClosedRegionFromSegments(const QList<PathSegment>& segments,
         const QPointF& seedPoint, qreal searchRadius);
+    ClosedRegion buildClosedRegionUsingRaster(const QList<PathSegment>& segments,
+        const QPointF& seedPoint, qreal searchRadius);
     bool isPathClosed(const QPainterPath& path, qreal tolerance = 2.0);
     QPainterPath closeOpenPath(const QPainterPath& path, qreal tolerance = 5.0);
 
