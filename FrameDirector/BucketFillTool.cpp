@@ -507,18 +507,42 @@ BucketFillTool::ClosedRegion BucketFillTool::floodFillRegionFromArea(const QRect
 
 bool BucketFillTool::colorsSimilar(QRgb first, QRgb second) const
 {
-    if (qAlpha(first) < 10 && qAlpha(second) < 10) {
+    // Handle fully transparent pixels
+    int a1 = qAlpha(first);
+    int a2 = qAlpha(second);
+
+    // Both transparent = similar
+    if (a1 < 10 && a2 < 10) {
         return true;
     }
 
+    // One transparent, one opaque = different
+    if ((a1 < 10) != (a2 < 10)) {
+        return false;
+    }
+
+    // For semi-transparent pixels, use weighted comparison
+    if (a1 < 255 || a2 < 255) {
+        // Compare based on visual appearance (alpha-weighted)
+        qreal r1 = qRed(first) * a1 / 255.0;
+        qreal g1 = qGreen(first) * a1 / 255.0;
+        qreal b1 = qBlue(first) * a1 / 255.0;
+
+        qreal r2 = qRed(second) * a2 / 255.0;
+        qreal g2 = qGreen(second) * a2 / 255.0;
+        qreal b2 = qBlue(second) * a2 / 255.0;
+
+        qreal diff = qAbs(r1 - r2) + qAbs(g1 - g2) + qAbs(b1 - b2) + qAbs(a1 - a2) * 0.5;
+
+        return diff <= (12 + m_tolerance * 4);
+    }
+
+    // Both opaque - simple comparison
     const int diff = qAbs(qRed(first) - qRed(second)) +
         qAbs(qGreen(first) - qGreen(second)) +
-        qAbs(qBlue(first) - qBlue(second)) +
-        qAbs(qAlpha(first) - qAlpha(second));
+        qAbs(qBlue(first) - qBlue(second));
 
-    const int baseTolerance = 12;
-    const int multiplier = 4;
-    return diff <= baseTolerance + m_tolerance * multiplier;
+    return diff <= (12 + m_tolerance * 4);
 }
 
 QList<BucketFillTool::PathSegment> BucketFillTool::collectNearbyPaths(const QPointF& center, qreal searchRadius)
@@ -1131,17 +1155,29 @@ void BucketFillTool::performRasterFill(const QPointF& point)
 QImage BucketFillTool::renderSceneToImage(const QRectF& region, qreal scale, bool antialiased)
 {
     if (!m_canvas || !m_canvas->scene()) return QImage();
+
     int w = qMax(1, int(qCeil(region.width() * scale)));
     int h = qMax(1, int(qCeil(region.height() * scale)));
-    QImage img(QSize(w, h), QImage::Format_ARGB32_Premultiplied);
+
+    // CRITICAL: Use non-premultiplied format
+    QImage img(QSize(w, h), QImage::Format_ARGB32);
     img.fill(Qt::transparent);
 
     QPainter p(&img);
-    p.setRenderHint(QPainter::Antialiasing, antialiased);
+
+    // Option 1: Disable antialiasing entirely for fill detection
+    // This gives the most stable results but slightly jagged previews
+    if (!antialiased) {
+        p.setRenderHint(QPainter::Antialiasing, false);
+        p.setRenderHint(QPainter::TextAntialiasing, false);
+        p.setRenderHint(QPainter::SmoothPixmapTransform, false);
+    }
+
     p.scale(scale, scale);
     p.translate(-region.topLeft());
     m_canvas->scene()->render(&p, QRectF(0, 0, region.width(), region.height()), region);
     p.end();
+
     return img;
 }
 
@@ -1155,40 +1191,49 @@ QColor BucketFillTool::getPixelColor(const QImage& image, const QPoint& point)
 }
 
 int BucketFillTool::floodFillImageLimited(QImage& image, const QPoint& startPoint,
-    const QColor& targetColor, const QColor& fillColor, int maxPixels)
+    const QColor& targetColor, const QColor& fillColor,
+    int maxPixels)
 {
     if (targetColor == fillColor) return 0;
     if (!image.rect().contains(startPoint)) return 0;
 
+    const int width = image.width();
+    const int height = image.height();
+
+    // Use a binary mask for visited pixels
+    std::vector<bool> visited(width * height, false);
     QQueue<QPoint> pointQueue;
-    QSet<QPoint> visited;
     int filledCount = 0;
+
+    // Determine if we're filling transparent or opaque areas
+    bool fillingTransparent = targetColor.alpha() < 128;
 
     pointQueue.enqueue(startPoint);
 
     while (!pointQueue.isEmpty() && filledCount < maxPixels) {
         QPoint current = pointQueue.dequeue();
 
-        if (visited.contains(current)) continue;
-        if (!image.rect().contains(current)) continue;
+        if (current.x() < 0 || current.x() >= width ||
+            current.y() < 0 || current.y() >= height) {
+            continue;
+        }
 
-        QColor currentColor = getPixelColor(image, current);
+        int index = current.y() * width + current.x();
+        if (visited[index]) continue;
 
-        // FIXED: Stricter color matching
-        int colorDiff = qAbs(currentColor.red() - targetColor.red()) +
-            qAbs(currentColor.green() - targetColor.green()) +
-            qAbs(currentColor.blue() - targetColor.blue()) +
-            qAbs(currentColor.alpha() - targetColor.alpha());
+        QRgb currentPixel = image.pixel(current);
+        bool currentTransparent = qAlpha(currentPixel) < 128;
 
-        if (colorDiff > m_tolerance * 2) continue; // Stricter tolerance
+        // Binary decision: same fill type or not
+        if (fillingTransparent != currentTransparent) continue;
 
-        // Fill this pixel
+        // Fill and mark visited
         image.setPixel(current, fillColor.rgba());
-        visited.insert(current);
+        visited[index] = true;
         filledCount++;
 
-        // Add 4-connected neighbors only
-        QList<QPoint> neighbors = {
+        // Add neighbors
+        const QPoint neighbors[4] = {
             QPoint(current.x() + 1, current.y()),
             QPoint(current.x() - 1, current.y()),
             QPoint(current.x(), current.y() + 1),
@@ -1196,8 +1241,12 @@ int BucketFillTool::floodFillImageLimited(QImage& image, const QPoint& startPoin
         };
 
         for (const QPoint& neighbor : neighbors) {
-            if (!visited.contains(neighbor)) {
-                pointQueue.enqueue(neighbor);
+            if (neighbor.x() >= 0 && neighbor.x() < width &&
+                neighbor.y() >= 0 && neighbor.y() < height) {
+                int nIndex = neighbor.y() * width + neighbor.x();
+                if (!visited[nIndex]) {
+                    pointQueue.enqueue(neighbor);
+                }
             }
         }
     }
