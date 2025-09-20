@@ -322,6 +322,8 @@ BucketFillTool::ClosedRegion BucketFillTool::findEnclosedRegion(const QPointF& p
     return invalidRegion;
 }
 
+
+
 BucketFillTool::ClosedRegion BucketFillTool::floodFillRegionFromArea(const QRectF& area,
     const QPointF& scenePoint, bool& touchesEdge)
 {
