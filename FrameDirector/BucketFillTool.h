@@ -69,9 +69,12 @@ private:
     // Extended segment used by the enhanced engine
     struct PathSegmentEx {
         QPainterPath path;
+        QPainterPath shape;          // full drawable shape (scene coordinates)
         QGraphicsItem* item = nullptr;
         QRectF bounds;
         qreal distanceToPoint = 0.0;
+        qreal strokeWidth = 1.0;     // cached stroke width for barrier expansion
+        bool hasFill = false;        // whether the original item carried a fill
     };
 
     // ===== Enhanced vector region detection =====
@@ -90,6 +93,10 @@ private:
     QPainterPath createSinglePointPath(const QPointF& p);
     ClosedRegion findEnclosureByRayCasting(const QPointF& point, const QList<PathSegmentEx>& paths);
     QPointF findNearestIntersection(const QPointF& origin, const QPointF& dir, const QList<PathSegmentEx>& paths);
+
+    ClosedRegion resolveRegionByMask(const QPointF& point, const QList<PathSegmentEx>& segments, const QRectF& canvasRect);
+    QRectF uniteSegmentBounds(const QList<PathSegmentEx>& segments) const;
+    bool touchesImageBorder(const QImage& image, const QColor& fillColor) const;
 
     // Smoothing (Catmull–Rom) for polygonal boundary
     QPainterPath smoothPath(const QPainterPath& path, qreal smoothingFactor = 2.0);
