@@ -76,6 +76,27 @@ namespace {
         return result;
     }
 
+    int alphaValueAt(const QImage& image, int x, int y)
+    {
+        if (x < 0 || y < 0 || x >= image.width() || y >= image.height()) {
+            return 0;
+        }
+
+        switch (image.format()) {
+        case QImage::Format_Alpha8:
+        case QImage::Format_Grayscale8: {
+            const uchar* line = image.constScanLine(y);
+            return line ? line[x] : 0;
+        }
+        case QImage::Format_Mono:
+        case QImage::Format_MonoLSB:
+        case QImage::Format_Indexed8:
+            return image.pixelIndex(x, y) ? 255 : 0;
+        default:
+            return qAlpha(image.pixel(x, y));
+        }
+    }
+
 }
 
 // Direction vectors for 8-connected neighbors (Moore neighborhood)
@@ -924,8 +945,9 @@ BucketFillTool::buildClosedRegionUsingRaster(const QList<PathSegment>& segments,
 
     const bool seedIsTransparent = (qAlpha(mask.pixel(ip)) < 128);
 
-    QImage filled = mask.copy();
-    const QRgb mark = qRgba(255, 0, 255, 255);
+    // Dedicated binary mask that only stores the filled region.
+    QImage fillMask(imgSize, QImage::Format_Alpha8);
+    fillMask.fill(0);
 
     QVector<uchar> visited(totalPixels, 0);
     QQueue<QPoint> q; q.enqueue(ip);
@@ -942,7 +964,7 @@ BucketFillTool::buildClosedRegionUsingRaster(const QList<PathSegment>& segments,
         const bool isTransparent = (qAlpha(mask.pixel(p)) < 128);
         if (isTransparent != seedIsTransparent) continue;
 
-        filled.setPixel(p, mark);
+        fillMask.setPixel(p.x(), p.y(), 255);
         ++filledCount;
 
         q.enqueue(QPoint(p.x() + 1, p.y()));
@@ -956,7 +978,7 @@ BucketFillTool::buildClosedRegionUsingRaster(const QList<PathSegment>& segments,
         return region;
 
     // ---- 5) Trace contour and map back to scene coords ----
-    QPainterPath traced = traceFilledRegion(filled, QColor(mark));
+    QPainterPath traced = traceFilledRegion(fillMask, QColor(), true);
     if (traced.isEmpty()) return region;
 
     QTransform T;
@@ -1227,13 +1249,20 @@ int BucketFillTool::floodFillImageLimited(QImage& image, const QPoint& startPoin
     const int width = image.width();
     const int height = image.height();
 
-    // Use a binary mask for visited pixels
     std::vector<bool> visited(width * height, false);
     QQueue<QPoint> pointQueue;
     int filledCount = 0;
 
-    // Determine if we're filling transparent or opaque areas
-    bool fillingTransparent = targetColor.alpha() < 128;
+    const bool useAlphaMask = (image.format() == QImage::Format_Alpha8 ||
+        image.format() == QImage::Format_Grayscale8 ||
+        image.format() == QImage::Format_Mono ||
+        image.format() == QImage::Format_MonoLSB ||
+        image.format() == QImage::Format_Indexed8);
+
+    const QRgb targetRgb = targetColor.rgba();
+    const bool targetTransparent = useAlphaMask ?
+        (alphaValueAt(image, startPoint.x(), startPoint.y()) < 128) :
+        (targetColor.alpha() < 128);
 
     pointQueue.enqueue(startPoint);
 
@@ -1247,16 +1276,29 @@ int BucketFillTool::floodFillImageLimited(QImage& image, const QPoint& startPoin
 
         int index = current.y() * width + current.x();
         if (visited[index]) continue;
+        visited[index] = true;
 
-        QRgb currentPixel = image.pixel(current);
-        bool currentTransparent = qAlpha(currentPixel) < 128;
+        bool matches = false;
+        if (useAlphaMask) {
+            bool currentTransparent = alphaValueAt(image, current.x(), current.y()) < 128;
+            matches = (currentTransparent == targetTransparent);
+        }
+        else {
+            QRgb currentPixel = image.pixel(current);
+            matches = colorsSimilar(currentPixel, targetRgb);
+        }
 
-        // Binary decision: same fill type or not
-        if (fillingTransparent != currentTransparent) continue;
+        if (!matches) {
+            continue;
+        }
 
         // Fill and mark visited
-        image.setPixel(current, fillColor.rgba());
-        visited[index] = true;
+        if (useAlphaMask) {
+            image.setPixel(current.x(), current.y(), 255);
+        }
+        else {
+            image.setPixel(current.x(), current.y(), fillColor.rgba());
+        }
         filledCount++;
 
         // Add neighbors
@@ -1289,16 +1331,16 @@ void BucketFillTool::floodFillImage(QImage& image, const QPoint& startPoint,
 }
 
 
-QPainterPath BucketFillTool::traceFilledRegion(const QImage& image, const QColor& fillColor)
+QPainterPath BucketFillTool::traceFilledRegion(const QImage& image, const QColor& fillColor, bool useAlphaMask)
 {
     // 1. Find a filled start point
-    QPoint startPoint = findStartPoint(image, fillColor);
+    QPoint startPoint = findStartPoint(image, fillColor, useAlphaMask);
     if (startPoint.x() == -1) {
         return QPainterPath(); // nothing to trace
     }
 
     // 2. Use improved marching-squares border walk to get raw contour
-    QVector<QPointF> contour = traceContour(image, startPoint, fillColor);
+    QVector<QPointF> contour = traceContour(image, startPoint, fillColor, useAlphaMask);
 
     if (contour.size() < 3) {
         return QPainterPath(); // not enough points to form a region
@@ -1320,13 +1362,20 @@ QPainterPath BucketFillTool::traceFilledRegion(const QImage& image, const QColor
     return path;
 }
 
-QPoint BucketFillTool::findStartPoint(const QImage& image, const QColor& fillColor)
+QPoint BucketFillTool::findStartPoint(const QImage& image, const QColor& fillColor, bool useAlphaMask)
 {
     // Find the topmost, leftmost filled pixel
     for (int y = 0; y < image.height(); ++y) {
         for (int x = 0; x < image.width(); ++x) {
-            if (getPixelColor(image, QPoint(x, y)) == fillColor) {
-                return QPoint(x, y);
+            if (useAlphaMask) {
+                if (alphaValueAt(image, x, y) > 0) {
+                    return QPoint(x, y);
+                }
+            }
+            else {
+                if (getPixelColor(image, QPoint(x, y)) == fillColor) {
+                    return QPoint(x, y);
+                }
             }
         }
     }
@@ -1338,10 +1387,10 @@ QPoint BucketFillTool::findStartPoint(const QImage& image, const QColor& fillCol
 inline bool isFilled(const QImage& mask, int x, int y) {
     if (x < 0 || y < 0 || x >= mask.width() || y >= mask.height())
         return false;
-    return qAlpha(mask.pixel(x, y)) > 0; // Or mask.pixelColor(x,y).alpha() > 0
+    return alphaValueAt(mask, x, y) > 0;
 }
 
-QVector<QPointF> BucketFillTool::traceContour(const QImage& mask, const QPoint& start, const QColor& fillColor)
+QVector<QPointF> BucketFillTool::traceContour(const QImage& mask, const QPoint& start, const QColor& fillColor, bool useAlphaMask)
 {
     QVector<QPointF> contour;
     const int w = mask.width();
@@ -1349,8 +1398,11 @@ QVector<QPointF> BucketFillTool::traceContour(const QImage& mask, const QPoint& 
 
     auto isFilled = [&](int x, int y) {
         if (x < 0 || y < 0 || x >= w || y >= h) return false;
+        if (useAlphaMask) {
+            return alphaValueAt(mask, x, y) > 0;
+        }
         return mask.pixelColor(x, y) == fillColor;
-        };
+    };
 
     // Marching Squares directions: right, down, left, up
     const QPoint dirs[4] = { {1,0}, {0,1}, {-1,0}, {0,-1} };
