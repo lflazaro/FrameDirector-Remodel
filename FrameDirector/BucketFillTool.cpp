@@ -87,7 +87,7 @@ void BucketFillTool::mousePressEvent(QMouseEvent* event, const QPointF& scenePos
         try {
             if (m_fillMode == 0) {
                 // Vector-first approach
-                ClosedRegion region = findEnclosedRegionEnhanced(scenePos);
+                ClosedRegion region = findEnclosedRegionEnhanced(scenePos, /*allowComplexSearch*/ true);
 
                 if (region.isValid && !region.outerBoundary.isEmpty()) {
                     if (isValidFillRegion(region, canvasRect)) {
@@ -122,7 +122,7 @@ void BucketFillTool::mousePressEvent(QMouseEvent* event, const QPointF& scenePos
 // ===============================
 // Vector region detection (enhanced)
 // ===============================
-BucketFillTool::ClosedRegion BucketFillTool::findEnclosedRegionEnhanced(const QPointF& point)
+BucketFillTool::ClosedRegion BucketFillTool::findEnclosedRegionEnhanced(const QPointF& point, bool allowComplexSearch)
 {
     ClosedRegion region;
     region.isValid = false;
@@ -155,10 +155,12 @@ BucketFillTool::ClosedRegion BucketFillTool::findEnclosedRegionEnhanced(const QP
     }
 
     // 2) mask-based extraction for complex/large regions
-    ClosedRegion maskRegion = resolveRegionByMask(point, nearbyPaths, m_canvas->getCanvasRect());
-    if (maskRegion.isValid) {
-        qDebug() << "Resolved region via barrier mask";
-        return maskRegion;
+    if (allowComplexSearch) {
+        ClosedRegion maskRegion = resolveRegionByMask(point, nearbyPaths, m_canvas->getCanvasRect());
+        if (maskRegion.isValid) {
+            qDebug() << "Resolved region via barrier mask";
+            return maskRegion;
+        }
     }
 
     // 3) connect components
@@ -1098,7 +1100,7 @@ void BucketFillTool::mouseMoveEvent(QMouseEvent* event, const QPointF& scenePos)
     }
 
     // Vector-first preview: try to find the region under the cursor
-    ClosedRegion region = findEnclosedRegionEnhanced(scenePos);
+    ClosedRegion region = findEnclosedRegionEnhanced(scenePos, /*allowComplexSearch*/ false);
     if (region.isValid && !region.outerBoundary.isEmpty()
         && isValidFillRegion(region, m_canvas->getCanvasRect()))
     {

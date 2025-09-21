@@ -78,7 +78,7 @@ private:
     };
 
     // ===== Enhanced vector region detection =====
-    ClosedRegion findEnclosedRegionEnhanced(const QPointF& point);
+    ClosedRegion findEnclosedRegionEnhanced(const QPointF& point, bool allowComplexSearch = true);
     QList<PathSegmentEx> collectPathsInRadius(const QPointF& center, qreal radius);
     PathSegmentEx extractPathFromItem(QGraphicsItem* item);
     QPainterPath connectPathsAdvanced(const QList<PathSegmentEx>& segments, const QPointF& seedPoint);
