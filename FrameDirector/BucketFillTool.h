@@ -97,9 +97,9 @@ private:
     bool colorsSimilar(QRgb first, QRgb second) const;
 
     // Advanced contour tracing (Moore neighborhood algorithm)
-    QPainterPath traceFilledRegion(const QImage& image, const QColor& fillColor);
-    QVector<QPointF> traceContour(const QImage& image, const QPoint& startPoint, const QColor& fillColor);
-    QPoint findStartPoint(const QImage& image, const QColor& fillColor);
+    QPainterPath traceFilledRegion(const QImage& image, const QColor& fillColor, bool useAlphaMask = false);
+    QVector<QPointF> traceContour(const QImage& image, const QPoint& startPoint, const QColor& fillColor, bool useAlphaMask);
+    QPoint findStartPoint(const QImage& image, const QColor& fillColor, bool useAlphaMask);
     QList<QPoint> getNeighbors8(const QPoint& point);
     QPoint getNextNeighbor(const QPoint& current, int direction);
     int getDirection(const QPoint& from, const QPoint& to);
