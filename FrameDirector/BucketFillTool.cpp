@@ -20,6 +20,7 @@
 #include <QQueue>
 #include <QSet>
 #include <QVector>
+#include <QtGlobal>
 #include <limits>
 #include <vector>
 
@@ -76,17 +77,30 @@ namespace {
         return result;
     }
 
+    inline bool isInvalidImagePointer(const uchar* ptr)
+    {
+        return !ptr || reinterpret_cast<quintptr>(ptr) == std::numeric_limits<quintptr>::max();
+    }
+
     int alphaValueAt(const QImage& image, int x, int y)
     {
-        if (x < 0 || y < 0 || x >= image.width() || y >= image.height()) {
+        if (x < 0 || y < 0 || x >= image.width() || y >= image.height() || image.isNull()) {
             return 0;
         }
 
         switch (image.format()) {
         case QImage::Format_Alpha8:
         case QImage::Format_Grayscale8: {
-            const uchar* line = image.constScanLine(y);
-            return line ? line[x] : 0;
+            const uchar* bits = image.constBits();
+            if (isInvalidImagePointer(bits)) {
+                return 0;
+            }
+            const qsizetype stride = image.bytesPerLine();
+            const qsizetype index = static_cast<qsizetype>(y) * stride + x;
+            if (index < 0 || index >= image.sizeInBytes()) {
+                return 0;
+            }
+            return bits[index];
         }
         case QImage::Format_Mono:
         case QImage::Format_MonoLSB:
@@ -99,7 +113,7 @@ namespace {
 
     void setAlphaValueAt(QImage& image, int x, int y, uchar alpha)
     {
-        if (x < 0 || y < 0 || x >= image.width() || y >= image.height()) {
+        if (x < 0 || y < 0 || x >= image.width() || y >= image.height() || image.isNull()) {
             return;
         }
 
@@ -107,16 +121,24 @@ namespace {
         case QImage::Format_Alpha8:
         case QImage::Format_Grayscale8:
         case QImage::Format_Indexed8: {
-            uchar* line = image.scanLine(y);
-            if (line) {
-                line[x] = alpha;
+            uchar* bits = image.bits();
+            if (isInvalidImagePointer(bits)) {
+                break;
             }
+            const qsizetype stride = image.bytesPerLine();
+            const qsizetype index = static_cast<qsizetype>(y) * stride + x;
+            if (index < 0 || index >= image.sizeInBytes()) {
+                break;
+            }
+            bits[index] = (image.format() == QImage::Format_Indexed8)
+                ? static_cast<uchar>(alpha > 127 ? 255 : 0)
+                : alpha;
             break;
         }
         case QImage::Format_Mono:
         case QImage::Format_MonoLSB: {
             uchar* line = image.scanLine(y);
-            if (!line) {
+            if (isInvalidImagePointer(line)) {
                 break;
             }
             const int byteIndex = x / 8;
@@ -978,8 +1000,11 @@ BucketFillTool::buildClosedRegionUsingRaster(const QList<PathSegment>& segments,
     pm.end();
 
     // Work on a binary alpha mask to avoid precision drift from color channels
-    if (mask.format() != QImage::Format_Alpha8) {
+    if (mask.format() != QImage::Format_Alpha8 && mask.format() != QImage::Format_Grayscale8) {
         QImage alphaMask = mask.convertToFormat(QImage::Format_Alpha8);
+        if (alphaMask.isNull()) {
+            alphaMask = mask.convertToFormat(QImage::Format_Grayscale8);
+        }
         if (!alphaMask.isNull()) {
             mask = std::move(alphaMask);
         }
@@ -1001,6 +1026,12 @@ BucketFillTool::buildClosedRegionUsingRaster(const QList<PathSegment>& segments,
 
     // Dedicated binary mask that only stores the filled region.
     QImage fillMask(imgSize, QImage::Format_Alpha8);
+    if (fillMask.isNull()) {
+        fillMask = QImage(imgSize, QImage::Format_Grayscale8);
+    }
+    if (fillMask.isNull()) {
+        return region;
+    }
     fillMask.fill(0);
 
     QVector<uchar> visited(totalPixels, 0);
