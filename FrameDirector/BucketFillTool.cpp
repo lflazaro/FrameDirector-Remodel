@@ -999,17 +999,6 @@ BucketFillTool::buildClosedRegionUsingRaster(const QList<PathSegment>& segments,
     }
     pm.end();
 
-    // Work on a binary alpha mask to avoid precision drift from color channels
-    if (mask.format() != QImage::Format_Alpha8 && mask.format() != QImage::Format_Grayscale8) {
-        QImage alphaMask = mask.convertToFormat(QImage::Format_Alpha8);
-        if (alphaMask.isNull()) {
-            alphaMask = mask.convertToFormat(QImage::Format_Grayscale8);
-        }
-        if (!alphaMask.isNull()) {
-            mask = std::move(alphaMask);
-        }
-    }
-
     // ---- 4) Flood fill by ALPHA CLASS only (transparent vs opaque) ----
     const QPointF rel = seedPoint - snappedBounds.topLeft();
     QPoint ip(qRound(rel.x() * S), qRound(rel.y() * S));
@@ -1025,14 +1014,11 @@ BucketFillTool::buildClosedRegionUsingRaster(const QList<PathSegment>& segments,
     const bool seedIsTransparent = (alphaValueAt(mask, ip.x(), ip.y()) < 128);
 
     // Dedicated binary mask that only stores the filled region.
-    QImage fillMask(imgSize, QImage::Format_Alpha8);
-    if (fillMask.isNull()) {
-        fillMask = QImage(imgSize, QImage::Format_Grayscale8);
-    }
+    QImage fillMask(imgSize, QImage::Format_ARGB32);
     if (fillMask.isNull()) {
         return region;
     }
-    fillMask.fill(0);
+    fillMask.fill(Qt::transparent);
 
     QVector<uchar> visited(totalPixels, 0);
     QQueue<QPoint> q; q.enqueue(ip);
