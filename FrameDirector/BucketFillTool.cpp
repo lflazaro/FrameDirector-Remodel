@@ -20,7 +20,6 @@
 #include <QPainterPath>
 #include <QPen>
 #include <QQueue>
-#include <QSet>
 #include <QTimer>
 #include <QtMath>
 #include <algorithm>
@@ -754,39 +753,65 @@ int BucketFillTool::enhancedFloodFill(QImage& image, const QPoint& start,
     const QColor& fillColor,
     int maxPixels)
 {
-    if (!image.rect().contains(start)) return 0;
+    const QRect imageRect = image.rect();
+    if (!imageRect.contains(start)) return 0;
 
     struct PixelNode { QPoint pos; int generation; };
     QQueue<PixelNode> queue;
-    QSet<QPoint> visited;
-    QSet<QPoint> edgePixels;
-    int filledCount = 0;
 
-    queue.enqueue({ start, 0 });
+    const int width = imageRect.width();
+    const int height = imageRect.height();
+    const int pixelCount = width * height;
+    if (pixelCount <= 0) return 0;
+
+    // 0 = untouched, 1 = queued, 2 = filled, 3 = rejected/edge
+    std::vector<uint8_t> state(static_cast<size_t>(pixelCount), 0);
+    std::vector<QPoint> edgePixels;
+    edgePixels.reserve(static_cast<size_t>(std::min(pixelCount, maxPixels)));
+
+    auto indexOf = [&](const QPoint& p) -> int {
+        return p.y() * width + p.x();
+    };
+
+    auto tryEnqueue = [&](const QPoint& p, int generation) {
+        if (!imageRect.contains(p)) return;
+        const int idx = indexOf(p);
+        uint8_t& cellState = state[static_cast<size_t>(idx)];
+        if (cellState != 0) return;
+        cellState = 1; // mark as queued
+        queue.enqueue({ p, generation });
+    };
+
+    tryEnqueue(start, 0);
+
+    int filledCount = 0;
 
     while (!queue.isEmpty() && filledCount < maxPixels) {
         PixelNode node = queue.dequeue();
 
-        if (visited.contains(node.pos)) continue;
-        if (!image.rect().contains(node.pos)) continue;
+        if (!imageRect.contains(node.pos)) continue;
+
+        const int idx = indexOf(node.pos);
+        uint8_t& cellState = state[static_cast<size_t>(idx)];
+        if (cellState > 1) continue; // already processed
 
         const QColor cur = getPixelColor(image, node.pos);
 
         if (!colorsMatch(cur, targetColor, m_tolerance)) {
-            if (node.generation > 0) edgePixels.insert(node.pos);
+            cellState = 3; // processed non-target pixel
+            if (node.generation > 0)
+                edgePixels.push_back(node.pos);
             continue;
         }
 
         // Set pixel directly with non-premultiplied ARGB
         image.setPixel(node.pos, fillColor.rgba());
-        visited.insert(node.pos);
+        cellState = 2;
         ++filledCount;
 
-        // 8-connected neighbors
+        const int nextGeneration = node.generation + 1;
         for (int i = 0; i < 8; ++i) {
-            const QPoint n = node.pos + DIRECTIONS[i];
-            if (!visited.contains(n))
-                queue.enqueue({ n, node.generation + 1 });
+            tryEnqueue(node.pos + DIRECTIONS[i], nextGeneration);
         }
     }
 
