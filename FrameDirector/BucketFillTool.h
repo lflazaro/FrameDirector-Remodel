@@ -41,6 +41,9 @@ public:
     qreal getSearchRadius() const;
     qreal getConnectionTolerance() const;
     bool isDebugMode() const;
+    // Visual feedback and preview
+    void showFillPreview(const QPainterPath& path);
+    void hideFillPreview();
 
 private:
     // Data structures for vector filling
@@ -64,8 +67,7 @@ private:
     // Note: Contour tracing uses simple QPoint lists for better performance
 
     // Vector-based filling methods
-    ClosedRegion findEnclosedRegion(const QPointF& point, bool forPreview = false,
-        QRectF* outSampleRect = nullptr);
+    ClosedRegion findEnclosedRegion(const QPointF& point);
     QList<PathSegment> collectNearbyPaths(const QPointF& center, qreal searchRadius = 50.0);
     QPainterPath mergeIntersectingPaths(const QList<PathSegment>& segments);
     QPainterPath createClosedPath(const QList<PathSegment>& segments, const QPointF& seedPoint);
@@ -85,19 +87,18 @@ private:
 
     // Raster-based filling methods
     void performRasterFill(const QPointF& point);
-    QImage renderSceneToImage(const QRectF& region, qreal scale = 2.0);
+    QImage renderSceneToImage(const QRectF& region, qreal scale, bool antialiased);
     QColor getPixelColor(const QImage& image, const QPoint& point);
     void floodFillImage(QImage& image, const QPoint& startPoint,
         const QColor& targetColor, const QColor& fillColor);
     int floodFillImageLimited(QImage& image, const QPoint& startPoint,
         const QColor& targetColor, const QColor& fillColor, int maxPixels);
-    ClosedRegion floodFillRegionFromArea(const QRectF& area, const QPointF& seedPoint,
-        bool& touchesEdge, bool forPreview);
+    ClosedRegion floodFillRegionFromArea(const QRectF& area, const QPointF& seedPoint, bool& touchesEdge);
     bool colorsSimilar(QRgb first, QRgb second) const;
 
     // Advanced contour tracing (Moore neighborhood algorithm)
     QPainterPath traceFilledRegion(const QImage& image, const QColor& fillColor);
-    QPainterPath traceContour(const QImage& image, const QPoint& startPoint, const QColor& fillColor);
+    QVector<QPointF> traceContour(const QImage& image, const QPoint& startPoint, const QColor& fillColor);
     QPoint findStartPoint(const QImage& image, const QColor& fillColor);
     QList<QPoint> getNeighbors8(const QPoint& point);
     QPoint getNextNeighbor(const QPoint& current, int direction);
@@ -114,10 +115,6 @@ private:
     QGraphicsPathItem* createFillItem(const QPainterPath& fillPath, const QColor& color);
     void addFillToCanvas(QGraphicsPathItem* fillItem);
 
-    // Visual feedback and preview
-    void showFillPreview(const QPainterPath& path);
-    void hideFillPreview();
-    void clearPreviewCache();
 
     // Performance optimization
     void cacheNearbyItems(const QRectF& region);
@@ -143,14 +140,16 @@ private:
 
     // Visual feedback
     QGraphicsPathItem* m_previewItem;
-    ClosedRegion m_lastPreviewRegion;
-    QRectF m_lastPreviewSampleRect;
-    QPointF m_lastPreviewPoint;
-    bool m_hasPreviewRegion;
 
     // Constants for contour tracing
     static const int DIRECTION_COUNT = 8;
     static const QPoint DIRECTIONS[8];
+
+    inline bool isFilled(const QImage& mask, int x, int y);
+    void rdpSimplify(const QVector<QPointF>& points, double epsilon,
+        int startIdx, int endIdx, QVector<bool>& keep);
+    QVector<QPointF> ramerDouglasPeucker(const QVector<QPointF>& points, double epsilon);
+
 };
 
 #endif // BUCKETFILLTOOL_H
