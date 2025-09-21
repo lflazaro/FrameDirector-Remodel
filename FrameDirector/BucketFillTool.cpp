@@ -97,6 +97,52 @@ namespace {
         }
     }
 
+    void setAlphaValueAt(QImage& image, int x, int y, uchar alpha)
+    {
+        if (x < 0 || y < 0 || x >= image.width() || y >= image.height()) {
+            return;
+        }
+
+        switch (image.format()) {
+        case QImage::Format_Alpha8:
+        case QImage::Format_Grayscale8:
+        case QImage::Format_Indexed8: {
+            uchar* line = image.scanLine(y);
+            if (line) {
+                line[x] = alpha;
+            }
+            break;
+        }
+        case QImage::Format_Mono:
+        case QImage::Format_MonoLSB: {
+            uchar* line = image.scanLine(y);
+            if (!line) {
+                break;
+            }
+            const int byteIndex = x / 8;
+            const int bitIndex = x % 8;
+            uchar mask;
+            if (image.format() == QImage::Format_Mono) {
+                mask = uchar(1u << (7 - bitIndex));
+            }
+            else {
+                mask = uchar(1u << bitIndex);
+            }
+
+            if (alpha > 127) {
+                line[byteIndex] |= mask;
+            }
+            else {
+                line[byteIndex] &= ~mask;
+            }
+            break;
+        }
+        default:
+            image.setPixel(x, y, qRgba(0, 0, 0, alpha));
+            break;
+        }
+    }
+
 }
 
 // Direction vectors for 8-connected neighbors (Moore neighborhood)
@@ -972,7 +1018,7 @@ BucketFillTool::buildClosedRegionUsingRaster(const QList<PathSegment>& segments,
         const bool isTransparent = (alphaValueAt(mask, p.x(), p.y()) < 128);
         if (isTransparent != seedIsTransparent) continue;
 
-        fillMask.setPixel(p.x(), p.y(), 255);
+        setAlphaValueAt(fillMask, p.x(), p.y(), 255);
         ++filledCount;
 
         q.enqueue(QPoint(p.x() + 1, p.y()));
@@ -1302,7 +1348,7 @@ int BucketFillTool::floodFillImageLimited(QImage& image, const QPoint& startPoin
 
         // Fill and mark visited
         if (useAlphaMask) {
-            image.setPixel(current.x(), current.y(), 255);
+            setAlphaValueAt(image, current.x(), current.y(), 255);
         }
         else {
             image.setPixel(current.x(), current.y(), fillColor.rgba());
