@@ -831,97 +831,107 @@ BucketFillTool::buildClosedRegionUsingRaster(const QList<PathSegment>& segments,
     region.isValid = false;
     if (!m_canvas || !m_canvas->scene()) return region;
 
-    // -----------------------------
-    // 1) Determine search bounds
-    // -----------------------------
+    // ---- 1) Bounds around the interesting stuff (+ margin) ----
     QRectF bounds;
     bool hasBounds = false;
-
     for (const PathSegment& s : segments) {
         if (!hasBounds) { bounds = s.bounds; hasBounds = true; }
         else { bounds = bounds.united(s.bounds); }
     }
-
     if (!hasBounds || bounds.isNull()) {
-        const qreal fallback = qMax(searchRadius, qreal(48.0));
-        bounds = QRectF(seedPoint.x() - fallback, seedPoint.y() - fallback,
-            fallback * 2.0, fallback * 2.0);
+        const qreal fb = qMax(searchRadius, qreal(48.0));
+        bounds = QRectF(seedPoint.x() - fb, seedPoint.y() - fb, fb * 2.0, fb * 2.0);
         hasBounds = true;
     }
-
     if (!bounds.contains(seedPoint)) {
         const qreal adjust = qMax(searchRadius * 0.5, m_connectionTolerance * 8.0);
-        bounds = bounds.united(QRectF(seedPoint.x() - adjust, seedPoint.y() - adjust,
-            adjust * 2.0, adjust * 2.0));
+        bounds = bounds.united(QRectF(seedPoint.x() - adjust, seedPoint.y() - adjust, adjust * 2.0, adjust * 2.0));
     }
 
-    // generous margin so the mask includes closures near the edge
     const qreal margin = qMax(qreal(18.0), qMax(searchRadius * 0.3, m_connectionTolerance * 6.0));
     bounds.adjust(-margin, -margin, margin, margin);
-
-    // clamp to canvas
     bounds = bounds.intersected(m_canvas->getCanvasRect());
     if (bounds.isEmpty()) return region;
 
-    // -----------------------------
-    // 2) Choose a stable scale and snap the render grid
-    // -----------------------------
+    // ---- 2) Stable scale + grid snap ----
     const qreal area = bounds.width() * bounds.height();
     if (area <= 0.0) return region;
 
-    // Keep the pixel budget modest for responsiveness
-    const qreal maxPixels = 450000.0;
+    const qreal pixelBudget = 450000.0;
+    qreal S = 3.0;
+    if (area * S * S > pixelBudget) S = qSqrt(pixelBudget / area);
+    S = qBound<qreal>(1.0, S, 4.0);
+    if (area * S * S > pixelBudget) S = qSqrt(pixelBudget / area);
 
-    qreal S = 3.0;                             // preferred scale (stable small integer)
-    if (area * S * S > maxPixels) S = qSqrt(maxPixels / area);
-    S = qBound<qreal>(1.0, S, 4.0);            // clamp to a tight, stable range
-
-    if (area * S * S > maxPixels)              // final guard
-        S = qSqrt(maxPixels / area);
-
-    if (S <= 0.0) return region;
-
-    // Snap bounds to the S-grid so the raster doesn't "slide" when the mouse moves
     const qreal l = std::floor(bounds.left() * S) / S;
     const qreal t = std::floor(bounds.top() * S) / S;
     const qreal r = std::ceil(bounds.right() * S) / S;
     const qreal b = std::ceil(bounds.bottom() * S) / S;
-    QRectF snappedBounds(QPointF(l, t), QPointF(r, b));
+    const QRectF snappedBounds(QPointF(l, t), QPointF(r, b));
 
-    // -----------------------------
-    // 3) Render a binary-friendly image (AA OFF)
-    // -----------------------------
-    QImage sceneImage = renderSceneToImage(snappedBounds, S, /*antialiased=*/false);
-    if (sceneImage.isNull() || sceneImage.width() <= 0 || sceneImage.height() <= 0)
-        return region;
+    const QSize imgSize(qMax(1, int(std::ceil(snappedBounds.width() * S))),
+        qMax(1, int(std::ceil(snappedBounds.height() * S))));
 
-    // Map seed into image coords (clamped)
+    // ---- 3) Build an obstacle MASK (no background) ----
+    // Transparent = fillable space, Opaque = obstacle
+    QImage mask(imgSize, QImage::Format_ARGB32);
+    mask.fill(Qt::transparent);
+
+    QPainter pm(&mask);
+    pm.setRenderHint(QPainter::Antialiasing, false);
+    pm.setRenderHint(QPainter::TextAntialiasing, false);
+    pm.setRenderHint(QPainter::SmoothPixmapTransform, false);
+    pm.scale(S, S);
+    pm.translate(-snappedBounds.topLeft());
+
+    // Paint each segment as a thick, opaque obstacle
+    QPainterPathStroker stroker;
+    stroker.setCapStyle(Qt::RoundCap);
+    stroker.setJoinStyle(Qt::RoundJoin);
+
+    for (const PathSegment& seg : segments) {
+        if (seg.path.isEmpty()) continue;
+
+        qreal base = qMax(m_connectionTolerance * 2.0, 1.5);
+        if (auto shapeItem = qgraphicsitem_cast<QAbstractGraphicsShapeItem*>(seg.item)) {
+            base = qMax(base, shapeItem->pen().widthF() + m_connectionTolerance);
+        }
+        stroker.setWidth(base);
+
+        QPainterPath thick = stroker.createStroke(seg.path);
+
+        // If the original item had a visible fill, treat its interior as obstacle too
+        if (auto shapeItem = qgraphicsitem_cast<QAbstractGraphicsShapeItem*>(seg.item)) {
+            if (shapeItem->brush().style() != Qt::NoBrush && shapeItem->brush().color().alpha() > 0)
+                thick = thick.united(seg.path);
+        }
+
+        pm.fillPath(thick, Qt::white); // opaque obstacle
+    }
+    pm.end();
+
+    // ---- 4) Flood fill by ALPHA CLASS only (transparent vs opaque) ----
     const QPointF rel = seedPoint - snappedBounds.topLeft();
     QPoint ip(qRound(rel.x() * S), qRound(rel.y() * S));
-    ip.setX(qBound(0, ip.x(), sceneImage.width() - 1));
-    ip.setY(qBound(0, ip.y(), sceneImage.height() - 1));
+    ip.setX(qBound(0, ip.x(), mask.width() - 1));
+    ip.setY(qBound(0, ip.y(), mask.height() - 1));
 
-    // -----------------------------
-    // 4) Binary flood fill by ALPHA CLASS only
-    // -----------------------------
-    QImage fillImage = sceneImage.copy();      // will be painted with a mark color
-    const QRgb mark = qRgb(255, 0, 255);       // tracing color (opaque, unique)
-
-    const QRect imgRect = sceneImage.rect();
-    const int W = sceneImage.width();
-    const int H = sceneImage.height();
+    const QRect imgRect = mask.rect();
+    const int W = mask.width(), H = mask.height();
     const int totalPixels = W * H;
-    const int maxFillPixels = qMin(totalPixels, int(maxPixels));
+    const int maxFillPixels = qMin(totalPixels, int(pixelBudget));
     if (maxFillPixels <= 0) return region;
 
-    const bool seedIsTransparent = (qAlpha(sceneImage.pixel(ip)) < 128);
+    const bool seedIsTransparent = (qAlpha(mask.pixel(ip)) < 128);
+
+    QImage filled = mask.copy();
+    const QRgb mark = qRgba(255, 0, 255, 255);
 
     QVector<uchar> visited(totalPixels, 0);
-    QQueue<QPoint> q;
-    q.enqueue(ip);
+    QQueue<QPoint> q; q.enqueue(ip);
 
-    int filled = 0;
-    while (!q.isEmpty() && filled < maxFillPixels) {
+    int filledCount = 0;
+    while (!q.isEmpty() && filledCount < maxFillPixels) {
         const QPoint p = q.dequeue();
         if (!imgRect.contains(p)) continue;
 
@@ -929,12 +939,11 @@ BucketFillTool::buildClosedRegionUsingRaster(const QList<PathSegment>& segments,
         if (visited[idx]) continue;
         visited[idx] = 1;
 
-        const bool isTransparent = (qAlpha(sceneImage.pixel(p)) < 128);
+        const bool isTransparent = (qAlpha(mask.pixel(p)) < 128);
         if (isTransparent != seedIsTransparent) continue;
 
-        // mark as filled for contour tracing
-        fillImage.setPixel(p, mark);
-        ++filled;
+        filled.setPixel(p, mark);
+        ++filledCount;
 
         q.enqueue(QPoint(p.x() + 1, p.y()));
         q.enqueue(QPoint(p.x() - 1, p.y()));
@@ -942,55 +951,47 @@ BucketFillTool::buildClosedRegionUsingRaster(const QList<PathSegment>& segments,
         q.enqueue(QPoint(p.x(), p.y() - 1));
     }
 
-    if (filled <= 0 || filled >= maxFillPixels) return region;
-    if (filled > totalPixels * 0.85)            // likely background
+    if (filledCount <= 0 || filledCount >= maxFillPixels) return region;
+    if (filledCount > totalPixels * 0.85)       // likely “everything”: background
         return region;
 
-    // -----------------------------
-    // 5) Trace the filled region
-    // -----------------------------
-    QPainterPath tracedPath = traceFilledRegion(fillImage, QColor(mark));
-    if (tracedPath.isEmpty()) return region;
+    // ---- 5) Trace contour and map back to scene coords ----
+    QPainterPath traced = traceFilledRegion(filled, QColor(mark));
+    if (traced.isEmpty()) return region;
 
-    // map back to scene coordinates
     QTransform T;
     T.translate(snappedBounds.left(), snappedBounds.top());
     T.scale(1.0 / S, 1.0 / S);
-    tracedPath = T.map(tracedPath);
-    tracedPath = tracedPath.simplified();
-    tracedPath = smoothContour(tracedPath, 1.25);
+    traced = T.map(traced).simplified();
+    traced = smoothContour(traced, 1.25);
 
-    // Robustness checks
-    if (!tracedPath.contains(seedPoint)) {
-        QPainterPath simplified = tracedPath.simplified();
-        if (!simplified.contains(seedPoint)) return region;
+    if (!traced.contains(seedPoint)) {
+        if (!traced.simplified().contains(seedPoint)) return region;
     }
 
-    const QRectF pathBounds = tracedPath.boundingRect();
-
-    const qreal boundaryMargin = qMax(qreal(6.0), m_connectionTolerance * 2.0);
-    if (qAbs(pathBounds.left() - snappedBounds.left()) < boundaryMargin ||
-        qAbs(pathBounds.right() - snappedBounds.right()) < boundaryMargin ||
-        qAbs(pathBounds.top() - snappedBounds.top()) < boundaryMargin ||
-        qAbs(pathBounds.bottom() - snappedBounds.bottom()) < boundaryMargin) {
-        // touches the search border => unstable / probably leaking
+    const QRectF pathBounds = traced.boundingRect();
+    const qreal borderTol = qMax(qreal(6.0), m_connectionTolerance * 2.0);
+    if (qAbs(pathBounds.left() - snappedBounds.left()) < borderTol ||
+        qAbs(pathBounds.right() - snappedBounds.right()) < borderTol ||
+        qAbs(pathBounds.top() - snappedBounds.top()) < borderTol ||
+        qAbs(pathBounds.bottom() - snappedBounds.bottom()) < borderTol) {
+        // touches the search border => unstable / leaking
         return region;
     }
 
-    // avoid filling almost the whole canvas in one go
     const QRectF canvasBounds = m_canvas->getCanvasRect();
     if (!canvasBounds.isEmpty()) {
         const qreal pathArea = pathBounds.width() * pathBounds.height();
         const qreal canvasArea = canvasBounds.width() * canvasBounds.height();
-        if (canvasArea > 0.0 && pathArea > canvasArea * 0.9)
-            return region;
+        if (canvasArea > 0.0 && pathArea > canvasArea * 0.9) return region;
     }
 
-    region.outerBoundary = tracedPath;
+    region.outerBoundary = traced;
     region.bounds = pathBounds;
     region.isValid = true;
     return region;
 }
+
 
 
 bool BucketFillTool::isPathClosed(const QPainterPath& path, qreal tolerance)
