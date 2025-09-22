@@ -278,6 +278,15 @@
     <ClCompile Include="third_party\src\thumbnail.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="third_party\clipper2\src\clipper.engine.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\clipper2\src\clipper.offset.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\clipper2\src\clipper.rectclip.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="third_party\src\type_tool.c">
       <Filter>Source Files</Filter>
     </ClCompile>
