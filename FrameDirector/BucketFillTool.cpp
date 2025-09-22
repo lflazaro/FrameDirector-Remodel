@@ -165,13 +165,13 @@ namespace {
         return result;
     }
 
-    void collectHolePaths(const PolyPath64* node, double inverseScale, QList<QPainterPath>& holes)
+    void collectHolePaths(const PolyPath64* node, double inverseScale, QList<QPainterPath>& holes, bool skipCurrent = false)
     {
         if (!node) {
             return;
         }
 
-        if (node->IsHole()) {
+        if (!skipCurrent && node->IsHole()) {
             holes.append(path64ToPainterPath(node->Polygon(), inverseScale));
         }
 
@@ -180,7 +180,7 @@ namespace {
             if (!child) {
                 continue;
             }
-            collectHolePaths(child, inverseScale, holes);
+            collectHolePaths(child, inverseScale, holes, false);
         }
     }
 
@@ -203,10 +203,6 @@ namespace {
             if (const PolyPath64* candidate = findContainingNode(child, point)) {
                 return candidate;
             }
-        }
-
-        if (node->IsHole()) {
-            return nullptr;
         }
 
         return node;
@@ -658,7 +654,7 @@ BucketFillTool::ClosedRegion BucketFillTool::composeRegionFromSegments(
     region.outerBoundary = fillPath;
     region.bounds = fillPath.boundingRect();
     region.innerHoles.clear();
-    collectHolePaths(containingNode, inverseScale, region.innerHoles);
+    collectHolePaths(containingNode, inverseScale, region.innerHoles, true);
     region.isValid = true;
     return region;
 }
