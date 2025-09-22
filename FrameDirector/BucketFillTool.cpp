@@ -40,8 +40,8 @@ const QPoint BucketFillTool::DIRECTIONS[8] = {
 
 namespace {
     constexpr double kClipperScale = 1024.0;
+    constexpr double kClipperArcTolerance = kClipperScale * 0.25;
 
-    using Clipper2Lib::Area;
     using Clipper2Lib::ClipType;
     using Clipper2Lib::Clipper64;
     using Clipper2Lib::ClipperOffset;
@@ -95,10 +95,6 @@ namespace {
                 continue;
             }
 
-            if (Area(clipperPath) < 0) {
-                std::reverse(clipperPath.begin(), clipperPath.end());
-            }
-
             paths.emplace_back(std::move(clipperPath));
         }
 
@@ -121,22 +117,38 @@ namespace {
         return painterPath;
     }
 
-    QPainterPath polyPathToPainterPath(const PolyPath64* node, double inverseScale)
+    void appendPolyPath(const PolyPath64* node, double inverseScale, bool invertOrientation, QPainterPath& out)
     {
-        QPainterPath result;
         if (!node) {
-            return result;
+            return;
         }
 
-        result.setFillRule(Qt::WindingFill);
-        result.addPath(path64ToPainterPath(node->Polygon(), inverseScale));
+        Path64 polygon = node->Polygon();
+        if (!polygon.empty()) {
+            if (invertOrientation) {
+                std::reverse(polygon.begin(), polygon.end());
+            }
+            out.addPath(path64ToPainterPath(polygon, inverseScale));
+        }
+
         for (auto it = node->begin(); it != node->end(); ++it) {
             const PolyPath64* child = it->get();
             if (!child) {
                 continue;
             }
-            result.addPath(polyPathToPainterPath(child, inverseScale));
+            appendPolyPath(child, inverseScale, invertOrientation, out);
         }
+    }
+
+    QPainterPath polyPathToPainterPath(const PolyPath64* node, double inverseScale, bool invertOrientation = false)
+    {
+        QPainterPath result;
+        result.setFillRule(Qt::WindingFill);
+        if (!node) {
+            return result;
+        }
+
+        appendPolyPath(node, inverseScale, invertOrientation, result);
         return result;
     }
 
@@ -173,14 +185,24 @@ namespace {
         return result;
     }
 
-    void collectHolePaths(const PolyPath64* node, double inverseScale, QList<QPainterPath>& holes, bool skipCurrent = false)
+    void collectHolePaths(const PolyPath64* node, double inverseScale, QList<QPainterPath>& holes,
+        bool skipCurrent = false, bool invertOrientation = false)
     {
         if (!node) {
             return;
         }
 
-        if (!skipCurrent && node->IsHole()) {
-            holes.append(path64ToPainterPath(node->Polygon(), inverseScale));
+        const bool nodeIsHole = node->IsHole();
+        const bool treatAsHole = invertOrientation ? !nodeIsHole : nodeIsHole;
+
+        if (!skipCurrent && treatAsHole) {
+            Path64 polygon = node->Polygon();
+            if (!polygon.empty()) {
+                if (invertOrientation) {
+                    std::reverse(polygon.begin(), polygon.end());
+                }
+                holes.append(path64ToPainterPath(polygon, inverseScale));
+            }
         }
 
         for (auto it = node->begin(); it != node->end(); ++it) {
@@ -188,7 +210,7 @@ namespace {
             if (!child) {
                 continue;
             }
-            collectHolePaths(child, inverseScale, holes, false);
+            collectHolePaths(child, inverseScale, holes, false, invertOrientation);
         }
     }
 
@@ -603,6 +625,7 @@ BucketFillTool::ClosedRegion BucketFillTool::composeRegionFromSegments(
     Paths64 expandedPaths = subjectPaths;
     if (gapPadding > 0.0) {
         ClipperOffset offset;
+        offset.ArcTolerance(kClipperArcTolerance);
         offset.AddPaths(subjectPaths, JoinType::Round, EndType::Polygon);
         Paths64 padded;
         offset.Execute(gapPadding * kClipperScale, padded);
@@ -627,6 +650,7 @@ BucketFillTool::ClosedRegion BucketFillTool::composeRegionFromSegments(
 
     if (gapPadding > 0.0 && !unionPaths.empty()) {
         ClipperOffset shrink;
+        shrink.ArcTolerance(kClipperArcTolerance);
         shrink.AddPaths(unionPaths, JoinType::Round, EndType::Polygon);
         Paths64 shrunk;
         shrink.Execute(-gapPadding * kClipperScale, shrunk);
@@ -652,7 +676,8 @@ BucketFillTool::ClosedRegion BucketFillTool::composeRegionFromSegments(
     }
 
     const double inverseScale = 1.0 / kClipperScale;
-    QPainterPath fillPath = polyPathToPainterPath(containingNode, inverseScale);
+    const bool invertOrientation = containingNode->IsHole();
+    QPainterPath fillPath = polyPathToPainterPath(containingNode, inverseScale, invertOrientation);
     fillPath.setFillRule(Qt::WindingFill);
 
     if (fillPath.isEmpty() || !fillPath.contains(seedPoint)) {
@@ -662,7 +687,7 @@ BucketFillTool::ClosedRegion BucketFillTool::composeRegionFromSegments(
     region.outerBoundary = fillPath;
     region.bounds = fillPath.boundingRect();
     region.innerHoles.clear();
-    collectHolePaths(containingNode, inverseScale, region.innerHoles, true);
+    collectHolePaths(containingNode, inverseScale, region.innerHoles, true, invertOrientation);
     region.isValid = true;
     return region;
 }
