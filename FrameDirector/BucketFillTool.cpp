@@ -21,6 +21,7 @@
 #include <QQueue>
 #include <QSet>
 #include <QTimer>
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <utility>
@@ -40,6 +41,7 @@ const QPoint BucketFillTool::DIRECTIONS[8] = {
 namespace {
     constexpr double kClipperScale = 1024.0;
 
+    using Clipper2Lib::Area;
     using Clipper2Lib::ClipType;
     using Clipper2Lib::Clipper64;
     using Clipper2Lib::ClipperOffset;
@@ -86,12 +88,18 @@ namespace {
 
         QPainterPath copy = path;
         copy.setFillRule(Qt::WindingFill);
-        const QList<QPolygonF> polygons = copy.toFillPolygons(QTransform());
-        for (const QPolygonF& polygon : polygons) {
+        const QList<QPolygonF> subpaths = copy.toSubpathPolygons(QTransform());
+        for (const QPolygonF& polygon : subpaths) {
             Path64 clipperPath = qPolygonToPath64(polygon, scale);
-            if (!clipperPath.empty()) {
-                paths.emplace_back(std::move(clipperPath));
+            if (clipperPath.empty()) {
+                continue;
             }
+
+            if (Area(clipperPath) < 0) {
+                std::reverse(clipperPath.begin(), clipperPath.end());
+            }
+
+            paths.emplace_back(std::move(clipperPath));
         }
 
         return paths;
