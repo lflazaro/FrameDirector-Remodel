@@ -2,13 +2,18 @@
 #include "MainWindow.h"
 #include "Canvas.h"
 #include "Commands/UndoCommands.h"
+#include "third_party/clipper.h"
 #include <QGraphicsScene>
 #include <QGraphicsPathItem>
 #include <QGraphicsRectItem>
 #include <QGraphicsEllipseItem>
 #include <QGraphicsLineItem>
+#include <QBrush>
 #include <QPainter>
 #include <QPainterPath>
+#include <QPainterPathStroker>
+#include <QPen>
+#include <QTransform>
 #include <QApplication>
 #include <QDebug>
 #include <QElapsedTimer>
@@ -16,11 +21,14 @@
 #include <QQueue>
 #include <QSet>
 #include <QTimer>
+#include <cmath>
+#include <cstdint>
+#include <utility>
 
 // Direction vectors for 8-connected neighbors (Moore neighborhood)
 const QPoint BucketFillTool::DIRECTIONS[8] = {
     QPoint(1, 0),   // 0: East
-    QPoint(1, 1),   // 1: Southeast  
+    QPoint(1, 1),   // 1: Southeast
     QPoint(0, 1),   // 2: South
     QPoint(-1, 1),  // 3: Southwest
     QPoint(-1, 0),  // 4: West
@@ -28,6 +36,201 @@ const QPoint BucketFillTool::DIRECTIONS[8] = {
     QPoint(0, -1),  // 6: North
     QPoint(1, -1)   // 7: Northeast
 };
+
+namespace {
+    constexpr double kClipperScale = 1024.0;
+
+    using Clipper2Lib::ClipType;
+    using Clipper2Lib::Clipper64;
+    using Clipper2Lib::ClipperOffset;
+    using Clipper2Lib::EndType;
+    using Clipper2Lib::FillRule;
+    using Clipper2Lib::JoinType;
+    using Clipper2Lib::Path64;
+    using Clipper2Lib::Paths64;
+    using Clipper2Lib::Point64;
+    using Clipper2Lib::PointInPolygonResult;
+    using Clipper2Lib::PolyPath64;
+    using Clipper2Lib::PolyTree64;
+
+    Path64 qPolygonToPath64(const QPolygonF& polygon, double scale)
+    {
+        Path64 result;
+        result.reserve(polygon.size());
+        for (const QPointF& pt : polygon) {
+            const auto x = static_cast<int64_t>(std::llround(pt.x() * scale));
+            const auto y = static_cast<int64_t>(std::llround(pt.y() * scale));
+            if (!result.empty() && result.back().x == x && result.back().y == y) {
+                continue;
+            }
+            result.emplace_back(x, y);
+        }
+
+        if (result.size() > 1 && result.front() == result.back()) {
+            result.pop_back();
+        }
+
+        if (result.size() < 3) {
+            result.clear();
+        }
+
+        return result;
+    }
+
+    Paths64 painterPathToPaths64(const QPainterPath& path, double scale)
+    {
+        Paths64 paths;
+        if (path.isEmpty()) {
+            return paths;
+        }
+
+        QPainterPath copy = path;
+        copy.setFillRule(Qt::WindingFill);
+        const QList<QPolygonF> polygons = copy.toFillPolygons(QTransform(), Qt::WindingFill);
+        for (const QPolygonF& polygon : polygons) {
+            Path64 clipperPath = qPolygonToPath64(polygon, scale);
+            if (!clipperPath.empty()) {
+                paths.emplace_back(std::move(clipperPath));
+            }
+        }
+
+        return paths;
+    }
+
+    QPainterPath path64ToPainterPath(const Path64& path, double inverseScale)
+    {
+        QPainterPath painterPath;
+        if (path.empty()) {
+            return painterPath;
+        }
+
+        painterPath.setFillRule(Qt::WindingFill);
+        painterPath.moveTo(path.front().x * inverseScale, path.front().y * inverseScale);
+        for (size_t i = 1; i < path.size(); ++i) {
+            painterPath.lineTo(path[i].x * inverseScale, path[i].y * inverseScale);
+        }
+        painterPath.closeSubpath();
+        return painterPath;
+    }
+
+    QPainterPath polyPathToPainterPath(const PolyPath64* node, double inverseScale)
+    {
+        QPainterPath result;
+        if (!node) {
+            return result;
+        }
+
+        result.setFillRule(Qt::WindingFill);
+        result.addPath(path64ToPainterPath(node->Polygon(), inverseScale));
+        for (auto it = node->begin(); it != node->end(); ++it) {
+            const PolyPath64* child = it->get();
+            if (!child) {
+                continue;
+            }
+            result.addPath(polyPathToPainterPath(child, inverseScale));
+        }
+        return result;
+    }
+
+    void appendPolygons(const PolyPath64* node, Paths64& out)
+    {
+        if (!node) {
+            return;
+        }
+
+        const Path64& polygon = node->Polygon();
+        if (!polygon.empty()) {
+            out.push_back(polygon);
+        }
+
+        for (auto it = node->begin(); it != node->end(); ++it) {
+            const PolyPath64* child = it->get();
+            if (!child) {
+                continue;
+            }
+            appendPolygons(child, out);
+        }
+    }
+
+    Paths64 polyTreeToPaths(const PolyTree64& tree)
+    {
+        Paths64 result;
+        for (auto it = tree.begin(); it != tree.end(); ++it) {
+            const PolyPath64* child = it->get();
+            if (!child) {
+                continue;
+            }
+            appendPolygons(child, result);
+        }
+        return result;
+    }
+
+    void collectHolePaths(const PolyPath64* node, double inverseScale, QList<QPainterPath>& holes)
+    {
+        if (!node) {
+            return;
+        }
+
+        if (node->IsHole()) {
+            holes.append(path64ToPainterPath(node->Polygon(), inverseScale));
+        }
+
+        for (auto it = node->begin(); it != node->end(); ++it) {
+            const PolyPath64* child = it->get();
+            if (!child) {
+                continue;
+            }
+            collectHolePaths(child, inverseScale, holes);
+        }
+    }
+
+    const PolyPath64* findContainingNode(const PolyPath64* node, const Point64& point)
+    {
+        if (!node) {
+            return nullptr;
+        }
+
+        const auto pip = Clipper2Lib::PointInPolygon(point, node->Polygon());
+        if (pip == PointInPolygonResult::IsOutside) {
+            return nullptr;
+        }
+
+        for (auto it = node->begin(); it != node->end(); ++it) {
+            const PolyPath64* child = it->get();
+            if (!child) {
+                continue;
+            }
+            if (const PolyPath64* candidate = findContainingNode(child, point)) {
+                return candidate;
+            }
+        }
+
+        if (node->IsHole()) {
+            return nullptr;
+        }
+
+        return node;
+    }
+
+    const PolyPath64* findNodeContainingPoint(const PolyTree64& tree, const QPointF& point, double scale)
+    {
+        const Point64 query(
+            static_cast<int64_t>(std::llround(point.x() * scale)),
+            static_cast<int64_t>(std::llround(point.y() * scale)));
+
+        for (auto it = tree.begin(); it != tree.end(); ++it) {
+            const PolyPath64* child = it->get();
+            if (!child) {
+                continue;
+            }
+            if (const PolyPath64* candidate = findContainingNode(child, query)) {
+                return candidate;
+            }
+        }
+
+        return nullptr;
+    }
+}
 
 BucketFillTool::BucketFillTool(MainWindow* mainWindow, QObject* parent)
     : Tool(mainWindow, parent)
@@ -184,18 +387,26 @@ BucketFillTool::ClosedRegion BucketFillTool::findEnclosedRegion(const QPointF& p
 
     qDebug() << "BucketFill: Found" << nearbyPaths.size() << "nearby path segments";
 
-    // Check if point is inside a closed path
+    // Check if point is inside an existing filled/stroked geometry
     for (const PathSegment& segment : nearbyPaths) {
-        if (isPathClosed(segment.path) && segment.path.contains(point)) {
-            region.outerBoundary = segment.path;
-            region.bounds = segment.bounds;
+        if (!segment.geometry.isEmpty() && segment.hasFill && segment.geometry.contains(point)) {
+            region.outerBoundary = segment.geometry;
+            region.outerBoundary.setFillRule(Qt::WindingFill);
+            region.bounds = segment.geometry.boundingRect();
             region.isValid = true;
-            qDebug() << "BucketFill: Point is inside existing closed path";
+            qDebug() << "BucketFill: Point is inside existing filled geometry";
             return region;
         }
     }
 
-    // Try to create a closed path from multiple segments
+    // Compose region using robust boolean operations over the stroked geometry
+    ClosedRegion composed = composeRegionFromSegments(nearbyPaths, point, m_connectionTolerance);
+    if (composed.isValid) {
+        qDebug() << "BucketFill: Composed closed region using stroked geometry";
+        return composed;
+    }
+
+    // Legacy fallbacks
     QPainterPath closedPath = createClosedPath(nearbyPaths, point);
 
     if (!closedPath.isEmpty() && closedPath.contains(point)) {
@@ -206,13 +417,11 @@ BucketFillTool::ClosedRegion BucketFillTool::findEnclosedRegion(const QPointF& p
         return region;
     }
 
-    // Fallback: merge all nearby paths and check if the union forms a closed region containing the point.
     QPainterPath unionPath;
     for (const PathSegment& seg : nearbyPaths) {
-        unionPath = unionPath.united(seg.path);
+        unionPath = unionPath.united(seg.geometry.isEmpty() ? seg.path : seg.geometry);
     }
-    // Only fill if the union is closed and the point is inside the blank area (not inside a stroke)
-    if (!unionPath.isEmpty() && isPathClosed(unionPath) && unionPath.contains(point)) {
+    if (!unionPath.isEmpty() && unionPath.contains(point)) {
         region.outerBoundary = unionPath;
         region.bounds = unionPath.boundingRect();
         region.isValid = true;
@@ -241,46 +450,217 @@ QList<BucketFillTool::PathSegment> BucketFillTool::collectNearbyPaths(const QPoi
     QList<QGraphicsItem*> items = m_canvas->scene()->items(searchRect, Qt::IntersectsItemBoundingRect);
 
     for (QGraphicsItem* item : items) {
-        // FIXED: Skip the background rectangle (it has zValue -1000)
-        if (item->zValue() <= -999) {
+        if (!item || item->zValue() <= -999) {
             continue;
         }
 
         PathSegment segment;
         segment.item = item;
 
-        // Convert different item types to paths
+        QPainterPath localPath;
+        QPainterPath geometry;
+        QRectF localBounds;
+
         if (auto pathItem = qgraphicsitem_cast<QGraphicsPathItem*>(item)) {
-            segment.path = pathItem->path();
-            segment.bounds = pathItem->boundingRect();
+            localPath = pathItem->path();
+            localBounds = pathItem->boundingRect();
+            QPen pen = pathItem->pen();
+            segment.strokeWidth = qMax(0.1, pen.widthF());
+            segment.hasStroke = pen.style() != Qt::NoPen && segment.strokeWidth > 0.0;
+            segment.hasFill = pathItem->brush().style() != Qt::NoBrush;
+            segment.isClosed = isPathClosed(localPath);
+
+            if (segment.hasFill) {
+                geometry.addPath(localPath);
+            }
+
+            if (segment.hasStroke) {
+                QPainterPathStroker stroker;
+                stroker.setWidth(segment.strokeWidth);
+                stroker.setCapStyle(pen.capStyle());
+                stroker.setJoinStyle(pen.joinStyle());
+                stroker.setMiterLimit(pen.miterLimit());
+                geometry.addPath(stroker.createStroke(localPath));
+            }
         }
         else if (auto rectItem = qgraphicsitem_cast<QGraphicsRectItem*>(item)) {
-            segment.path.addRect(rectItem->rect());
-            segment.bounds = rectItem->boundingRect();
+            localPath.addRect(rectItem->rect());
+            localBounds = rectItem->boundingRect();
+            QPen pen = rectItem->pen();
+            segment.strokeWidth = qMax(0.1, pen.widthF());
+            segment.hasStroke = pen.style() != Qt::NoPen && segment.strokeWidth > 0.0;
+            segment.hasFill = rectItem->brush().style() != Qt::NoBrush;
+            segment.isClosed = true;
+
+            if (segment.hasFill) {
+                geometry.addPath(localPath);
+            }
+
+            if (segment.hasStroke) {
+                QPainterPathStroker stroker;
+                stroker.setWidth(segment.strokeWidth);
+                stroker.setCapStyle(pen.capStyle());
+                stroker.setJoinStyle(pen.joinStyle());
+                stroker.setMiterLimit(pen.miterLimit());
+                geometry.addPath(stroker.createStroke(localPath));
+            }
         }
         else if (auto ellipseItem = qgraphicsitem_cast<QGraphicsEllipseItem*>(item)) {
-            segment.path.addEllipse(ellipseItem->rect());
-            segment.bounds = ellipseItem->boundingRect();
+            localPath.addEllipse(ellipseItem->rect());
+            localBounds = ellipseItem->boundingRect();
+            QPen pen = ellipseItem->pen();
+            segment.strokeWidth = qMax(0.1, pen.widthF());
+            segment.hasStroke = pen.style() != Qt::NoPen && segment.strokeWidth > 0.0;
+            segment.hasFill = ellipseItem->brush().style() != Qt::NoBrush;
+            segment.isClosed = true;
+
+            if (segment.hasFill) {
+                geometry.addPath(localPath);
+            }
+
+            if (segment.hasStroke) {
+                QPainterPathStroker stroker;
+                stroker.setWidth(segment.strokeWidth);
+                stroker.setCapStyle(pen.capStyle());
+                stroker.setJoinStyle(pen.joinStyle());
+                stroker.setMiterLimit(pen.miterLimit());
+                geometry.addPath(stroker.createStroke(localPath));
+            }
         }
         else if (auto lineItem = qgraphicsitem_cast<QGraphicsLineItem*>(item)) {
             QLineF line = lineItem->line();
-            segment.path.moveTo(line.p1());
-            segment.path.lineTo(line.p2());
-            segment.bounds = lineItem->boundingRect();
+            localPath.moveTo(line.p1());
+            localPath.lineTo(line.p2());
+            localBounds = lineItem->boundingRect();
+            QPen pen = lineItem->pen();
+            segment.strokeWidth = qMax(0.1, pen.widthF());
+            segment.hasStroke = pen.style() != Qt::NoPen && segment.strokeWidth > 0.0;
+            segment.hasFill = false;
+            segment.isClosed = false;
+
+            if (segment.hasStroke) {
+                QPainterPathStroker stroker;
+                stroker.setWidth(segment.strokeWidth);
+                stroker.setCapStyle(pen.capStyle());
+                stroker.setJoinStyle(pen.joinStyle());
+                stroker.setMiterLimit(pen.miterLimit());
+                geometry.addPath(stroker.createStroke(localPath));
+            }
         }
 
-        if (!segment.path.isEmpty()) {
-            // Transform path to scene coordinates
-            QTransform transform = item->sceneTransform();
-            segment.path = transform.map(segment.path);
-            segment.bounds = transform.mapRect(segment.bounds);
+        if (localPath.isEmpty() && geometry.isEmpty()) {
+            continue;
+        }
 
+        if (geometry.isEmpty()) {
+            geometry = localPath;
+        }
+
+        QTransform transform = item->sceneTransform();
+        if (!localPath.isEmpty()) {
+            segment.path = transform.map(localPath);
+        }
+        if (!geometry.isEmpty()) {
+            geometry.setFillRule(Qt::WindingFill);
+            segment.geometry = transform.map(geometry);
+            segment.geometry.setFillRule(Qt::WindingFill);
+        }
+
+        segment.bounds = transform.mapRect(localBounds);
+
+        if (!segment.geometry.isEmpty()) {
             segments.append(segment);
         }
     }
 
     qDebug() << "BucketFill: Collected" << segments.size() << "path segments";
     return segments;
+}
+
+BucketFillTool::ClosedRegion BucketFillTool::composeRegionFromSegments(
+    const QList<PathSegment>& segments, const QPointF& seedPoint, qreal gapPadding)
+{
+    ClosedRegion region;
+    region.isValid = false;
+
+    Paths64 subjectPaths;
+    for (const PathSegment& segment : segments) {
+        if (segment.geometry.isEmpty()) {
+            continue;
+        }
+        Paths64 geomPaths = painterPathToPaths64(segment.geometry, kClipperScale);
+        subjectPaths.insert(subjectPaths.end(), geomPaths.begin(), geomPaths.end());
+    }
+
+    if (subjectPaths.empty()) {
+        return region;
+    }
+
+    Paths64 expandedPaths = subjectPaths;
+    if (gapPadding > 0.0) {
+        ClipperOffset offset;
+        offset.AddPaths(subjectPaths, JoinType::Round, EndType::Polygon);
+        Paths64 padded;
+        offset.Execute(gapPadding * kClipperScale, padded);
+        if (!padded.empty()) {
+            expandedPaths = std::move(padded);
+        }
+    }
+
+    PolyTree64 unionTree;
+    {
+        Clipper64 clipper;
+        clipper.AddSubject(expandedPaths);
+        clipper.Execute(ClipType::Union, FillRule::NonZero, unionTree);
+    }
+
+    if (unionTree.Count() == 0) {
+        return region;
+    }
+
+    Paths64 unionPaths = polyTreeToPaths(unionTree);
+    Paths64 finalPaths = unionPaths;
+
+    if (gapPadding > 0.0 && !unionPaths.empty()) {
+        ClipperOffset shrink;
+        shrink.AddPaths(unionPaths, JoinType::Round, EndType::Polygon);
+        Paths64 shrunk;
+        shrink.Execute(-gapPadding * kClipperScale, shrunk);
+        if (!shrunk.empty()) {
+            finalPaths = std::move(shrunk);
+        }
+    }
+
+    PolyTree64 finalTree;
+    {
+        Clipper64 clipper;
+        clipper.AddSubject(finalPaths);
+        clipper.Execute(ClipType::Union, FillRule::NonZero, finalTree);
+    }
+
+    if (finalTree.Count() == 0) {
+        return region;
+    }
+
+    const PolyPath64* containingNode = findNodeContainingPoint(finalTree, seedPoint, kClipperScale);
+    if (!containingNode) {
+        return region;
+    }
+
+    const double inverseScale = 1.0 / kClipperScale;
+    QPainterPath fillPath = polyPathToPainterPath(containingNode, inverseScale);
+    fillPath.setFillRule(Qt::WindingFill);
+
+    if (fillPath.isEmpty() || !fillPath.contains(seedPoint)) {
+        return region;
+    }
+
+    region.outerBoundary = fillPath;
+    region.bounds = fillPath.boundingRect();
+    region.innerHoles.clear();
+    collectHolePaths(containingNode, inverseScale, region.innerHoles);
+    region.isValid = true;
+    return region;
 }
 
 QPainterPath BucketFillTool::createClosedPath(const QList<PathSegment>& segments, const QPointF& seedPoint)
@@ -362,10 +742,16 @@ QPainterPath BucketFillTool::strokeAndMergePaths(const QList<PathSegment>& segme
     stroker.setCapStyle(Qt::RoundCap);
 
     for (const PathSegment& seg : segments) {
-        if (seg.path.isEmpty()) continue;
-        QPainterPath stroked = stroker.createStroke(seg.path);
-        // Unite stroked outlines into a single shape
-        merged = merged.united(stroked);
+        const QPainterPath& candidate = seg.geometry.isEmpty() ? seg.path : seg.geometry;
+        if (candidate.isEmpty()) continue;
+
+        if (!seg.geometry.isEmpty()) {
+            merged = merged.united(candidate);
+        }
+        else {
+            QPainterPath stroked = stroker.createStroke(candidate);
+            merged = merged.united(stroked);
+        }
     }
 
     return merged;
@@ -854,7 +1240,8 @@ QPainterPath BucketFillTool::mergeIntersectingPaths(const QList<PathSegment>& se
 {
     QPainterPath result;
     for (const PathSegment& seg : segments) {
-        result = result.united(seg.path);
+        const QPainterPath& candidate = seg.geometry.isEmpty() ? seg.path : seg.geometry;
+        result = result.united(candidate);
     }
     return result;
 }
@@ -867,7 +1254,8 @@ QPainterPath BucketFillTool::detectShape(const QPointF& point)
 bool BucketFillTool::isPointInsideEnclosedArea(const QPointF& point, const QList<PathSegment>& paths)
 {
     for (const PathSegment& seg : paths) {
-        if (seg.path.contains(point)) return true;
+        const QPainterPath& candidate = seg.geometry.isEmpty() ? seg.path : seg.geometry;
+        if (candidate.contains(point)) return true;
     }
     return false;
 }
@@ -876,7 +1264,8 @@ QPainterPath BucketFillTool::createBoundingShape(const QList<PathSegment>& segme
 {
     QPainterPath result;
     for (const PathSegment& seg : segments) {
-        result = result.united(seg.path);
+        const QPainterPath& candidate = seg.geometry.isEmpty() ? seg.path : seg.geometry;
+        result = result.united(candidate);
     }
     return result;
 }

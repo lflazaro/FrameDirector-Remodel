@@ -46,11 +46,23 @@ public:
 private:
     // Data structures for vector filling
     struct PathSegment {
-        QPainterPath path;
+        QPainterPath path;        // Original item path (centerline or fill geometry)
+        QPainterPath geometry;    // Stroked/fill shape used for boolean operations
         QGraphicsItem* item;
         QRectF bounds;
+        qreal strokeWidth;
+        bool hasStroke;
+        bool hasFill;
+        bool isClosed;
 
-        PathSegment() : item(nullptr) {}
+        PathSegment()
+            : item(nullptr)
+            , strokeWidth(0.0)
+            , hasStroke(false)
+            , hasFill(false)
+            , isClosed(false)
+        {
+        }
     };
 
     struct ClosedRegion {
@@ -67,6 +79,8 @@ private:
     // Vector-based filling methods
     ClosedRegion findEnclosedRegion(const QPointF& point);
     QList<PathSegment> collectNearbyPaths(const QPointF& center, qreal searchRadius = 50.0);
+    ClosedRegion composeRegionFromSegments(const QList<PathSegment>& segments,
+        const QPointF& seedPoint, qreal gapPadding);
     QPainterPath mergeIntersectingPaths(const QList<PathSegment>& segments);
     QPainterPath createClosedPath(const QList<PathSegment>& segments, const QPointF& seedPoint);
     bool isPathClosed(const QPainterPath& path, qreal tolerance = 2.0);
