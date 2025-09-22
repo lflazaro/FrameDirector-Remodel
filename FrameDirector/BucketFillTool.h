@@ -150,12 +150,27 @@ private:
     QRectF m_cachedRegion;
     bool m_cacheValid;
 
-    // Visual feedback
-    QGraphicsPathItem* m_previewItem;
-
     // Constants for contour tracing
     static const int DIRECTION_COUNT = 8;
     static const QPoint DIRECTIONS[8];
+
+    mutable bool        m_compCacheValid = false;
+    mutable QPointF     m_compCacheCenter;
+    mutable qreal       m_compCacheRadius = 0.0;
+    mutable QPainterPath m_compCachedUnion; // union of (offset->union->shrink) inside tile
+
+    // Optional: debounce hover recompute
+    mutable qint64      m_lastComposeMs = 0;
+
+    // --- Private helper (declaration) ---
+    ClosedRegion composeRegionFromSegments_Tiled(const QList<PathSegment>& segments,
+        const QPointF& seedPoint,
+        qreal gapPadding);
+
+    mutable QGraphicsPathItem* m_previewItem = nullptr;
+    mutable int   m_previewEpoch = 0;
+    mutable bool  m_previewBusy = false;
+
 };
 
 #endif // BUCKETFILLTOOL_H
