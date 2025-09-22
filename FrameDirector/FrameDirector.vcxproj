@@ -119,6 +119,9 @@
     <ClCompile Include="Panels\LayerManager.cpp" />
     <ClCompile Include="Panels\PropertiesPanel.cpp" />
     <ClCompile Include="Panels\ToolsPanel.cpp" />
+    <ClCompile Include="third_party\clipper2\src\clipper.engine.cpp" />
+    <ClCompile Include="third_party\clipper2\src\clipper.offset.cpp" />
+    <ClCompile Include="third_party\clipper2\src\clipper.rectclip.cpp" />
     <ClCompile Include="third_party\src\adjustment.c" />
     <ClCompile Include="third_party\src\bevel_emboss.c" />
     <ClCompile Include="third_party\src\bitmap.c" />
@@ -234,6 +237,13 @@
     <ClInclude Include="resource.h" />
     <QtMoc Include="Tools\EraseTool.h" />
     <QtMoc Include="Tools\GradientFillTool.h" />
+    <ClInclude Include="third_party\clipper.h" />
+    <ClInclude Include="third_party\clipper2\clipper.core.h" />
+    <ClInclude Include="third_party\clipper2\clipper.engine.h" />
+    <ClInclude Include="third_party\clipper2\clipper.minkowski.h" />
+    <ClInclude Include="third_party\clipper2\clipper.offset.h" />
+    <ClInclude Include="third_party\clipper2\clipper.rectclip.h" />
+    <ClInclude Include="third_party\clipper2\clipper.version.h" />
     <ClInclude Include="third_party\include\libpsd.h" />
     <ClInclude Include="third_party\include\psd_color.h" />
     <ClInclude Include="third_party\include\psd_config.h" />
