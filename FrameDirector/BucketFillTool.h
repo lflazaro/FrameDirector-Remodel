@@ -14,6 +14,8 @@
 #include <QTimer>
 #include <QRectF>
 
+#include "third_party/clipper.h"
+
 class BucketFillTool : public Tool
 {
     Q_OBJECT
@@ -54,6 +56,7 @@ private:
         bool hasStroke;
         bool hasFill;
         bool isClosed;
+        Clipper2Lib::Paths64 clipperGeometry;
 
         PathSegment()
             : item(nullptr)
