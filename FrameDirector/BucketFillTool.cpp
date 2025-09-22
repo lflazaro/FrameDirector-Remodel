@@ -46,7 +46,7 @@ namespace {
     constexpr int   kMaxVerts64 = 120000;  // total vertices budget per compose
     constexpr qreal kMinTileR = 120.0;   // pixels
     constexpr qreal kReuseFrac = 0.15;    // cache reuse band
-    static constexpr qreal kHardFillRectSize = 420.0;
+    static constexpr qreal kHardFillRectSize = 5420.0;
 
     using Clipper2Lib::ClipType;
     using Clipper2Lib::Clipper64;
