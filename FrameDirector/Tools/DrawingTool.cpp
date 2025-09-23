@@ -163,7 +163,7 @@ private:
         stabilizerLayout->addWidget(m_stabilizerLabel);
 
         m_stabilizerSlider = new QSlider(Qt::Horizontal);
-        m_stabilizerSlider->setRange(0, 20);
+        m_stabilizerSlider->setRange(0, 100);
         m_stabilizerSlider->setValue(0);
         stabilizerLayout->addWidget(m_stabilizerSlider);
 
@@ -404,10 +404,10 @@ void DrawingTool::processStabilizerPoints(bool forceFlush)
     if (m_stabilizerAmount <= 0 || m_stabilizerPoints.isEmpty())
         return;
 
-    const double normalized = qBound(0.0, m_stabilizerAmount / 20.0, 1.0);
+    const double normalized = qBound(0.0, m_stabilizerAmount / 100.0, 1.0);
     const int kMinWindow = 3;
-    const int kMaxWindow = 20;
-    int desiredWindow = kMinWindow + qRound(normalized * 12.0);
+    const int kMaxWindow = 96;
+    int desiredWindow = kMinWindow + qRound(normalized * (kMaxWindow - kMinWindow));
     desiredWindow = qBound(kMinWindow, desiredWindow, kMaxWindow);
 
     int iterations = 1;
@@ -416,7 +416,7 @@ void DrawingTool::processStabilizerPoints(bool forceFlush)
     }
     else {
         int backlog = qMax(0, m_stabilizerPoints.size() - desiredWindow);
-        iterations = qBound(1, backlog + 1, 96);
+        iterations = qBound(1, backlog + 1, 256);
     }
 
     for (int iter = 0; iter < iterations; ++iter) {
@@ -463,7 +463,7 @@ void DrawingTool::processStabilizerPoints(bool forceFlush)
                 follow = qBound(follow, catchUp, 0.9);
             }
 
-            double maxLag = 6.0 + normalized * 22.0;
+            double maxLag = 6.0 + normalized * 60.0;
             if (distanceToCursor > maxLag) {
                 double over = distanceToCursor - maxLag;
                 double ratio = qBound(0.0, over / (maxLag * 1.2), 1.0);
@@ -555,8 +555,9 @@ void DrawingTool::applySmoothingToPath()
 
 void DrawingTool::updateStabilizerDelay()
 {
-    double normalized = qBound(0.0, m_stabilizerAmount / 20.0, 1.0);
-    int delayMs = 8 + qRound(normalized * 24.0); // 8ms at low strength, up to ~32ms at max
+    constexpr int kMaxDelayMs = 1000;
+    double normalized = qBound(0.0, m_stabilizerAmount / 100.0, 1.0);
+    int delayMs = 8 + qRound(normalized * (kMaxDelayMs - 8));
     m_stabilizerTimer->setInterval(delayMs);
 }
 
@@ -584,7 +585,7 @@ void DrawingTool::setStrokeColor(const QColor& color)
 
 void DrawingTool::setStabilizerAmount(int amount)
 {
-    m_stabilizerAmount = qBound(0, amount, 20);
+    m_stabilizerAmount = qBound(0, amount, 100);
     updateStabilizerDelay();
 }
 

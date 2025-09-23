@@ -934,16 +934,32 @@ void Canvas::deleteSelected()
 
     const int frame = m_currentFrame;
     for (QGraphicsItem* item : selectedItems) {
-        if (!item) {
-            continue;
-        }
+        if (!item) continue;
 
         m_scene->removeItem(item);
-        detachItemFromFrame(item, frame);
 
-        if (!isValidItem(item)) {
-            delete item;
+        // Limpia de todas las capas y frames
+        for (void* layerPtr : m_layers) {
+            if (!layerPtr) continue;
+            LayerData* layer = static_cast<LayerData*>(layerPtr);
+            layer->removeItem(item);
+            for (auto& frameList : layer->frameItems) {
+                frameList.removeAll(item);
+            }
         }
+
+        // Limpia de todos los FrameData
+        for (auto& layerFrames : m_layerFrameData) {
+            for (auto& frameData : layerFrames) {
+                frameData.items.removeAll(item);
+                frameData.itemStates.remove(item);
+            }
+        }
+
+        // Limpia de todos los AnimationKeyframe
+        // (Si tienes acceso a todos los keyframes, recorre y llama a removeItemState(item))
+
+        delete item;
     }
 
     storeCurrentFrameState();

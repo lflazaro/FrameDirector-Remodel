@@ -1886,6 +1886,10 @@ void MainWindow::exportAnimation()
     if (m_timeline)
         controller.setTotalFrames(totalFrames);
 
+    // Respect the project's FPS (timeline if available, otherwise MainWindow setting)
+    int exportFps = (m_timeline ? m_timeline->getFrameRate() : m_frameRate);
+    controller.setFrameRate(exportFps);
+
     connect(&controller, &AnimationController::exportProgress, &options, &ExportDialog::updateProgress);
     options.show();
     QApplication::processEvents();
