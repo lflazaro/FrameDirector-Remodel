@@ -105,6 +105,7 @@ private:
         const QColor& targetColor, const QColor& fillColor);
     int floodFillImageLimited(QImage& image, const QPoint& startPoint,
         const QColor& targetColor, const QColor& fillColor, int maxPixels);
+    QRectF calculateAdaptiveFillArea(const QPointF& point);
 
     // Advanced contour tracing (Moore neighborhood algorithm)
     QPainterPath traceFilledRegion(const QImage& image, const QColor& fillColor);
