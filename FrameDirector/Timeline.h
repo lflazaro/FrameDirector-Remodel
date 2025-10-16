@@ -173,6 +173,7 @@ private:
     void updateScrollbars();
     void refreshLayerListAppearance();
     QColor getLayerPaletteColor(int index) const;
+    QColor resolveLayerColor(int index) const;
 
     // ENHANCED: Frame extension visualization helpers
     void drawFrameSpan(QPainter* painter, int layer, int startFrame, int endFrame);
