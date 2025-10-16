@@ -113,6 +113,9 @@
     <ClCompile Include="GradientDialog.cpp">
       <Filter>Dialogs</Filter>
     </ClCompile>
+    <ClCompile Include="Dialogs\AutosaveSettingsDialog.cpp">
+      <Filter>Dialogs</Filter>
+    </ClCompile>
     <ClCompile Include="Dialogs\ExportDialog.cpp">
       <Filter>Dialogs</Filter>
     </ClCompile>
@@ -338,6 +341,9 @@
       <Filter>Tools</Filter>
     </QtMoc>
     <QtMoc Include="Dialogs\ExportDialog.h">
+      <Filter>Dialogs</Filter>
+    </QtMoc>
+    <QtMoc Include="Dialogs\AutosaveSettingsDialog.h">
       <Filter>Dialogs</Filter>
     </QtMoc>
     <QtMoc Include="Tools\TextTool.h">

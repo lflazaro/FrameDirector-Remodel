@@ -44,6 +44,7 @@
 #include <QAudioBuffer>
 #include <QEventLoop>
 #include <QPixmap>
+#include <QJsonObject>
 #include <memory>
 #include <vector>
 #include <map>
@@ -160,6 +161,7 @@ private slots:
     void importAudio();
     void importMultipleFiles();
     void showSupportedFormats();
+    void showAutosaveSettingsDialog();
     void exportAnimation();
     void exportFrame();
     void exportSVG();
@@ -261,6 +263,13 @@ private:
     void setupStyleSheet();
     void readSettings();
     void writeSettings();
+    void setupAutosave();
+    void updateAutosaveTimer();
+    void performAutosave();
+    bool ensureAutosaveDirectoryExists() const;
+    QString defaultAutosaveDirectory() const;
+    bool writeProjectSnapshot(const QString& fileName) const;
+    QJsonObject createProjectJson() const;
     bool maybeSave();
     void loadFile(const QString& fileName);
     bool saveFile(const QString& fileName);
@@ -365,6 +374,7 @@ private:
     int m_frameRate;
     bool m_isPlaying;
     QTimer* m_playbackTimer;
+    QTimer* m_autosaveTimer;
     QMediaPlayer* m_audioPlayer; // NEW
     QAudioOutput* m_audioOutput; // NEW
     int m_audioFrameLength;      // NEW
@@ -398,7 +408,11 @@ private:
     QAction* m_exportAnimationAction;
     QAction* m_exportFrameAction;
     QAction* m_exportSVGAction;
+    QAction* m_autosaveSettingsAction;
     QAction* m_exitAction;
+
+    int m_autosaveIntervalMinutes;
+    QString m_autosaveDirectory;
 
     // Actions - Edit Menu
     QAction* m_undoAction;
