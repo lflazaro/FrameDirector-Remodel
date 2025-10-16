@@ -13,6 +13,7 @@
 #include <QSpinBox>
 #include <QComboBox>
 #include <QListWidget>
+#include <QListWidgetItem>
 #include <QPainter>
 #include <QMouseEvent>
 #include <QWheelEvent>
@@ -25,6 +26,7 @@
 #include <QString>
 #include <vector>
 #include <map>
+#include <array>
 
 class MainWindow;
 class TimelineHeader;
@@ -162,12 +164,15 @@ private slots:
     void onLayerSelectionChanged();
     void onKeyframeCreated(int frame);
     void onFrameExtended(int fromFrame, int toFrame);  // NEW
+    void onLayerNameEdited(QListWidgetItem* item);
 
 private:
     void setupUI();
     void setupControls();
     void updateLayout();
     void updateScrollbars();
+    void refreshLayerListAppearance();
+    QColor getLayerPaletteColor(int index) const;
 
     // ENHANCED: Frame extension visualization helpers
     void drawFrameSpan(QPainter* painter, int layer, int startFrame, int endFrame);
@@ -213,6 +218,8 @@ private:
     int m_layerHeight;
     int m_rulerHeight;
     int m_layerPanelWidth;
+
+    bool m_isRefreshingLayerList = false;
 
     // Audio track properties
     bool m_hasAudioTrack;
