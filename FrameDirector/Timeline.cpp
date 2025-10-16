@@ -1228,8 +1228,13 @@ void Timeline::drawFrameSpan(QPainter* painter, int layer, int startFrame, int e
     int endX = m_layerPanelWidth + (endFrame - 1) * frameWidth + frameWidth / 2;
     int y = layerRect.center().y();
 
-    // Draw thick orange line for frame extension
-    QPen extensionPen(m_frameExtensionColor, 4);
+    QColor extensionColor = getFrameExtensionColor(layer);
+
+    // Draw thick line for frame extension that matches the layer color
+    QColor outlineColor = extensionColor;
+    outlineColor.setAlpha(255);
+
+    QPen extensionPen(outlineColor, 4);
     extensionPen.setCapStyle(Qt::RoundCap);
     painter->setPen(extensionPen);
     painter->drawLine(startX, y, endX, y);
@@ -1238,8 +1243,7 @@ void Timeline::drawFrameSpan(QPainter* painter, int layer, int startFrame, int e
     QRect spanRect(startX - frameWidth / 2, layerRect.top() + 2,
         endX - startX + frameWidth, layerRect.height() - 4);
 
-    QColor bgColor = getFrameExtensionColor(layer);
-    painter->fillRect(spanRect, bgColor);
+    painter->fillRect(spanRect, extensionColor);
 }
 
 void Timeline::drawKeyframeSymbol(QPainter* painter, int x, int y, FrameVisualType type, bool selected)
@@ -1295,13 +1299,18 @@ QColor Timeline::getFrameExtensionColor(int layer) const
     // Create subtle color variations for different layers
     QColor baseColor = m_frameExtensionColor;
 
-    // Vary hue slightly based on layer
-    QColor layerColor = baseColor;
-    int hueShift = (layer * 15) % 60; // Vary hue within orange range
-    int currentHue = layerColor.hue();
-    layerColor = QColor::fromHsv((currentHue + hueShift) % 360, layerColor.saturation(), layerColor.value(), layerColor.alpha());
+    if (layer >= 0 && layer < static_cast<int>(m_layers.size())) {
+        baseColor = m_layers[layer].color;
+    }
+    else if (layer >= 0) {
+        baseColor = getLayerPaletteColor(layer);
+    }
 
-    return layerColor;
+    // Ensure the fill color keeps the original alpha for subtlety
+    QColor fillColor = baseColor;
+    fillColor.setAlpha(m_frameExtensionColor.alpha());
+
+    return fillColor;
 }
 
 
