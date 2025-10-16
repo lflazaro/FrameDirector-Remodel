@@ -571,6 +571,34 @@ void Canvas::setLayerOpacity(int layerIndex, double opacity)
     }
 }
 
+void Canvas::setLayerName(int index, const QString& name)
+{
+    if (index < 0 || index >= m_layers.size()) {
+        qDebug() << "setLayerName: invalid layer index" << index;
+        return;
+    }
+
+    QString trimmedName = name.trimmed();
+    if (trimmedName.isEmpty()) {
+        qDebug() << "setLayerName: ignoring empty name for layer" << index;
+        return;
+    }
+
+    LayerData* layer = static_cast<LayerData*>(m_layers[index]);
+    if (!layer) {
+        qDebug() << "setLayerName: layer data missing for index" << index;
+        return;
+    }
+
+    if (layer->name == trimmedName) {
+        return;
+    }
+
+    layer->name = trimmedName;
+
+    qDebug() << "Layer" << index << "UUID:" << layer->uuid << "renamed to" << trimmedName;
+}
+
 void Canvas::addItemToCurrentLayer(QGraphicsItem* item)
 {
     if (!item || m_currentLayerIndex < 0 || m_currentLayerIndex >= m_layers.size()) {

@@ -9,6 +9,7 @@
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QPushButton>
+#include <QAbstractItemView>
 #include <QSlider>
 #include <QSpinBox>
 #include <QComboBox>
@@ -343,6 +344,8 @@ Timeline::Timeline(MainWindow* parent)
         this, &Timeline::onFrameRateChanged);
     connect(m_layerList, &QListWidget::currentRowChanged,
         this, &Timeline::onLayerSelectionChanged);
+    connect(m_layerList, &QListWidget::itemChanged,
+        this, &Timeline::onLayerNameEdited);
 
     // Connect to canvas for keyframe management
     Canvas* canvas = m_mainWindow->findChild<Canvas*>();
@@ -462,7 +465,6 @@ void Timeline::setupUI()
         "    color: #FFFFFF;"
         "    border: none;"
         "    border-right: 1px solid #555555;"
-        "    selection-background-color: #4A90E2;"
         "    font-size: 11px;"
         "}"
         "QListWidget::item {"
@@ -471,13 +473,13 @@ void Timeline::setupUI()
         "    min-height: 18px;"
         "}"
         "QListWidget::item:selected {"
-        "    background-color: #4A90E2;"
-        "    color: #FFFFFF;"
+        "    background-color: rgba(0, 0, 0, 0);"
         "}"
         "QListWidget::item:hover {"
         "    background-color: #383838;"
         "}"
     );
+    m_layerList->setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed);
     layerPanelLayout->addWidget(m_layerList);
 
     // Layer buttons
@@ -638,27 +640,110 @@ void Timeline::updateLayersFromCanvas()
     Canvas* canvas = m_mainWindow->findChild<Canvas*>();
     if (!canvas) return;
 
-    m_layerList->clear();
-    m_layers.clear();
+    int canvasCurrentLayer = canvas->getCurrentLayer();
+    int previousSelection = (canvasCurrentLayer >= 0) ? canvasCurrentLayer : m_selectedLayer;
 
-    for (int i = 0; i < canvas->getLayerCount(); ++i) {
-        Layer layer;
-        layer.name = canvas->getLayerName(i);
-        layer.visible = canvas->isLayerVisible(i);
-        layer.locked = canvas->isLayerLocked(i);
-        layer.color = (i % 2 == 0) ? m_layerColor : m_alternateLayerColor;
-        m_layers.push_back(layer);
+    {
+        QSignalBlocker blocker(m_layerList);
+        m_isRefreshingLayerList = true;
+        m_layerList->clear();
+        m_layers.clear();
 
-        QListWidgetItem* item = new QListWidgetItem(layer.name);
-        item->setFlags(item->flags() | Qt::ItemIsEditable);
-        m_layerList->addItem(item);
+        for (int i = 0; i < canvas->getLayerCount(); ++i) {
+            Layer layer;
+            layer.name = canvas->getLayerName(i);
+            layer.visible = canvas->isLayerVisible(i);
+            layer.locked = canvas->isLayerLocked(i);
+            layer.color = getLayerPaletteColor(i);
+            m_layers.push_back(layer);
+
+            QListWidgetItem* item = new QListWidgetItem(layer.name);
+            item->setFlags(item->flags() | Qt::ItemIsEditable);
+            m_layerList->addItem(item);
+        }
+        m_isRefreshingLayerList = false;
     }
+
+    if (!m_layers.empty()) {
+        if (previousSelection < 0 || previousSelection >= static_cast<int>(m_layers.size())) {
+            previousSelection = std::clamp(previousSelection, 0, static_cast<int>(m_layers.size()) - 1);
+        }
+        m_selectedLayer = previousSelection;
+        QSignalBlocker blocker(m_layerList);
+        m_layerList->setCurrentRow(m_selectedLayer);
+    }
+    else {
+        m_selectedLayer = -1;
+    }
+
+    if (canvas && m_selectedLayer >= 0 && canvasCurrentLayer != m_selectedLayer) {
+        canvas->setCurrentLayer(m_selectedLayer);
+    }
+
+    refreshLayerListAppearance();
 
     updateLayout();
 
     if (m_drawingArea) {
         m_drawingArea->update();
     }
+}
+
+void Timeline::refreshLayerListAppearance()
+{
+    if (!m_layerList) return;
+
+    m_isRefreshingLayerList = true;
+    for (int i = 0; i < m_layerList->count(); ++i) {
+        QListWidgetItem* item = m_layerList->item(i);
+        if (!item) continue;
+
+        QColor baseColor = (i < static_cast<int>(m_layers.size()))
+            ? m_layers[i].color
+            : getLayerPaletteColor(i);
+
+        QColor textColor = baseColor;
+        if (textColor.lightness() < 90) {
+            textColor = textColor.lighter(160);
+        }
+        else if (textColor.lightness() > 220) {
+            textColor = textColor.darker(140);
+        }
+        item->setForeground(QBrush(textColor));
+
+        if (i == m_selectedLayer) {
+            QColor highlight = baseColor;
+            highlight.setAlpha(120);
+            item->setBackground(QBrush(highlight));
+        }
+        else {
+            item->setBackground(QBrush(QColor(0, 0, 0, 0)));
+        }
+    }
+    m_isRefreshingLayerList = false;
+}
+
+QColor Timeline::getLayerPaletteColor(int index) const
+{
+    static const std::array<QColor, 7> palette = {
+        QColor(255, 69, 58),   // Red
+        QColor(255, 159, 10),  // Orange
+        QColor(255, 214, 10),  // Yellow
+        QColor(48, 209, 88),   // Green
+        QColor(64, 156, 255),  // Blue
+        QColor(88, 86, 214),   // Indigo
+        QColor(191, 90, 242)   // Violet
+    };
+
+    if (palette.empty()) {
+        return QColor(74, 144, 226);
+    }
+
+    if (index < 0) {
+        index = 0;
+    }
+
+    return palette[static_cast<size_t>(index) % palette.size()];
 }
 
 void Timeline::setupControls()
@@ -1299,8 +1384,16 @@ void Timeline::drawSelection(QPainter* painter, const QRect& rect)
         layerRect.setLeft(0);
         layerRect.setRight(m_layerPanelWidth);
 
-        painter->fillRect(layerRect, QColor(74, 144, 226, 60));
-        painter->setPen(QPen(QColor(74, 144, 226), 2));
+        QColor baseColor = m_layers[m_selectedLayer].color.isValid()
+            ? m_layers[m_selectedLayer].color
+            : QColor(74, 144, 226);
+
+        QColor fillColor = baseColor;
+        fillColor.setAlpha(90);
+        painter->fillRect(layerRect, fillColor);
+
+        QColor borderColor = baseColor.lighter(140);
+        painter->setPen(QPen(borderColor, 2));
         painter->drawRect(layerRect);
     }
 }
@@ -1614,6 +1707,8 @@ void Timeline::onLayerSelectionChanged()
         canvas->setCurrentLayer(m_selectedLayer);
     }
 
+    refreshLayerListAppearance();
+
     emit layerSelected(m_selectedLayer);
     if (m_drawingArea) {
         m_drawingArea->update();
@@ -1630,6 +1725,7 @@ void Timeline::setSelectedLayer(int layer)
             m_drawingArea->update();
         }
     }
+    refreshLayerListAppearance();
 }
 
 
@@ -1644,7 +1740,90 @@ void Timeline::onFrameExtended(int fromFrame, int toFrame)
 // Add the remaining methods as needed...
 void Timeline::selectKeyframe(int layer, int frame) {}
 void Timeline::clearKeyframeSelection() {}
-void Timeline::setLayerName(int index, const QString& name) {}
+void Timeline::onLayerNameEdited(QListWidgetItem* item)
+{
+    if (!item || !m_layerList || m_isRefreshingLayerList) return;
+
+    int row = m_layerList->row(item);
+    if (row < 0 || row >= static_cast<int>(m_layers.size())) return;
+
+    QString trimmedName = item->text().trimmed();
+
+    if (trimmedName.isEmpty()) {
+        m_isRefreshingLayerList = true;
+        {
+            QSignalBlocker blocker(m_layerList);
+            item->setText(m_layers[row].name);
+        }
+        m_isRefreshingLayerList = false;
+        refreshLayerListAppearance();
+        return;
+    }
+
+    if (trimmedName != item->text()) {
+        m_isRefreshingLayerList = true;
+        {
+            QSignalBlocker blocker(m_layerList);
+            item->setText(trimmedName);
+        }
+        m_isRefreshingLayerList = false;
+    }
+
+    if (m_layers[row].name == trimmedName) {
+        refreshLayerListAppearance();
+        return;
+    }
+
+    m_layers[row].name = trimmedName;
+
+    Canvas* canvas = m_mainWindow->findChild<Canvas*>();
+    if (canvas) {
+        canvas->setLayerName(row, trimmedName);
+    }
+
+    LayerManager* layerManager = m_mainWindow->findChild<LayerManager*>();
+    if (layerManager) {
+        layerManager->updateLayers();
+        layerManager->setCurrentLayer(row);
+    }
+
+    refreshLayerListAppearance();
+
+    if (m_drawingArea) {
+        m_drawingArea->update();
+    }
+}
+
+void Timeline::setLayerName(int index, const QString& name)
+{
+    if (!m_layerList) return;
+    if (index < 0 || index >= static_cast<int>(m_layers.size())) return;
+
+    QString trimmedName = name.trimmed();
+    if (trimmedName.isEmpty()) return;
+
+    if (m_layers[index].name == trimmedName) {
+        refreshLayerListAppearance();
+        return;
+    }
+
+    m_layers[index].name = trimmedName;
+
+    m_isRefreshingLayerList = true;
+    {
+        QSignalBlocker blocker(m_layerList);
+        if (QListWidgetItem* item = m_layerList->item(index)) {
+            item->setText(trimmedName);
+        }
+    }
+    m_isRefreshingLayerList = false;
+
+    refreshLayerListAppearance();
+
+    if (m_drawingArea) {
+        m_drawingArea->update();
+    }
+}
 void Timeline::setLayerVisible(int index, bool visible) {}
 void Timeline::setLayerLocked(int index, bool locked) {}
 void Timeline::scrollToFrame(int frame) {}
