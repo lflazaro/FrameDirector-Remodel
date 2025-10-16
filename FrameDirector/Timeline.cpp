@@ -702,20 +702,20 @@ void Timeline::refreshLayerListAppearance()
 
         QColor textColor = baseColor;
         if (textColor.lightness() < 90) {
-            textColor = textColor.lighter(160);
+            textColor = textColor.lighter(170);
         }
         else if (textColor.lightness() > 220) {
-            textColor = textColor.darker(140);
+            textColor = textColor.darker(150);
         }
         item->setForeground(QBrush(textColor));
 
         if (i == m_selectedLayer) {
             QColor highlight = baseColor;
-            highlight.setAlpha(120);
+            highlight.setAlpha(220);
             item->setBackground(QBrush(highlight));
         }
         else {
-            item->setBackground(QBrush(QColor(0, 0, 0, 0)));
+            item->setBackground(QBrush(Qt::NoBrush));
         }
     }
     m_isRefreshingLayerList = false;
@@ -744,23 +744,42 @@ QColor Timeline::getLayerPaletteColor(int index) const
     return palette[static_cast<size_t>(index) % palette.size()];
 }
 
+namespace {
+    bool isColorVisiblyBlack(const QColor& color)
+    {
+        if (!color.isValid()) {
+            return true;
+        }
+        QColor opaque = color;
+        if (opaque.alpha() == 0) {
+            opaque.setAlpha(255);
+        }
+        return opaque.red() == 0 && opaque.green() == 0 && opaque.blue() == 0;
+    }
+}
+
 QColor Timeline::resolveLayerColor(int index) const
 {
+    QColor fallback = getLayerPaletteColor(index);
+    if (fallback.alpha() == 0) {
+        fallback.setAlpha(255);
+    }
+
     if (index >= 0 && index < static_cast<int>(m_layers.size())) {
         const QColor& storedColor = m_layers[index].color;
-        if (storedColor.isValid()) {
+        if (!isColorVisiblyBlack(storedColor)) {
             QColor resolved = storedColor;
             if (resolved.alpha() == 0) {
                 resolved.setAlpha(255);
             }
             return resolved;
         }
+
+        // Cache the fallback so future reads don't see an invalid color
+        auto& layer = const_cast<Layer&>(m_layers[index]);
+        layer.color = fallback;
     }
 
-    QColor fallback = getLayerPaletteColor(index);
-    if (fallback.alpha() == 0) {
-        fallback.setAlpha(255);
-    }
     return fallback;
 }
 
@@ -1406,9 +1425,16 @@ void Timeline::drawSelection(QPainter* painter, const QRect& rect)
 
         QColor baseColor = resolveLayerColor(m_selectedLayer);
 
-        QColor fillColor = baseColor;
-        fillColor.setAlpha(90);
-        painter->fillRect(layerRect, fillColor);
+        QColor overlayColor = baseColor;
+        overlayColor.setAlpha(80);
+        painter->fillRect(layerRect, overlayColor);
+
+        int stripeWidth = std::min(8, layerRect.width());
+        if (stripeWidth > 0) {
+            QRect stripeRect = layerRect;
+            stripeRect.setRight(stripeRect.left() + stripeWidth);
+            painter->fillRect(stripeRect, baseColor);
+        }
 
         QColor borderColor = baseColor.lighter(140);
         painter->setPen(QPen(borderColor, 2));
