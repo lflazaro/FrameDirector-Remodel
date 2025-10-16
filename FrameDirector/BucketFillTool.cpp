@@ -50,7 +50,7 @@ namespace {
     constexpr int   kMaxVerts64 = 120000;  // total vertices budget per compose
     constexpr qreal kMinTileR = 120.0;   // pixels
     constexpr qreal kReuseFrac = 0.15;    // cache reuse band
-    static constexpr qreal kHardFillRectSize = 5420.0;
+    static constexpr qreal kHardFillRectSize = 16384.0;
 
     using Clipper2Lib::ClipType;
     using Clipper2Lib::Clipper64;
@@ -318,9 +318,18 @@ BucketFillTool::composeRegionFromSegments_Tiled(const QList<PathSegment>& segmen
     if (!m_canvas) return out;
 
     // Tile around seed (clamped to canvas)
-    const qreal R = qMax<qreal>(m_searchRadius, kMinTileR);
+    QRectF canvasRect = m_canvas->getCanvasRect();
+    qreal R = qMax<qreal>(m_searchRadius, kMinTileR);
+    if (!canvasRect.isEmpty()) {
+        const qreal dx = qMax(seedPoint.x() - canvasRect.left(), canvasRect.right() - seedPoint.x());
+        const qreal dy = qMax(seedPoint.y() - canvasRect.top(), canvasRect.bottom() - seedPoint.y());
+        const qreal canvasRadius = qMax(dx, dy);
+        const qreal maxRadius = 0.5 * kHardFillRectSize - 4.0;
+        R = qMin(qMax(R, canvasRadius + qMax<qreal>(gapPadding * 2.0, 4.0)), maxRadius);
+    }
+
     QRectF tile(seedPoint.x() - R, seedPoint.y() - R, 2 * R, 2 * R);
-    tile = tile.intersected(m_canvas->getCanvasRect());
+    tile = tile.intersected(canvasRect);
 
     // Cache reuse
     if (m_compCacheValid) {
@@ -441,7 +450,13 @@ BucketFillTool::composeRegionFromSegments_Tiled(const QList<PathSegment>& segmen
     if (freePaths.empty()) return out;
 
     // Build our big rectangle centered at the seed
-    const Path64 rect64 = makeRect64(seedPoint, kHardFillRectSize, kClipperScale);
+    const qreal distLeft = seedPoint.x() - tile.left();
+    const qreal distRight = tile.right() - seedPoint.x();
+    const qreal distTop = seedPoint.y() - tile.top();
+    const qreal distBottom = tile.bottom() - seedPoint.y();
+    const qreal span = 2.0 * std::max({ distLeft, distRight, distTop, distBottom, qreal(1.0) });
+    const qreal rectSide = qMin(kHardFillRectSize, qMax(span, qreal(40.0)));
+    const Path64 rect64 = makeRect64(seedPoint, rectSide, kClipperScale);
 
     // Intersect rectangle with free space -> stays strictly inside the lines
     Paths64 clippedRect;
@@ -1153,9 +1168,9 @@ void BucketFillTool::performRasterFill(const QPointF& point)
     QImage fillImage = sceneImage.copy();
 
     // Perform flood fill with an adaptive size limit based on the rendered region
-    const int pixelBudget = qBound(10000,
+    const int pixelBudget = qBound(15000,
         static_cast<int>(fillArea.width() * scaleFactor * fillArea.height() * scaleFactor),
-        200000);
+        400000);
     int filledPixels = floodFillImageLimited(fillImage, imagePoint, targetColor, m_fillColor, pixelBudget);
 
     qDebug() << "BucketFill: Filled" << filledPixels << "pixels";
@@ -1254,12 +1269,16 @@ int BucketFillTool::floodFillImageLimited(QImage& image, const QPoint& startPoin
         visited.insert(current);
         filledCount++;
 
-        // Add 4-connected neighbors only
+        // Add 8-connected neighbors for seamless coverage
         QList<QPoint> neighbors = {
             QPoint(current.x() + 1, current.y()),
             QPoint(current.x() - 1, current.y()),
             QPoint(current.x(), current.y() + 1),
-            QPoint(current.x(), current.y() - 1)
+            QPoint(current.x(), current.y() - 1),
+            QPoint(current.x() + 1, current.y() + 1),
+            QPoint(current.x() - 1, current.y() + 1),
+            QPoint(current.x() + 1, current.y() - 1),
+            QPoint(current.x() - 1, current.y() - 1)
         };
 
         for (const QPoint& neighbor : neighbors) {
