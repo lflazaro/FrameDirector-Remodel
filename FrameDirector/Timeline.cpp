@@ -698,9 +698,7 @@ void Timeline::refreshLayerListAppearance()
         QListWidgetItem* item = m_layerList->item(i);
         if (!item) continue;
 
-        QColor baseColor = (i < static_cast<int>(m_layers.size()))
-            ? m_layers[i].color
-            : getLayerPaletteColor(i);
+        QColor baseColor = resolveLayerColor(i);
 
         QColor textColor = baseColor;
         if (textColor.lightness() < 90) {
@@ -744,6 +742,26 @@ QColor Timeline::getLayerPaletteColor(int index) const
     }
 
     return palette[static_cast<size_t>(index) % palette.size()];
+}
+
+QColor Timeline::resolveLayerColor(int index) const
+{
+    if (index >= 0 && index < static_cast<int>(m_layers.size())) {
+        const QColor& storedColor = m_layers[index].color;
+        if (storedColor.isValid()) {
+            QColor resolved = storedColor;
+            if (resolved.alpha() == 0) {
+                resolved.setAlpha(255);
+            }
+            return resolved;
+        }
+    }
+
+    QColor fallback = getLayerPaletteColor(index);
+    if (fallback.alpha() == 0) {
+        fallback.setAlpha(255);
+    }
+    return fallback;
 }
 
 void Timeline::setupControls()
@@ -1297,14 +1315,7 @@ void Timeline::drawKeyframeSymbol(QPainter* painter, int x, int y, FrameVisualTy
 QColor Timeline::getFrameExtensionColor(int layer) const
 {
     // Create subtle color variations for different layers
-    QColor baseColor = m_frameExtensionColor;
-
-    if (layer >= 0 && layer < static_cast<int>(m_layers.size())) {
-        baseColor = m_layers[layer].color;
-    }
-    else if (layer >= 0) {
-        baseColor = getLayerPaletteColor(layer);
-    }
+    QColor baseColor = resolveLayerColor(layer);
 
     // Ensure the fill color keeps the original alpha for subtlety
     QColor fillColor = baseColor;
@@ -1393,9 +1404,7 @@ void Timeline::drawSelection(QPainter* painter, const QRect& rect)
         layerRect.setLeft(0);
         layerRect.setRight(m_layerPanelWidth);
 
-        QColor baseColor = m_layers[m_selectedLayer].color.isValid()
-            ? m_layers[m_selectedLayer].color
-            : QColor(74, 144, 226);
+        QColor baseColor = resolveLayerColor(m_selectedLayer);
 
         QColor fillColor = baseColor;
         fillColor.setAlpha(90);
