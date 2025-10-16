@@ -107,6 +107,7 @@
     <ClCompile Include="Canvas.cpp" />
     <ClCompile Include="Commands\UndoCommands.cpp" />
     <ClCompile Include="GradientDialog.cpp" />
+    <ClCompile Include="Dialogs\AutosaveSettingsDialog.cpp" />
     <ClCompile Include="Dialogs\ExportDialog.cpp" />
     <ClCompile Include="Import\ORAImporter.cpp" />
     <ClCompile Include="Import\PSDImporter.cpp" />
@@ -219,6 +220,9 @@
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="Dialogs\ExportDialog.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <QtMoc Include="Dialogs\AutosaveSettingsDialog.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animation\AnimationKeyframe.h" />

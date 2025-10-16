@@ -21,6 +21,7 @@
 #include "Animation/AnimationKeyframe.h"
 #include "Animation/AnimationController.h"
 #include "Dialogs/ExportDialog.h"
+#include "Dialogs/AutosaveSettingsDialog.h"
 #include "Import/ORAImporter.h"
 #include "VectorGraphics/VectorGraphicsItem.h"
 
@@ -76,6 +77,8 @@
 #include <QEventLoop>
 #include <QImage>
 #include <QVector>
+#include <QDateTime>
+#include <QTime>
 
 namespace {
 constexpr int SvgRawDataRole = Qt::UserRole + 200;
@@ -237,6 +240,7 @@ MainWindow::MainWindow(QWidget* parent)
     , m_frameRate(24)
     , m_isPlaying(false)
     , m_playbackTimer(new QTimer(this))
+    , m_autosaveTimer(new QTimer(this))
     , m_audioPlayer(new QMediaPlayer(this))
     , m_audioOutput(new QAudioOutput(this))
     , m_audioFrameLength(0)
@@ -246,6 +250,7 @@ MainWindow::MainWindow(QWidget* parent)
     , m_currentFillColor(Qt::transparent)
     , m_currentStrokeWidth(2.0)
     , m_currentOpacity(1.0)
+    , m_autosaveIntervalMinutes(10)
 {
     setWindowTitle("FrameDirector");
     setMinimumSize(1200, 800);
@@ -260,6 +265,11 @@ MainWindow::MainWindow(QWidget* parent)
     // Setup playback timer
     m_playbackTimer->setSingleShot(false);
     connect(m_playbackTimer, &QTimer::timeout, this, &MainWindow::onPlaybackTimer);
+
+    // Setup autosave timer
+    m_autosaveTimer->setSingleShot(false);
+    connect(m_autosaveTimer, &QTimer::timeout, this, &MainWindow::performAutosave);
+    m_autosaveDirectory = defaultAutosaveDirectory();
 
     // Setup audio playback
     m_audioPlayer->setAudioOutput(m_audioOutput);
@@ -321,6 +331,7 @@ MainWindow::MainWindow(QWidget* parent)
     // Initial setup
     updateUI();
     readSettings();
+    setupAutosave();
 
     // Create default layer
     addLayer();
@@ -378,6 +389,9 @@ MainWindow::~MainWindow()
     // 4. Stop any running timers
     if (m_playbackTimer) {
         m_playbackTimer->stop();
+    }
+    if (m_autosaveTimer) {
+        m_autosaveTimer->stop();
     }
 
     qDebug() << "MainWindow destructor completed";
@@ -616,6 +630,11 @@ void MainWindow::createActions()
     m_saveAsAction->setShortcut(QKeySequence::SaveAs);
     m_saveAsAction->setStatusTip("Save the project with a new name");
     connect(m_saveAsAction, &QAction::triggered, this, &MainWindow::saveAs);
+
+    m_autosaveSettingsAction = new QAction("Autosave &Settings...", this);
+    m_autosaveSettingsAction->setIcon(QIcon(":/icons/settings.png"));
+    m_autosaveSettingsAction->setStatusTip("Configure autosave interval and folder");
+    connect(m_autosaveSettingsAction, &QAction::triggered, this, &MainWindow::showAutosaveSettingsDialog);
 
     m_importImageAction = new QAction("Import &Image", this);
     m_importImageAction->setIcon(QIcon(":/icons/import.png"));
@@ -959,6 +978,7 @@ void MainWindow::createMenus()
     m_fileMenu->addSeparator();
     m_fileMenu->addAction(m_saveAction);
     m_fileMenu->addAction(m_saveAsAction);
+    m_fileMenu->addAction(m_autosaveSettingsAction);
     m_fileMenu->addSeparator();
 
     m_importMenu = m_fileMenu->addMenu("&Import");
@@ -1767,6 +1787,39 @@ void MainWindow::showSupportedFormats()
     message += "Note: Large images are automatically scaled down for performance.";
 
     QMessageBox::information(this, "Supported Formats", message);
+}
+
+void MainWindow::showAutosaveSettingsDialog()
+{
+    AutosaveSettingsDialog dialog(m_autosaveIntervalMinutes, m_autosaveDirectory, this);
+    if (dialog.exec() == QDialog::Accepted) {
+        m_autosaveIntervalMinutes = dialog.intervalMinutes();
+        if (m_autosaveIntervalMinutes <= 0) {
+            m_autosaveIntervalMinutes = 10;
+        }
+
+        m_autosaveDirectory = dialog.directory();
+        if (m_autosaveDirectory.isEmpty()) {
+            m_autosaveDirectory = defaultAutosaveDirectory();
+        }
+
+        if (!ensureAutosaveDirectoryExists()) {
+            QMessageBox::warning(this, tr("Autosave"), tr("Unable to access autosave folder. Please choose a different location."));
+            m_autosaveDirectory = defaultAutosaveDirectory();
+            ensureAutosaveDirectoryExists();
+        }
+
+        updateAutosaveTimer();
+        writeSettings();
+
+        const QString summary = tr("Autosave every %1 minutes to %2")
+                                    .arg(m_autosaveIntervalMinutes)
+                                    .arg(m_autosaveDirectory);
+        statusBar()->showMessage(summary, 5000);
+        if (m_statusLabel) {
+            m_statusLabel->setText(summary);
+        }
+    }
 }
 
 void MainWindow::importAudio()
@@ -3742,13 +3795,7 @@ bool MainWindow::saveFile(const QString& fileName)
     if (!m_canvas)
         return false;
 
-    QJsonObject root;
-    root["canvas"] = m_canvas->toJson();
-    if (!m_audioFile.isEmpty()) {
-        root["audioFile"] = m_audioFile;
-        root["audioFrameLength"] = m_audioFrameLength;
-    }
-    QJsonDocument doc(root);
+    QJsonDocument doc(createProjectJson());
 
     QFile file(fileName);
     if (!file.open(QIODevice::WriteOnly)) {
@@ -3775,11 +3822,37 @@ QString MainWindow::strippedName(const QString& fullFileName)
     return QFileInfo(fullFileName).fileName();
 }
 
+QJsonObject MainWindow::createProjectJson() const
+{
+    QJsonObject root;
+
+    if (m_canvas) {
+        root["canvas"] = m_canvas->toJson();
+    }
+
+    if (!m_audioFile.isEmpty()) {
+        root["audioFile"] = m_audioFile;
+        root["audioFrameLength"] = m_audioFrameLength;
+    }
+
+    return root;
+}
+
 void MainWindow::readSettings()
 {
     QSettings settings;
     restoreGeometry(settings.value("geometry").toByteArray());
     restoreState(settings.value("windowState").toByteArray());
+
+    m_autosaveIntervalMinutes = settings.value("autosave/intervalMinutes", m_autosaveIntervalMinutes).toInt();
+    if (m_autosaveIntervalMinutes <= 0) {
+        m_autosaveIntervalMinutes = 10;
+    }
+
+    m_autosaveDirectory = settings.value("autosave/directory", m_autosaveDirectory).toString();
+    if (m_autosaveDirectory.isEmpty()) {
+        m_autosaveDirectory = defaultAutosaveDirectory();
+    }
 }
 
 void MainWindow::writeSettings()
@@ -3787,6 +3860,126 @@ void MainWindow::writeSettings()
     QSettings settings;
     settings.setValue("geometry", saveGeometry());
     settings.setValue("windowState", saveState());
+    settings.setValue("autosave/intervalMinutes", m_autosaveIntervalMinutes);
+    settings.setValue("autosave/directory", m_autosaveDirectory);
+}
+
+void MainWindow::setupAutosave()
+{
+    if (!ensureAutosaveDirectoryExists()) {
+        qWarning() << "Autosave: Unable to create directory" << m_autosaveDirectory;
+    }
+    updateAutosaveTimer();
+}
+
+void MainWindow::updateAutosaveTimer()
+{
+    if (!m_autosaveTimer) {
+        return;
+    }
+
+    if (m_autosaveIntervalMinutes <= 0) {
+        m_autosaveTimer->stop();
+        return;
+    }
+
+    const int intervalMs = m_autosaveIntervalMinutes * 60 * 1000;
+    if (m_autosaveTimer->interval() != intervalMs || !m_autosaveTimer->isActive()) {
+        m_autosaveTimer->start(intervalMs);
+    }
+}
+
+bool MainWindow::ensureAutosaveDirectoryExists() const
+{
+    if (m_autosaveDirectory.isEmpty()) {
+        return false;
+    }
+
+    QDir dir(m_autosaveDirectory);
+    if (dir.exists()) {
+        return true;
+    }
+
+    return dir.mkpath(QStringLiteral("."));
+}
+
+QString MainWindow::defaultAutosaveDirectory() const
+{
+    QString tempPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+    if (tempPath.isEmpty()) {
+        tempPath = QDir::tempPath();
+    }
+
+    return QDir(tempPath).filePath(QStringLiteral("FrameDirector"));
+}
+
+bool MainWindow::writeProjectSnapshot(const QString& fileName) const
+{
+    if (!m_canvas) {
+        return false;
+    }
+
+    QJsonDocument doc(createProjectJson());
+
+    QFileInfo fileInfo(fileName);
+    QDir directory = fileInfo.dir();
+    if (!directory.exists()) {
+        if (!directory.mkpath(QStringLiteral("."))) {
+            return false;
+        }
+    }
+
+    QFile file(fileName);
+    if (!file.open(QIODevice::WriteOnly)) {
+        return false;
+    }
+
+    file.write(doc.toJson());
+    file.close();
+    return true;
+}
+
+void MainWindow::performAutosave()
+{
+    if (!m_autosaveTimer || m_autosaveIntervalMinutes <= 0) {
+        return;
+    }
+
+    if (!m_canvas) {
+        return;
+    }
+
+    // Skip autosave if nothing has changed since the last manual save
+    if (!m_isModified && !m_currentFile.isEmpty()) {
+        return;
+    }
+
+    if (m_autosaveDirectory.isEmpty()) {
+        m_autosaveDirectory = defaultAutosaveDirectory();
+    }
+
+    QDir directory(m_autosaveDirectory);
+    if (!directory.exists()) {
+        if (!directory.mkpath(QStringLiteral("."))) {
+            qWarning() << "Autosave: Unable to access directory" << directory.path();
+            return;
+        }
+    }
+
+    const QString baseName = !m_currentFile.isEmpty()
+        ? QFileInfo(m_currentFile).completeBaseName()
+        : QStringLiteral("Untitled");
+
+    const QString timestamp = QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_HHmmss"));
+    const QString fileName = QStringLiteral("%1_autosave_%2.fdr").arg(baseName, timestamp);
+    const QString fullPath = directory.filePath(fileName);
+
+    if (writeProjectSnapshot(fullPath)) {
+        statusBar()->showMessage(tr("Autosaved to %1").arg(fullPath), 5000);
+        if (m_statusLabel) {
+            m_statusLabel->setText(tr("Autosaved at %1").arg(QTime::currentTime().toString("hh:mm")));
+        }
+    }
 }
 
 void MainWindow::closeEvent(QCloseEvent* event)
@@ -3799,6 +3992,9 @@ void MainWindow::closeEvent(QCloseEvent* event)
         // 1. Stop playback timer
         if (m_playbackTimer) {
             m_playbackTimer->stop();
+        }
+        if (m_autosaveTimer) {
+            m_autosaveTimer->stop();
         }
 
         // 2. Clean up all tools
