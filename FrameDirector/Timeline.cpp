@@ -22,8 +22,98 @@
 #include <QPaintEvent>
 #include <QApplication>
 #include <QStyle>
+#include <QStyledItemDelegate>
+#include <QPalette>
 #include <QSignalBlocker>
 #include <algorithm>
+#include <QHash>
+
+namespace {
+constexpr int kLayerColorRole = Qt::UserRole + 1;
+constexpr int kLayerTextColorRole = Qt::UserRole + 2;
+
+bool isColorVisiblyBlack(const QColor& color)
+{
+    if (!color.isValid()) {
+        return true;
+    }
+
+    QColor opaque = color;
+    if (opaque.alpha() == 0) {
+        opaque.setAlpha(255);
+    }
+
+    return opaque.red() == 0 && opaque.green() == 0 && opaque.blue() == 0;
+}
+
+class LayerListDelegate : public QStyledItemDelegate
+{
+public:
+    explicit LayerListDelegate(QObject* parent = nullptr)
+        : QStyledItemDelegate(parent)
+    {
+    }
+
+    void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override
+    {
+        painter->save();
+
+        QRect rect = option.rect;
+        bool isSelected = option.state.testFlag(QStyle::State_Selected);
+        bool isHovered = option.state.testFlag(QStyle::State_MouseOver);
+
+        QColor baseBg = (index.row() % 2 == 0) ? QColor(42, 42, 42) : QColor(38, 38, 38);
+        painter->fillRect(rect, baseBg);
+
+        QColor layerColor = index.data(kLayerColorRole).value<QColor>();
+        if (!layerColor.isValid() || isColorVisiblyBlack(layerColor)) {
+            layerColor = QColor(74, 144, 226);
+        }
+
+        if (isSelected) {
+            QColor overlay = layerColor;
+            overlay.setAlpha(140);
+            painter->fillRect(rect, overlay);
+
+            int stripeWidth = std::min(8, rect.width());
+            if (stripeWidth > 0) {
+                QRect stripeRect(rect.left(), rect.top(), stripeWidth, rect.height());
+                painter->fillRect(stripeRect, layerColor);
+            }
+
+            QColor borderColor = layerColor.lighter(140);
+            painter->setPen(QPen(borderColor, 1));
+            painter->drawRect(rect.adjusted(0, 0, -1, -1));
+        }
+        else if (isHovered) {
+            painter->fillRect(rect, QColor(56, 56, 56));
+        }
+
+        painter->setPen(QPen(QColor(53, 53, 53), 1));
+        painter->drawLine(rect.bottomLeft(), rect.bottomRight());
+
+        QColor textColor = index.data(kLayerTextColorRole).value<QColor>();
+        if (!textColor.isValid()) {
+            textColor = option.palette.color(QPalette::Text);
+        }
+
+        painter->setPen(textColor);
+        painter->setFont(option.font);
+
+        QRect textRect = rect.adjusted(10, 0, -6, 0);
+        painter->drawText(textRect, Qt::AlignVCenter | Qt::AlignLeft, index.data(Qt::DisplayRole).toString());
+
+        painter->restore();
+    }
+
+    QSize sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const override
+    {
+        QSize base = QStyledItemDelegate::sizeHint(option, index);
+        base.setHeight(std::max(base.height(), 22));
+        return base;
+    }
+};
+} // namespace
 
 // TimelineDrawingArea implementation
 TimelineDrawingArea::TimelineDrawingArea(QWidget* parent)
@@ -459,10 +549,10 @@ void Timeline::setupUI()
     m_layerList = new QListWidget;
     m_layerList->setMaximumWidth(m_layerPanelWidth);
     m_layerList->setMinimumWidth(m_layerPanelWidth);
+    m_layerList->setMouseTracking(true);
     m_layerList->setStyleSheet(
         "QListWidget {"
         "    background-color: #2A2A2A;"
-        "    color: #FFFFFF;"
         "    border: none;"
         "    border-right: 1px solid #555555;"
         "    font-size: 11px;"
@@ -476,9 +566,13 @@ void Timeline::setupUI()
         "    background-color: rgba(0, 0, 0, 0);"
         "}"
         "QListWidget::item:hover {"
-        "    background-color: #383838;"
+        "    background-color: rgba(0, 0, 0, 0);"
         "}"
     );
+    m_layerList->setItemDelegate(new LayerListDelegate(m_layerList));
+    if (m_layerList->viewport()) {
+        m_layerList->viewport()->setAttribute(Qt::WA_Hover, true);
+    }
     m_layerList->setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed);
     layerPanelLayout->addWidget(m_layerList);
 
@@ -643,6 +737,21 @@ void Timeline::updateLayersFromCanvas()
     int canvasCurrentLayer = canvas->getCurrentLayer();
     int previousSelection = (canvasCurrentLayer >= 0) ? canvasCurrentLayer : m_selectedLayer;
 
+    std::vector<QColor> previousColors;
+    previousColors.reserve(m_layers.size());
+    std::vector<QString> previousNames;
+    previousNames.reserve(m_layers.size());
+    QHash<QString, QColor> preservedByName;
+    preservedByName.reserve(static_cast<int>(m_layers.size()));
+
+    for (const Layer& layer : m_layers) {
+        previousColors.push_back(layer.color);
+        previousNames.push_back(layer.name);
+        if (!layer.name.isEmpty() && !isColorVisiblyBlack(layer.color)) {
+            preservedByName.insert(layer.name, layer.color);
+        }
+    }
+
     {
         QSignalBlocker blocker(m_layerList);
         m_isRefreshingLayerList = true;
@@ -654,11 +763,27 @@ void Timeline::updateLayersFromCanvas()
             layer.name = canvas->getLayerName(i);
             layer.visible = canvas->isLayerVisible(i);
             layer.locked = canvas->isLayerLocked(i);
-            layer.color = getLayerPaletteColor(i);
+            QColor candidate;
+            if (i < static_cast<int>(previousColors.size())) {
+                candidate = previousColors[static_cast<size_t>(i)];
+                if (i < static_cast<int>(previousNames.size()) && previousNames[static_cast<size_t>(i)] != layer.name) {
+                    if (preservedByName.contains(layer.name)) {
+                        candidate = preservedByName.value(layer.name);
+                    }
+                }
+            }
+            if ((!candidate.isValid() || isColorVisiblyBlack(candidate)) && preservedByName.contains(layer.name)) {
+                candidate = preservedByName.value(layer.name);
+            }
+            if (!candidate.isValid() || isColorVisiblyBlack(candidate)) {
+                candidate = getLayerPaletteColor(i);
+            }
+            layer.color = candidate;
             m_layers.push_back(layer);
 
             QListWidgetItem* item = new QListWidgetItem(layer.name);
             item->setFlags(item->flags() | Qt::ItemIsEditable);
+            item->setData(kLayerColorRole, layer.color);
             m_layerList->addItem(item);
         }
         m_isRefreshingLayerList = false;
@@ -699,6 +824,7 @@ void Timeline::refreshLayerListAppearance()
         if (!item) continue;
 
         QColor baseColor = resolveLayerColor(i);
+        item->setData(kLayerColorRole, baseColor);
 
         QColor textColor = baseColor;
         if (textColor.lightness() < 90) {
@@ -707,18 +833,14 @@ void Timeline::refreshLayerListAppearance()
         else if (textColor.lightness() > 220) {
             textColor = textColor.darker(150);
         }
+        item->setData(kLayerTextColorRole, textColor);
         item->setForeground(QBrush(textColor));
-
-        if (i == m_selectedLayer) {
-            QColor highlight = baseColor;
-            highlight.setAlpha(220);
-            item->setBackground(QBrush(highlight));
-        }
-        else {
-            item->setBackground(QBrush(Qt::NoBrush));
-        }
+        item->setBackground(QBrush(Qt::NoBrush));
     }
     m_isRefreshingLayerList = false;
+    if (m_layerList->viewport()) {
+        m_layerList->viewport()->update();
+    }
 }
 
 QColor Timeline::getLayerPaletteColor(int index) const
@@ -742,20 +864,6 @@ QColor Timeline::getLayerPaletteColor(int index) const
     }
 
     return palette[static_cast<size_t>(index) % palette.size()];
-}
-
-namespace {
-    bool isColorVisiblyBlack(const QColor& color)
-    {
-        if (!color.isValid()) {
-            return true;
-        }
-        QColor opaque = color;
-        if (opaque.alpha() == 0) {
-            opaque.setAlpha(255);
-        }
-        return opaque.red() == 0 && opaque.green() == 0 && opaque.blue() == 0;
-    }
 }
 
 QColor Timeline::resolveLayerColor(int index) const
@@ -1418,27 +1526,50 @@ void Timeline::drawPlayhead(QPainter* painter, const QRect& rect)
 
 void Timeline::drawSelection(QPainter* painter, const QRect& rect)
 {
+    Q_UNUSED(rect);
     if (m_selectedLayer >= 0 && m_selectedLayer < m_layers.size()) {
-        QRect layerRect = getLayerRect(m_selectedLayer);
-        layerRect.setLeft(0);
-        layerRect.setRight(m_layerPanelWidth);
+        QRect fullLayerRect = getLayerRect(m_selectedLayer);
+        if (fullLayerRect.isEmpty()) {
+            return;
+        }
 
         QColor baseColor = resolveLayerColor(m_selectedLayer);
 
-        QColor overlayColor = baseColor;
-        overlayColor.setAlpha(80);
-        painter->fillRect(layerRect, overlayColor);
+        painter->save();
 
-        int stripeWidth = std::min(8, layerRect.width());
-        if (stripeWidth > 0) {
-            QRect stripeRect = layerRect;
-            stripeRect.setRight(stripeRect.left() + stripeWidth);
-            painter->fillRect(stripeRect, baseColor);
+        int listWidth = std::min(m_layerPanelWidth, fullLayerRect.width());
+        if (listWidth > 0) {
+            QRect listRect(0, fullLayerRect.top(), listWidth, fullLayerRect.height());
+            QColor listOverlay = baseColor;
+            listOverlay.setAlpha(160);
+            painter->fillRect(listRect, listOverlay);
+
+            int stripeWidth = std::min(8, listRect.width());
+            if (stripeWidth > 0) {
+                QRect stripeRect(listRect.left(), listRect.top(), stripeWidth, listRect.height());
+                painter->fillRect(stripeRect, baseColor);
+            }
+
+            QColor borderColor = baseColor.lighter(140);
+            painter->setPen(QPen(borderColor, 2));
+            painter->drawRect(listRect.adjusted(0, 0, -1, -1));
         }
 
-        QColor borderColor = baseColor.lighter(140);
-        painter->setPen(QPen(borderColor, 2));
-        painter->drawRect(layerRect);
+        int timelineWidth = fullLayerRect.width() - m_layerPanelWidth;
+        if (timelineWidth > 0) {
+            QRect timelineRect(m_layerPanelWidth, fullLayerRect.top(), timelineWidth, fullLayerRect.height());
+            QColor timelineOverlay = baseColor;
+            timelineOverlay.setAlpha(70);
+            painter->fillRect(timelineRect, timelineOverlay);
+
+            int stripeWidth = std::min(6, timelineRect.width());
+            if (stripeWidth > 0) {
+                QRect stripeRect(timelineRect.left(), timelineRect.top(), stripeWidth, timelineRect.height());
+                painter->fillRect(stripeRect, baseColor);
+            }
+        }
+
+        painter->restore();
     }
 }
 
