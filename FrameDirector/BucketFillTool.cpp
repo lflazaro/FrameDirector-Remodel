@@ -25,7 +25,7 @@
 #include <cmath>
 #include <cstdint>
 #include <utility>
-
+// BucketFillTool.cpp
 // Direction vectors for 8-connected neighbors (Moore neighborhood)
 const QPoint BucketFillTool::DIRECTIONS[8] = {
     QPoint(1, 0),   // 0: East
