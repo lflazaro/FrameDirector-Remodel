@@ -1885,15 +1885,22 @@ QPixmap MainWindow::createAudioWaveform(const QString& fileName, int samples, in
     QEventLoop loop;
     QObject::connect(&decoder, &QAudioDecoder::finished, &loop, &QEventLoop::quit);
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-    QObject::connect(&decoder, &QAudioDecoder::errorChanged, &loop, [&](QAudioDecoder::Error error) {
-#else
+    // Qt6: Usa QAudioDecoder::error(QAudioDecoder::Error)
     QObject::connect(&decoder, QOverload<QAudioDecoder::Error>::of(&QAudioDecoder::error), &loop, [&](QAudioDecoder::Error error) {
-#endif
         if (error != QAudioDecoder::NoError) {
             decodeError = true;
             loop.quit();
         }
-    });
+        });
+#else
+    // Qt5: Usa QAudioDecoder::error(QAudioDecoder::Error)
+    QObject::connect(&decoder, QOverload<QAudioDecoder::Error>::of(&QAudioDecoder::error), &loop, [&](QAudioDecoder::Error error) {
+        if (error != QAudioDecoder::NoError) {
+            decodeError = true;
+            loop.quit();
+        }
+        });
+#endif
 
     decoder.start();
     loop.exec();
