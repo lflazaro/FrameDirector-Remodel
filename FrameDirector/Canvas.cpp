@@ -31,6 +31,7 @@
 #include <QLinearGradient>
 #include <QRadialGradient>
 #include <QConicalGradient>
+#include <QDateTime>
 #include <algorithm>
 #include <limits>
 

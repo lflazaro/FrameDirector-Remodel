@@ -21,6 +21,8 @@
 #include <QQueue>
 #include <QSet>
 #include <QTimer>
+#include <QDateTime>
+#include <functional>
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -377,7 +379,7 @@ BucketFillTool::composeRegionFromSegments_Tiled(const QList<PathSegment>& segmen
     }
 
     if (subjectPaths.empty() || vertBudget <= 0) {
-        // Too complex — bail (let legacy/raster handle)
+        // Too complex Â— bail (let legacy/raster handle)
         return out;
     }
 
@@ -640,7 +642,7 @@ BucketFillTool::ClosedRegion BucketFillTool::findEnclosedRegion(const QPointF& p
     ClosedRegion composed = composeRegionFromSegments_Tiled(nearby, point, m_connectionTolerance);
     if (composed.isValid) return composed;
 
-    // 2) Legacy fallbacks (cheap) — keep them for resilience
+    // 2) Legacy fallbacks (cheap) Â— keep them for resilience
     QPainterPath closedPath = createClosedPath(nearby, point);
     if (!closedPath.isEmpty() && closedPath.contains(point)) {
         region.outerBoundary = closedPath; region.bounds = closedPath.boundingRect(); region.isValid = true; return region;

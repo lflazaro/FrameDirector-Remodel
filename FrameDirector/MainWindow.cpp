@@ -38,6 +38,7 @@
 #include <QSpinBox>
 #include <QComboBox>
 #include <QColorDialog>
+#include <QtGlobal>
 #include <QFontDialog>
 #include <QFileDialog>
 #include <QMessageBox>
@@ -1817,46 +1818,117 @@ QPixmap MainWindow::createAudioWaveform(const QString& fileName, int samples, in
 
     QAudioDecoder decoder;
     decoder.setSource(QUrl::fromLocalFile(fileName));
-    QVector<qint16> pcm;
+
+    QVector<double> pcm;
+    pcm.reserve(samples);
+    bool decodeError = false;
+
     QObject::connect(&decoder, &QAudioDecoder::bufferReady, [&]() {
-        QAudioBuffer buffer = decoder.read();
-        const qint16* data = buffer.constData<qint16>();
-        int count = buffer.frameCount();
-        if (buffer.format().isValid()) {
-            count *= buffer.format().channelCount();
+        const QAudioBuffer buffer = decoder.read();
+        const QAudioFormat format = buffer.format();
+        if (!format.isValid())
+            return;
+
+        const int channelCount = qMax(1, format.channelCount());
+        const int frameCount = buffer.frameCount();
+        const int sampleCount = frameCount * channelCount;
+
+        auto appendSamples = [&](auto dataPtr, double scale) {
+            for (int i = 0; i < sampleCount; ++i)
+                pcm.append(qBound(-1.0, static_cast<double>(dataPtr[i]) * scale, 1.0));
+        };
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+        switch (format.sampleFormat()) {
+        case QAudioFormat::Int16:
+            appendSamples(buffer.constData<qint16>(), 1.0 / 32768.0);
+            break;
+        case QAudioFormat::UInt8: {
+            const quint8* data = buffer.constData<quint8>();
+            for (int i = 0; i < sampleCount; ++i)
+                pcm.append(qBound(-1.0, (static_cast<double>(data[i]) - 128.0) / 128.0, 1.0));
+            break;
         }
-        for (int i = 0; i < count; ++i)
-            pcm.append(data[i]);
+        case QAudioFormat::Int32:
+            appendSamples(buffer.constData<qint32>(), 1.0 / 2147483648.0);
+            break;
+        case QAudioFormat::Float:
+            appendSamples(buffer.constData<float>(), 1.0);
+            break;
+        default:
+            break;
+        }
+#else
+        switch (format.sampleType()) {
+        case QAudioFormat::SignedInt:
+            if (format.sampleSize() == 16)
+                appendSamples(buffer.constData<qint16>(), 1.0 / 32768.0);
+            else if (format.sampleSize() == 32)
+                appendSamples(buffer.constData<qint32>(), 1.0 / 2147483648.0);
+            break;
+        case QAudioFormat::UnSignedInt:
+            if (format.sampleSize() == 8) {
+                const quint8* data = buffer.constData<quint8>();
+                for (int i = 0; i < sampleCount; ++i)
+                    pcm.append(qBound(-1.0, (static_cast<double>(data[i]) - 128.0) / 128.0, 1.0));
+            }
+            break;
+        case QAudioFormat::Float:
+            appendSamples(buffer.constData<float>(), 1.0);
+            break;
+        default:
+            break;
+        }
+#endif
     });
+
     QEventLoop loop;
     QObject::connect(&decoder, &QAudioDecoder::finished, &loop, &QEventLoop::quit);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    QObject::connect(&decoder, &QAudioDecoder::errorChanged, &loop, [&](QAudioDecoder::Error error) {
+#else
+    QObject::connect(&decoder, QOverload<QAudioDecoder::Error>::of(&QAudioDecoder::error), &loop, [&](QAudioDecoder::Error error) {
+#endif
+        if (error != QAudioDecoder::NoError) {
+            decodeError = true;
+            loop.quit();
+        }
+    });
+
     decoder.start();
     loop.exec();
 
-    if (pcm.isEmpty())
+    if (decodeError || pcm.isEmpty())
         return QPixmap();
 
     QImage image(samples, height, QImage::Format_ARGB32_Premultiplied);
     image.fill(Qt::transparent);
     QPainter painter(&image);
-    // Draw waveform in a soft, slightly dark green tone for better visibility
     painter.setPen(QPen(QColor(60, 110, 60)));
-    int step = qMax(1, pcm.size() / samples);
-    // Scale amplitude to keep the waveform from appearing too tall
-    constexpr double amplitudeScale = 1;
+
+    const int totalSamples = pcm.size();
+    const int step = qMax(1, totalSamples / samples);
+    const double halfHeight = height / 2.0;
+
     for (int x = 0; x < samples; ++x) {
-        int start = x * step;
-        int end = qMin(start + step, pcm.size());
-        qint16 min = 0, max = 0;
+        const int start = x * step;
+        const int end = qMin(start + step, totalSamples);
+        double minVal = 0.0;
+        double maxVal = 0.0;
         for (int i = start; i < end; ++i) {
-            qint16 val = pcm[i];
-            if (val < min) min = val;
-            if (val > max) max = val;
+            const double val = pcm[i];
+            if (val < minVal)
+                minVal = val;
+            if (val > maxVal)
+                maxVal = val;
         }
-        int y1 = height / 2 - static_cast<int>((max * (height) * amplitudeScale) / 32768);
-        int y2 = height / 2 - static_cast<int>((min * (height) * amplitudeScale) / 32768);
+
+        const int centerY = height / 2;
+        const int y1 = qBound(0, static_cast<int>(centerY - maxVal * halfHeight), height - 1);
+        const int y2 = qBound(0, static_cast<int>(centerY - minVal * halfHeight), height - 1);
         painter.drawLine(x, y1, x, y2);
     }
+
     painter.end();
     return QPixmap::fromImage(image);
 }

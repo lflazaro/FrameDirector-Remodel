@@ -9,6 +9,7 @@
 #include <QPixmap>
 #include <QTimer>
 #include <QFontDatabase>
+#include <QByteArray>
 
 #include "MainWindow.h"
 
@@ -79,8 +80,8 @@ private:
         // Load and apply custom stylesheet
         QFile styleFile(":/styles/dark-theme.qss");
         if (styleFile.open(QFile::ReadOnly)) {
-            QString styleSheet = QLatin1String(styleFile.readAll());
-            setStyleSheet(styleSheet);
+            const QByteArray styleData = styleFile.readAll();
+            setStyleSheet(QString::fromUtf8(styleData));
         }
     }
 
