@@ -46,9 +46,9 @@ namespace {
     constexpr int   kMaxTileItems = 220;
     constexpr int   kMaxPaths64 = 600;     // after clipping
     constexpr int   kMaxVerts64 = 120000;  // total vertices budget per compose
-    constexpr qreal kMinTileR = 120.0;   // pixels
+    constexpr qreal kMinTileR = 360.0;   // pixels
     constexpr qreal kReuseFrac = 0.15;    // cache reuse band
-    static constexpr qreal kHardFillRectSize = 5420.0;
+    static constexpr qreal kHardFillRectSize = 16000.0;
 
     using Clipper2Lib::ClipType;
     using Clipper2Lib::Clipper64;
@@ -438,6 +438,14 @@ BucketFillTool::composeRegionFromSegments_Tiled(const QList<PathSegment>& segmen
     Paths64 freePaths = polyTreeToPaths(freeTree);
     if (freePaths.empty()) return out;
 
+    const Point64 seed64((int64_t)std::llround(seedPoint.x() * kClipperScale),
+        (int64_t)std::llround(seedPoint.y() * kClipperScale));
+    const PolyPath64* faceNode = findNodeContainingPoint(freeTree, seedPoint, kClipperScale);
+    if (!faceNode) return out;
+    QPainterPath facePath = polyPathToPainterPath(faceNode, inv);
+    facePath.setFillRule(Qt::WindingFill);
+    if (facePath.isEmpty() || !facePath.contains(seedPoint)) return out;
+
     // Build our big rectangle centered at the seed
     const Path64 rect64 = makeRect64(seedPoint, kHardFillRectSize, kClipperScale);
 
@@ -451,14 +459,6 @@ BucketFillTool::composeRegionFromSegments_Tiled(const QList<PathSegment>& segmen
     }
     if (clippedRect.empty()) {
         // Fallback: choose the whole face (rare edge case if the rect clips away)
-        const Point64 seed64((int64_t)std::llround(seedPoint.x() * kClipperScale),
-            (int64_t)std::llround(seedPoint.y() * kClipperScale));
-        const PolyPath64* faceNode = findContainingNode(&freeTree, seed64);
-        if (!faceNode) return out;
-        QPainterPath facePath = polyPathToPainterPath(faceNode, inv);
-        facePath.setFillRule(Qt::WindingFill);
-        if (!facePath.contains(seedPoint)) return out;
-
         m_compCachedUnion = facePath;
         m_compCacheCenter = seedPoint;
         m_compCacheRadius = R;
@@ -471,8 +471,6 @@ BucketFillTool::composeRegionFromSegments_Tiled(const QList<PathSegment>& segmen
     }
 
     // Pick the intersected piece that contains the seed (usually just one)
-    const Point64 seed64((int64_t)std::llround(seedPoint.x() * kClipperScale),
-        (int64_t)std::llround(seedPoint.y() * kClipperScale));
     size_t hit = SIZE_MAX;
     for (size_t i = 0; i < clippedRect.size(); ++i) {
         if (path64ContainsPoint(clippedRect[i], seed64)) { hit = i; break; }
@@ -492,14 +490,18 @@ BucketFillTool::composeRegionFromSegments_Tiled(const QList<PathSegment>& segmen
     rectPath.setFillRule(Qt::WindingFill);
     if (rectPath.isEmpty()) return out;
 
+    QPainterPath finalPath = rectPath.united(facePath);
+    finalPath.setFillRule(Qt::WindingFill);
+    if (finalPath.isEmpty() || !finalPath.contains(seedPoint)) return out;
+
     // Cache & return
-    m_compCachedUnion = rectPath;
+    m_compCachedUnion = finalPath;
     m_compCacheCenter = seedPoint;
     m_compCacheRadius = R;
     m_compCacheValid = true;
 
-    out.outerBoundary = rectPath;
-    out.bounds = rectPath.boundingRect();
+    out.outerBoundary = finalPath;
+    out.bounds = finalPath.boundingRect();
     out.isValid = true;
     return out;
 }
