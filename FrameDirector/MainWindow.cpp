@@ -1863,7 +1863,7 @@ QPixmap MainWindow::createAudioWaveform(const QString& fileName, int samples, in
 
 void MainWindow::exportAnimation()
 {
-	// Show export options dialog
+	// Show export options dialog.
     ExportDialog options(this);
     if (options.exec() != QDialog::Accepted)
         return;
