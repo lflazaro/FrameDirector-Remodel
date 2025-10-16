@@ -27,6 +27,8 @@
 #include <cmath>
 #include <cstdint>
 #include <utility>
+#include <QtGlobal>
+#include <limits>
 // BucketFillTool.cpp
 // Direction vectors for 8-connected neighbors (Moore neighborhood)
 const QPoint BucketFillTool::DIRECTIONS[8] = {
@@ -48,7 +50,7 @@ namespace {
     constexpr int   kMaxVerts64 = 120000;  // total vertices budget per compose
     constexpr qreal kMinTileR = 120.0;   // pixels
     constexpr qreal kReuseFrac = 0.15;    // cache reuse band
-    static constexpr qreal kHardFillRectSize = 5420.0;
+    static constexpr qreal kHardFillRectSize = 16384.0;
 
     using Clipper2Lib::ClipType;
     using Clipper2Lib::Clipper64;
@@ -316,9 +318,18 @@ BucketFillTool::composeRegionFromSegments_Tiled(const QList<PathSegment>& segmen
     if (!m_canvas) return out;
 
     // Tile around seed (clamped to canvas)
-    const qreal R = qMax<qreal>(m_searchRadius, kMinTileR);
+    QRectF canvasRect = m_canvas->getCanvasRect();
+    qreal R = qMax<qreal>(m_searchRadius, kMinTileR);
+    if (!canvasRect.isEmpty()) {
+        const qreal dx = qMax(seedPoint.x() - canvasRect.left(), canvasRect.right() - seedPoint.x());
+        const qreal dy = qMax(seedPoint.y() - canvasRect.top(), canvasRect.bottom() - seedPoint.y());
+        const qreal canvasRadius = qMax(dx, dy);
+        const qreal maxRadius = 0.5 * kHardFillRectSize - 4.0;
+        R = qMin(qMax(R, canvasRadius + qMax<qreal>(gapPadding * 2.0, 4.0)), maxRadius);
+    }
+
     QRectF tile(seedPoint.x() - R, seedPoint.y() - R, 2 * R, 2 * R);
-    tile = tile.intersected(m_canvas->getCanvasRect());
+    tile = tile.intersected(canvasRect);
 
     // Cache reuse
     if (m_compCacheValid) {
@@ -439,7 +450,13 @@ BucketFillTool::composeRegionFromSegments_Tiled(const QList<PathSegment>& segmen
     if (freePaths.empty()) return out;
 
     // Build our big rectangle centered at the seed
-    const Path64 rect64 = makeRect64(seedPoint, kHardFillRectSize, kClipperScale);
+    const qreal distLeft = seedPoint.x() - tile.left();
+    const qreal distRight = tile.right() - seedPoint.x();
+    const qreal distTop = seedPoint.y() - tile.top();
+    const qreal distBottom = tile.bottom() - seedPoint.y();
+    const qreal span = 2.0 * std::max({ distLeft, distRight, distTop, distBottom, qreal(1.0) });
+    const qreal rectSide = qMin(kHardFillRectSize, qMax(span, qreal(40.0)));
+    const Path64 rect64 = makeRect64(seedPoint, rectSide, kClipperScale);
 
     // Intersect rectangle with free space -> stays strictly inside the lines
     Paths64 clippedRect;
@@ -1004,25 +1021,116 @@ QPainterPath BucketFillTool::connectPathsByProximity(const QList<PathSegment>& s
     return closeOpenPath(result, maxDistance);
 }
 
+QRectF BucketFillTool::calculateAdaptiveFillArea(const QPointF& point)
+{
+    QRectF result;
+    if (!m_canvas) {
+        return result;
+    }
+
+    const QRectF canvasRect = m_canvas->getCanvasRect();
+    if (!canvasRect.contains(point)) {
+        return result;
+    }
+
+    const QList<PathSegment> segments = collectNearbyPaths(point, m_searchRadius);
+    if (!segments.isEmpty()) {
+        ClosedRegion region = composeRegionFromSegments_Tiled(segments, point, m_connectionTolerance);
+        if (region.isValid && !region.bounds.isEmpty()) {
+            result = region.bounds;
+        }
+        else {
+            QRectF unionBounds;
+            qreal closestDistance = std::numeric_limits<qreal>::max();
+
+            for (const PathSegment& seg : segments) {
+                QRectF candidate = seg.bounds;
+                if (!candidate.isValid() || candidate.isEmpty()) {
+                    continue;
+                }
+
+                if (candidate.contains(point)) {
+                    if (unionBounds.isNull() || unionBounds.isEmpty()) {
+                        unionBounds = candidate;
+                    }
+                    else {
+                        unionBounds = unionBounds.united(candidate);
+                    }
+                }
+                else {
+                    qreal dx = 0.0;
+                    if (point.x() < candidate.left()) {
+                        dx = candidate.left() - point.x();
+                    }
+                    else if (point.x() > candidate.right()) {
+                        dx = point.x() - candidate.right();
+                    }
+
+                    qreal dy = 0.0;
+                    if (point.y() < candidate.top()) {
+                        dy = candidate.top() - point.y();
+                    }
+                    else if (point.y() > candidate.bottom()) {
+                        dy = point.y() - candidate.bottom();
+                    }
+
+                    const qreal distance = std::hypot(dx, dy);
+                    if (distance < closestDistance) {
+                        closestDistance = distance;
+                        unionBounds = candidate;
+                    }
+                }
+            }
+
+            if (!unionBounds.isNull() && !unionBounds.isEmpty()) {
+                result = unionBounds;
+            }
+        }
+    }
+
+    if (result.isNull() || result.isEmpty()) {
+        const qreal size = qMax<qreal>(m_searchRadius * 2.0, 200.0);
+        result = QRectF(point.x() - size / 2.0, point.y() - size / 2.0, size, size);
+    }
+
+    const qreal margin = qMax<qreal>(m_connectionTolerance * 2.0, 6.0);
+    result = result.adjusted(-margin, -margin, margin, margin);
+    result = result.intersected(canvasRect);
+
+    if (result.isEmpty()) {
+        const qreal size = qMax<qreal>(m_searchRadius * 2.0, 200.0);
+        result = QRectF(point.x() - size / 2.0, point.y() - size / 2.0, size, size);
+        result = result.intersected(canvasRect);
+    }
+
+    if (result.width() < 40.0 || result.height() < 40.0) {
+        const qreal minSize = 40.0;
+        const qreal halfWidth = qMax(result.width(), minSize) / 2.0;
+        const qreal halfHeight = qMax(result.height(), minSize) / 2.0;
+        result = QRectF(point.x() - halfWidth, point.y() - halfHeight, halfWidth * 2.0, halfHeight * 2.0);
+        result = result.intersected(canvasRect);
+    }
+
+    return result;
+}
+
 void BucketFillTool::performRasterFill(const QPointF& point)
 {
     if (!m_canvas || !m_canvas->scene()) return;
 
-    // Reasonable fill area
-    qreal size = 200;
-    QRectF fillArea(point.x() - size / 2, point.y() - size / 2, size, size);
-
-    // Make sure fill area is within canvas bounds
+    // Determine an adaptive fill area that stays within surrounding boundaries
+    QRectF fillArea = calculateAdaptiveFillArea(point);
     QRectF canvasRect = m_canvas->getCanvasRect();
-    fillArea = fillArea.intersected(canvasRect);
 
     if (fillArea.isEmpty()) {
-        qDebug() << "BucketFill: Fill area outside canvas bounds";
+        qDebug() << "BucketFill: Unable to compute valid fill area";
         return;
     }
 
+    const qreal scaleFactor = 2.0;
+
     // Render scene to image with proper resolution
-    QImage sceneImage = renderSceneToImage(fillArea, 2.0);
+    QImage sceneImage = renderSceneToImage(fillArea, scaleFactor);
 
     if (sceneImage.isNull()) {
         qDebug() << "BucketFill: Failed to render scene to image";
@@ -1031,7 +1139,7 @@ void BucketFillTool::performRasterFill(const QPointF& point)
 
     // Convert scene point to image coordinates
     QPointF relativePoint = point - fillArea.topLeft();
-    QPoint imagePoint(relativePoint.x() * 2, relativePoint.y() * 2);
+    QPoint imagePoint(qRound(relativePoint.x() * scaleFactor), qRound(relativePoint.y() * scaleFactor));
 
     if (!sceneImage.rect().contains(imagePoint)) {
         qDebug() << "BucketFill: Click point outside rendered area";
@@ -1059,8 +1167,11 @@ void BucketFillTool::performRasterFill(const QPointF& point)
     // Create a copy for flood fill
     QImage fillImage = sceneImage.copy();
 
-    // Perform flood fill with size limit
-    int filledPixels = floodFillImageLimited(fillImage, imagePoint, targetColor, m_fillColor, 8000);
+    // Perform flood fill with an adaptive size limit based on the rendered region
+    const int pixelBudget = qBound(15000,
+        static_cast<int>(fillArea.width() * scaleFactor * fillArea.height() * scaleFactor),
+        400000);
+    int filledPixels = floodFillImageLimited(fillImage, imagePoint, targetColor, m_fillColor, pixelBudget);
 
     qDebug() << "BucketFill: Filled" << filledPixels << "pixels";
 
@@ -1069,9 +1180,8 @@ void BucketFillTool::performRasterFill(const QPointF& point)
         return;
     }
 
-    if (filledPixels > 6000) {
-        qDebug() << "BucketFill: Fill area too large (" << filledPixels << " pixels), aborting";
-        return;
+    if (filledPixels >= pixelBudget) {
+        qDebug() << "BucketFill: Fill hit pixel budget (" << pixelBudget << "), result may be clipped";
     }
 
     // RESTORED: Trace the filled region with proper contour tracing
@@ -1081,7 +1191,7 @@ void BucketFillTool::performRasterFill(const QPointF& point)
         // Transform path back to scene coordinates
         QTransform transform;
         transform.translate(fillArea.x(), fillArea.y());
-        transform.scale(0.5, 0.5); // Scale back from 2x
+        transform.scale(1.0 / scaleFactor, 1.0 / scaleFactor); // Scale back from render scale
         filledPath = transform.map(filledPath);
 
         // Smooth the contour and create fill item
@@ -1159,12 +1269,16 @@ int BucketFillTool::floodFillImageLimited(QImage& image, const QPoint& startPoin
         visited.insert(current);
         filledCount++;
 
-        // Add 4-connected neighbors only
+        // Add 8-connected neighbors for seamless coverage
         QList<QPoint> neighbors = {
             QPoint(current.x() + 1, current.y()),
             QPoint(current.x() - 1, current.y()),
             QPoint(current.x(), current.y() + 1),
-            QPoint(current.x(), current.y() - 1)
+            QPoint(current.x(), current.y() - 1),
+            QPoint(current.x() + 1, current.y() + 1),
+            QPoint(current.x() - 1, current.y() + 1),
+            QPoint(current.x() + 1, current.y() - 1),
+            QPoint(current.x() - 1, current.y() - 1)
         };
 
         for (const QPoint& neighbor : neighbors) {
