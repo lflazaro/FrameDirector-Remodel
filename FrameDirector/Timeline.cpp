@@ -1511,14 +1511,11 @@ bool Timeline::isPlaying() const
 
 void Timeline::addKeyframe(int layer, int frame)
 {
-    Canvas* canvas = m_mainWindow->findChild<Canvas*>();
-    if (canvas && frame >= 1 && frame <= m_totalFrames) {
-        canvas->createKeyframe(frame);
-        if (m_drawingArea) {
-            m_drawingArea->update();
-        }
-        emit keyframeAdded(layer, frame);
-    }
+    if (!m_mainWindow || frame < 1 || frame > m_totalFrames)
+        return;
+
+    setCurrentFrame(frame);
+    emit keyframeAdded(layer, frame);
 }
 
 void Timeline::removeKeyframe(int layer, int frame)
