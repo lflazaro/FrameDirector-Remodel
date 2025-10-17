@@ -255,13 +255,8 @@
     <ClInclude Include="Import\ZipReader.h" />
     <ClInclude Include="Import\miniz.h" />
     <ClInclude Include="resource.h" />
-    <ClInclude Include="RasterEditor\RasterCanvasWidget.h" />
-    <ClInclude Include="RasterEditor\RasterDocument.h" />
-    <ClInclude Include="RasterEditor\RasterEditorWindow.h" />
-    <ClInclude Include="RasterEditor\RasterOnionSkinProvider.h" />
     <ClInclude Include="RasterEditor\ORAExporter.h" />
     <ClInclude Include="RasterEditor\RasterORAImporter.h" />
-    <ClInclude Include="RasterEditor\RasterTools.h" />
     <QtMoc Include="Tools\EraseTool.h" />
     <QtMoc Include="Tools\GradientFillTool.h" />
     <ClInclude Include="third_party\clipper.h" />
