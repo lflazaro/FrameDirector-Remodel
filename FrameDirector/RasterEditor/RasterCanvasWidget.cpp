@@ -1,6 +1,7 @@
 #include "RasterCanvasWidget.h"
 
 #include "RasterDocument.h"
+#include "RasterOnionSkinProvider.h"
 #include "RasterTools.h"
 
 #include <QMouseEvent>
@@ -82,6 +83,26 @@ void RasterCanvasWidget::setActiveTool(RasterTool* tool)
     }
 
     m_activeTool = tool;
+}
+
+void RasterCanvasWidget::setOnionSkinProvider(RasterOnionSkinProvider* provider)
+{
+    if (m_onionSkinProvider == provider) {
+        return;
+    }
+
+    if (!m_onionSkinProvider.isNull()) {
+        disconnect(m_onionSkinProvider, nullptr, this, nullptr);
+    }
+
+    m_onionSkinProvider = provider;
+
+    if (!m_onionSkinProvider.isNull()) {
+        connect(m_onionSkinProvider, &RasterOnionSkinProvider::cacheInvalidated,
+                this, &RasterCanvasWidget::onDocumentChanged);
+    }
+
+    update();
 }
 
 void RasterCanvasWidget::setBackgroundColor(const QColor& color)
@@ -295,12 +316,10 @@ void RasterCanvasWidget::drawFrameStack(QPainter& painter)
     const int activeFrame = m_document->activeFrame();
 
     if (m_document->onionSkinEnabled()) {
-        for (int offset = m_document->onionSkinBefore(); offset >= 1; --offset) {
-            drawFrameComposite(painter, activeFrame - offset, 0.25, beforeOnionTint());
+        if (m_document->useProjectOnionSkin() && !m_onionSkinProvider.isNull()) {
+            drawProjectOnionFrames(painter, activeFrame);
         }
-        for (int offset = 1; offset <= m_document->onionSkinAfter(); ++offset) {
-            drawFrameComposite(painter, activeFrame + offset, 0.25, afterOnionTint());
-        }
+        drawDocumentOnionFrames(painter, activeFrame);
     }
 
     drawFrameComposite(painter, activeFrame, 1.0, QColor());
@@ -338,6 +357,82 @@ void RasterCanvasWidget::drawFrameComposite(QPainter& painter, int frameIndex, q
             painter.fillRect(QRectF(origin, QSizeF(image->size())), overlay);
         }
 
+        painter.restore();
+    }
+}
+
+void RasterCanvasWidget::drawDocumentOnionFrames(QPainter& painter, int activeFrame)
+{
+    if (!m_document) {
+        return;
+    }
+
+    for (int offset = m_document->onionSkinBefore(); offset >= 1; --offset) {
+        drawFrameComposite(painter, activeFrame - offset, 0.25, beforeOnionTint());
+    }
+    for (int offset = 1; offset <= m_document->onionSkinAfter(); ++offset) {
+        drawFrameComposite(painter, activeFrame + offset, 0.25, afterOnionTint());
+    }
+}
+
+void RasterCanvasWidget::drawProjectOnionFrames(QPainter& painter, int activeFrame)
+{
+    if (!m_document || m_onionSkinProvider.isNull()) {
+        return;
+    }
+
+    const QSize canvasSize = m_document->canvasSize();
+    if (canvasSize.isEmpty()) {
+        return;
+    }
+
+    const QRectF canvasRect(QPointF(0, 0), QSizeF(canvasSize));
+    const int timelineFrame = activeFrame + 1;
+    const int beforeCount = m_document->onionSkinBefore();
+    const int afterCount = m_document->onionSkinAfter();
+    const qreal baseOpacity = 0.25;
+
+    for (int offset = 1; offset <= beforeCount; ++offset) {
+        const int frameNumber = timelineFrame - offset;
+        if (frameNumber < 1) {
+            break;
+        }
+
+        const QImage snapshot = m_onionSkinProvider->frameSnapshot(frameNumber);
+        if (snapshot.isNull()) {
+            continue;
+        }
+
+        const qreal factor = baseOpacity * (beforeCount - offset + 1) / qMax(1, beforeCount);
+        painter.save();
+        painter.setOpacity(factor);
+        painter.drawImage(canvasRect, snapshot);
+        painter.setCompositionMode(QPainter::CompositionMode_SourceAtop);
+        QColor overlay = beforeOnionTint();
+        overlay.setAlphaF(qBound(0.0, overlay.alphaF() * factor, 1.0));
+        painter.fillRect(canvasRect, overlay);
+        painter.restore();
+    }
+
+    for (int offset = 1; offset <= afterCount; ++offset) {
+        const int frameNumber = timelineFrame + offset;
+        if (frameNumber < 1) {
+            continue;
+        }
+
+        const QImage snapshot = m_onionSkinProvider->frameSnapshot(frameNumber);
+        if (snapshot.isNull()) {
+            continue;
+        }
+
+        const qreal factor = baseOpacity * (afterCount - offset + 1) / qMax(1, afterCount);
+        painter.save();
+        painter.setOpacity(factor);
+        painter.drawImage(canvasRect, snapshot);
+        painter.setCompositionMode(QPainter::CompositionMode_SourceAtop);
+        QColor overlay = afterOnionTint();
+        overlay.setAlphaF(qBound(0.0, overlay.alphaF() * factor, 1.0));
+        painter.fillRect(canvasRect, overlay);
         painter.restore();
     }
 }

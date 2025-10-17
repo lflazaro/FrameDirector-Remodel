@@ -1874,6 +1874,24 @@ QString MainWindow::getAudioFile() const
     return m_audioFile;
 }
 
+QImage MainWindow::flattenedFrameImage(int frame) const
+{
+    if (!m_canvas) {
+        return QImage();
+    }
+
+    return m_canvas->renderFlattenedFrame(frame);
+}
+
+QImage MainWindow::flattenedFrameImage(int frame, const QVector<int>& layerIndices) const
+{
+    if (!m_canvas) {
+        return QImage();
+    }
+
+    return m_canvas->renderFlattenedFrame(frame, layerIndices);
+}
+
 void MainWindow::onAudioDurationChanged(qint64 duration)
 {
     if (duration <= 0)
@@ -4265,6 +4283,7 @@ void MainWindow::createDockWindows()
     addDockWidget(Qt::RightDockWidgetArea, m_rasterEditorWindow);
     tabifyDockWidget(m_propertiesDock, m_rasterEditorWindow);
     m_rasterEditorWindow->hide();
+    m_rasterEditorWindow->setProjectContext(this, m_canvas, m_timeline, m_layerManager);
     connect(m_rasterEditorWindow, &QDockWidget::visibilityChanged, this, &MainWindow::onRasterEditorVisibilityChanged);
     if (m_openRasterEditorAction) {
         QSignalBlocker blocker(m_openRasterEditorAction);

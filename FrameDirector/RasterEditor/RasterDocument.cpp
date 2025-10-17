@@ -151,6 +151,7 @@ RasterDocument::RasterDocument(QObject* parent)
     , m_onionSkinEnabled(true)
     , m_onionSkinBefore(1)
     , m_onionSkinAfter(1)
+    , m_useProjectOnionSkin(false)
 {
     addLayer(tr("Layer 1"));
 }
@@ -482,6 +483,16 @@ void RasterDocument::setOnionSkinRange(int before, int after)
 
     m_onionSkinBefore = before;
     m_onionSkinAfter = after;
+    emit onionSkinSettingsChanged();
+}
+
+void RasterDocument::setUseProjectOnionSkin(bool enabled)
+{
+    if (m_useProjectOnionSkin == enabled) {
+        return;
+    }
+
+    m_useProjectOnionSkin = enabled;
     emit onionSkinSettingsChanged();
 }
 

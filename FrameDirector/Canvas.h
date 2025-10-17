@@ -13,11 +13,13 @@
 #include <QTimer>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QImage>
 #include <set>
 #include <optional>
 #include <QHash>
 #include <QSet>
 #include <QPainter>
+#include <QVector>
 
 using namespace FrameDirector;
 
@@ -192,6 +194,9 @@ public:
 
     QList<QGraphicsItem*> getFrameItems(int frame) const;
 
+    // Rendering helpers
+    QImage renderFlattenedFrame(int frame, const QVector<int>& layerIndices = QVector<int>()) const;
+
     // Item management
     void addItemToCurrentLayer(QGraphicsItem* item);
     void addItemWithUndo(QGraphicsItem* item);
@@ -210,6 +215,11 @@ signals:
     void mousePositionChanged(QPointF position);
     void zoomChanged(double factor);
     void layerChanged(int layerIndex);
+    void layerAdded(int layerIndex);
+    void layerRemoved(int layerIndex);
+    void layerNameChanged(int layerIndex, const QString& name);
+    void layerVisibilityChanged(int layerIndex, bool visible);
+    void layerOpacityChanged(int layerIndex, double opacity);
     void frameChanged(int frame);
     void keyframeCreated(int frame);
     void frameExtended(int fromFrame, int toFrame);
@@ -237,7 +247,7 @@ private:
     void setupScene();
     void setupDefaultLayers();
     void updateSceneRect();
-    QGraphicsItem* cloneGraphicsItem(QGraphicsItem* item);
+    QGraphicsItem* cloneGraphicsItem(QGraphicsItem* item) const;
     void clearFrameItems(int frame);
     QJsonObject serializeBrush(const QBrush& brush) const;
     QBrush deserializeBrush(const QJsonObject& json) const;

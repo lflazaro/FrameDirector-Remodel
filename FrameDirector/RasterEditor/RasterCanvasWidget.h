@@ -6,6 +6,7 @@
 
 class RasterDocument;
 class RasterTool;
+class RasterOnionSkinProvider;
 
 class RasterCanvasWidget : public QWidget
 {
@@ -19,6 +20,8 @@ public:
 
     void setActiveTool(RasterTool* tool);
     RasterTool* activeTool() const { return m_activeTool; }
+
+    void setOnionSkinProvider(RasterOnionSkinProvider* provider);
 
     void setBackgroundColor(const QColor& color);
     QColor backgroundColor() const { return m_backgroundColor; }
@@ -47,6 +50,8 @@ private:
     void drawCheckerboard(QPainter& painter, const QSize& size);
     void drawFrameStack(QPainter& painter);
     void drawFrameComposite(QPainter& painter, int frameIndex, qreal opacity, const QColor& tint);
+    void drawDocumentOnionFrames(QPainter& painter, int activeFrame);
+    void drawProjectOnionFrames(QPainter& painter, int activeFrame);
 
     QPointer<RasterDocument> m_document;
     RasterTool* m_activeTool;
@@ -54,5 +59,6 @@ private:
     qreal m_zoomFactor;
     bool m_mouseDown;
     QPointF m_lastCanvasPosition;
+    QPointer<RasterOnionSkinProvider> m_onionSkinProvider;
 };
 

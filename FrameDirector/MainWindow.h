@@ -44,6 +44,8 @@
 #include <QAudioBuffer>
 #include <QEventLoop>
 #include <QPixmap>
+#include <QImage>
+#include <QVector>
 #include <QJsonObject>
 #include <memory>
 #include <vector>
@@ -122,6 +124,10 @@ public:
     QString getAudioFile() const;
     // Public member access for undo commands
     QUndoStack* m_undoStack;
+
+    // Frame snapshot helpers
+    QImage flattenedFrameImage(int frame) const;
+    QImage flattenedFrameImage(int frame, const QVector<int>& layerIndices) const;
 
 public slots:
     void alignObjects(AlignmentType alignment);
