@@ -48,7 +48,6 @@ namespace {
     constexpr int   kMaxVerts64 = 120000;  // total vertices budget per compose
     constexpr qreal kMinTileR = 120.0;   // pixels
     constexpr qreal kReuseFrac = 0.15;    // cache reuse band
-    static constexpr qreal kHardFillRectSize = 5420.0;
 
     using Clipper2Lib::ClipType;
     using Clipper2Lib::Clipper64;
@@ -222,6 +221,42 @@ namespace {
         }
     }
 
+    QPainterPath buildFacePath(const PolyPath64* node, double inverseScale)
+    {
+        QPainterPath result;
+        if (!node) {
+            return result;
+        }
+
+        result = path64ToPainterPath(node->Polygon(), inverseScale);
+        result.setFillRule(Qt::WindingFill);
+        if (result.isEmpty()) {
+            return result;
+        }
+
+        for (auto it = node->begin(); it != node->end(); ++it) {
+            const PolyPath64* child = it->get();
+            if (!child) {
+                continue;
+            }
+
+            QPainterPath childPath = buildFacePath(child, inverseScale);
+            if (childPath.isEmpty()) {
+                continue;
+            }
+
+            if (child->IsHole()) {
+                result = result.subtracted(childPath);
+            }
+            else {
+                result = result.united(childPath);
+            }
+        }
+
+        result.setFillRule(Qt::WindingFill);
+        return result;
+    }
+
     // Find the PolyPath64 leaf (or deepest node) whose polygon contains the point.
     static const Clipper2Lib::PolyPath64*
         findContainingNode(const Clipper2Lib::PolyTree64* tree, const Clipper2Lib::Point64& pt)
@@ -261,29 +296,6 @@ namespace {
         }
 
         return nullptr;
-    }
-
-    static inline Clipper2Lib::Path64 makeRect64(const QPointF& center, double side, double scale)
-    {
-        using namespace Clipper2Lib;
-        const double hs = 0.5 * side;
-        const double l = (center.x() - hs) * scale;
-        const double r = (center.x() + hs) * scale;
-        const double t = (center.y() - hs) * scale;
-        const double b = (center.y() + hs) * scale;
-        Path64 p; p.reserve(4);
-        p.emplace_back((int64_t)std::llround(l), (int64_t)std::llround(t));
-        p.emplace_back((int64_t)std::llround(r), (int64_t)std::llround(t));
-        p.emplace_back((int64_t)std::llround(r), (int64_t)std::llround(b));
-        p.emplace_back((int64_t)std::llround(l), (int64_t)std::llround(b));
-        return p;
-    }
-
-    static inline bool path64ContainsPoint(const Clipper2Lib::Path64& p, const Clipper2Lib::Point64& pt)
-    {
-        using namespace Clipper2Lib;
-        auto res = PointInPolygon(pt, p);
-        return res != PointInPolygonResult::IsOutside;
     }
 
 }
@@ -434,72 +446,33 @@ BucketFillTool::composeRegionFromSegments_Tiled(const QList<PathSegment>& segmen
     using namespace Clipper2Lib;
     const double inv = 1.0 / kClipperScale;
 
-    // Convert free-space tree to simple paths for clipping
-    Paths64 freePaths = polyTreeToPaths(freeTree);
-    if (freePaths.empty()) return out;
+    const PolyPath64* faceNode = findNodeContainingPoint(freeTree, seedPoint, kClipperScale);
+    if (!faceNode) return out;
 
-    // Build our big rectangle centered at the seed
-    const Path64 rect64 = makeRect64(seedPoint, kHardFillRectSize, kClipperScale);
-
-    // Intersect rectangle with free space -> stays strictly inside the lines
-    Paths64 clippedRect;
-    {
-        Clipper64 c;
-        c.AddSubject(Paths64{ rect64 });
-        c.AddClip(freePaths);
-        c.Execute(ClipType::Intersection, FillRule::NonZero, clippedRect);
+    // Clipper marks alternating nodes as holes. If we accidentally landed inside a
+    // hole, walk up to the nearest non-hole ancestor so we always return a face.
+    const PolyPath64* current = faceNode;
+    while (current && current->IsHole()) {
+        current = current->Parent();
     }
-    if (clippedRect.empty()) {
-        // Fallback: choose the whole face (rare edge case if the rect clips away)
-        const Point64 seed64((int64_t)std::llround(seedPoint.x() * kClipperScale),
-            (int64_t)std::llround(seedPoint.y() * kClipperScale));
-        const PolyPath64* faceNode = findContainingNode(&freeTree, seed64);
-        if (!faceNode) return out;
-        QPainterPath facePath = polyPathToPainterPath(faceNode, inv);
-        facePath.setFillRule(Qt::WindingFill);
-        if (!facePath.contains(seedPoint)) return out;
+    if (!current) return out;
 
-        m_compCachedUnion = facePath;
-        m_compCacheCenter = seedPoint;
-        m_compCacheRadius = R;
-        m_compCacheValid = true;
+    QPainterPath facePath = buildFacePath(current, inv);
+    if (facePath.isEmpty()) return out;
 
-        out.outerBoundary = facePath;
-        out.bounds = facePath.boundingRect();
-        out.isValid = true;
-        return out;
-    }
+    QList<QPainterPath> holePaths;
+    collectHolePaths(current, inv, holePaths, true);
 
-    // Pick the intersected piece that contains the seed (usually just one)
-    const Point64 seed64((int64_t)std::llround(seedPoint.x() * kClipperScale),
-        (int64_t)std::llround(seedPoint.y() * kClipperScale));
-    size_t hit = SIZE_MAX;
-    for (size_t i = 0; i < clippedRect.size(); ++i) {
-        if (path64ContainsPoint(clippedRect[i], seed64)) { hit = i; break; }
-    }
-    if (hit == SIZE_MAX) {
-        // If none flagged as 'contains', just take the largest area piece
-        size_t best = 0; int64_t bestArea = 0;
-        for (size_t i = 0; i < clippedRect.size(); ++i) {
-            int64_t a = std::llabs(Area(clippedRect[i]));
-            if (a > bestArea) { bestArea = a; best = i; }
-        }
-        hit = best;
-    }
+    if (!facePath.contains(seedPoint)) return out;
 
-    // Convert selected piece to QPainterPath
-    QPainterPath rectPath = path64ToPainterPath(clippedRect[hit], inv);
-    rectPath.setFillRule(Qt::WindingFill);
-    if (rectPath.isEmpty()) return out;
-
-    // Cache & return
-    m_compCachedUnion = rectPath;
+    m_compCachedUnion = facePath;
     m_compCacheCenter = seedPoint;
     m_compCacheRadius = R;
     m_compCacheValid = true;
 
-    out.outerBoundary = rectPath;
-    out.bounds = rectPath.boundingRect();
+    out.outerBoundary = facePath;
+    out.innerHoles = holePaths;
+    out.bounds = facePath.boundingRect();
     out.isValid = true;
     return out;
 }
