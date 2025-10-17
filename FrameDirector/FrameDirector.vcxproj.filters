@@ -53,7 +53,16 @@
     <ClCompile Include="MainWindow.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="RasterEditor\RasterCanvasWidget.cpp">
+      <Filter>RasterEditor</Filter>
+    </ClCompile>
+    <ClCompile Include="RasterEditor\RasterDocument.cpp">
+      <Filter>RasterEditor</Filter>
+    </ClCompile>
     <ClCompile Include="RasterEditor\RasterEditorWindow.cpp">
+      <Filter>RasterEditor</Filter>
+    </ClCompile>
+    <ClCompile Include="RasterEditor\RasterTools.cpp">
       <Filter>RasterEditor</Filter>
     </ClCompile>
     <ClCompile Include="Timeline.cpp">
@@ -370,7 +379,16 @@
     <QtMoc Include="Tools\GradientFillTool.h">
       <Filter>Tools</Filter>
     </QtMoc>
+    <QtMoc Include="RasterEditor\RasterCanvasWidget.h">
+      <Filter>RasterEditor</Filter>
+    </QtMoc>
+    <QtMoc Include="RasterEditor\RasterDocument.h">
+      <Filter>RasterEditor</Filter>
+    </QtMoc>
     <QtMoc Include="RasterEditor\RasterEditorWindow.h">
+      <Filter>RasterEditor</Filter>
+    </QtMoc>
+    <QtMoc Include="RasterEditor\RasterTools.h">
       <Filter>RasterEditor</Filter>
     </QtMoc>
   </ItemGroup>
@@ -453,7 +471,16 @@
     <ClInclude Include="Common\GraphicsItemRoles.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="RasterEditor\RasterCanvasWidget.h">
+      <Filter>RasterEditor</Filter>
+    </ClInclude>
+    <ClInclude Include="RasterEditor\RasterDocument.h">
+      <Filter>RasterEditor</Filter>
+    </ClInclude>
     <ClInclude Include="RasterEditor\RasterEditorWindow.h">
+      <Filter>RasterEditor</Filter>
+    </ClInclude>
+    <ClInclude Include="RasterEditor\RasterTools.h">
       <Filter>RasterEditor</Filter>
     </ClInclude>
     <ClInclude Include="third_party\clipper.h">
