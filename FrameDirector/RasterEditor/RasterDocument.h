@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QImage>
+#include <QPointF>
 #include <QPainter>
 #include <QRect>
 #include <QString>
@@ -41,6 +42,9 @@ public:
     QPainter::CompositionMode blendMode() const { return m_blendMode; }
     void setBlendMode(QPainter::CompositionMode mode);
 
+    QPointF offset() const { return m_offset; }
+    void setOffset(const QPointF& offset);
+
     int frameCount() const { return m_frames.size(); }
     RasterFrame& frameAt(int index);
     const RasterFrame& frameAt(int index) const;
@@ -53,7 +57,18 @@ private:
     bool m_visible;
     double m_opacity;
     QPainter::CompositionMode m_blendMode;
+    QPointF m_offset;
     QVector<RasterFrame> m_frames;
+};
+
+struct RasterLayerDescriptor
+{
+    QString name;
+    bool visible = true;
+    double opacity = 1.0;
+    QPainter::CompositionMode blendMode = QPainter::CompositionMode_SourceOver;
+    QPointF offset;
+    QImage image;
 };
 
 class RasterDocument : public QObject
@@ -88,6 +103,9 @@ public:
     void setLayerVisible(int index, bool visible);
     void setLayerOpacity(int index, double opacity);
     void setLayerBlendMode(int index, QPainter::CompositionMode mode);
+
+    void loadFromDescriptors(const QSize& canvasSize, const QVector<RasterLayerDescriptor>& layers, int frameCount = 1);
+    QVector<RasterLayerDescriptor> layerDescriptors() const;
 
     QImage* frameImage(int layerIndex, int frameIndex);
     const QImage* frameImage(int layerIndex, int frameIndex) const;

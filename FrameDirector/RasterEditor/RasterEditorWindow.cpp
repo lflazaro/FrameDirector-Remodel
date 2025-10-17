@@ -2,18 +2,23 @@
 
 #include "RasterCanvasWidget.h"
 #include "RasterDocument.h"
+#include "RasterORAImporter.h"
+#include "ORAExporter.h"
 #include "RasterTools.h"
 
 #include <QAbstractItemView>
 #include <QCheckBox>
 #include <QColorDialog>
 #include <QComboBox>
+#include <QFileDialog>
+#include <QFileInfo>
 #include <QDoubleSpinBox>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QListWidget>
 #include <QListWidgetItem>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QSignalBlocker>
 #include <QSlider>
@@ -177,6 +182,15 @@ void RasterEditorWindow::initializeUi()
     // Layer controls
     QGroupBox* layerGroup = new QGroupBox(tr("Layers"), container);
     QVBoxLayout* layerLayout = new QVBoxLayout(layerGroup);
+
+    QHBoxLayout* fileButtonsLayout = new QHBoxLayout();
+    QPushButton* openOraButton = new QPushButton(tr("Open ORA…"), layerGroup);
+    connect(openOraButton, &QPushButton::clicked, this, &RasterEditorWindow::onOpenOra);
+    QPushButton* saveOraButton = new QPushButton(tr("Save ORA…"), layerGroup);
+    connect(saveOraButton, &QPushButton::clicked, this, &RasterEditorWindow::onSaveOra);
+    fileButtonsLayout->addWidget(openOraButton);
+    fileButtonsLayout->addWidget(saveOraButton);
+    layerLayout->addLayout(fileButtonsLayout);
 
     m_layerList = new QListWidget(layerGroup);
     m_layerList->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -454,6 +468,50 @@ void RasterEditorWindow::onLayerPropertiesUpdated(int index)
     refreshLayerList();
     updateLayerPropertiesUi();
     updateLayerInfo();
+}
+
+void RasterEditorWindow::onOpenOra()
+{
+    if (!m_document) {
+        return;
+    }
+
+    const QString filePath = QFileDialog::getOpenFileName(this, tr("Open ORA"), QString(), tr("OpenRaster Files (*.ora);;All Files (*)"));
+    if (filePath.isEmpty()) {
+        return;
+    }
+
+    QString errorMessage;
+    if (!RasterORAImporter::importFile(filePath, m_document, &errorMessage)) {
+        QMessageBox::warning(this, tr("Open ORA"), errorMessage.isEmpty() ? tr("Failed to import the selected ORA file.") : errorMessage);
+        return;
+    }
+
+    updateLayerInfo();
+    updateLayerPropertiesUi();
+    updateOnionSkinControls();
+}
+
+void RasterEditorWindow::onSaveOra()
+{
+    if (!m_document) {
+        return;
+    }
+
+    QString filePath = QFileDialog::getSaveFileName(this, tr("Save ORA"), QString(), tr("OpenRaster Files (*.ora);;All Files (*)"));
+    if (filePath.isEmpty()) {
+        return;
+    }
+
+    QFileInfo info(filePath);
+    if (info.suffix().isEmpty()) {
+        filePath.append(QStringLiteral(".ora"));
+    }
+
+    QString errorMessage;
+    if (!ORAExporter::exportDocument(*m_document, filePath, &errorMessage)) {
+        QMessageBox::warning(this, tr("Save ORA"), errorMessage.isEmpty() ? tr("Failed to export the ORA file.") : errorMessage);
+    }
 }
 
 void RasterEditorWindow::refreshLayerList()

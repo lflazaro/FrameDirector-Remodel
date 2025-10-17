@@ -53,6 +53,7 @@ RasterLayer::RasterLayer()
     , m_visible(true)
     , m_opacity(kDefaultOpacity)
     , m_blendMode(QPainter::CompositionMode_SourceOver)
+    , m_offset(0.0, 0.0)
 {
 }
 
@@ -61,6 +62,7 @@ RasterLayer::RasterLayer(const QString& name, int frameCount, const QSize& canva
     , m_visible(true)
     , m_opacity(kDefaultOpacity)
     , m_blendMode(QPainter::CompositionMode_SourceOver)
+    , m_offset(0.0, 0.0)
 {
     ensureFrameCount(frameCount, canvasSize);
 }
@@ -86,6 +88,14 @@ void RasterLayer::setOpacity(double opacity)
 void RasterLayer::setBlendMode(QPainter::CompositionMode mode)
 {
     m_blendMode = mode;
+}
+
+void RasterLayer::setOffset(const QPointF& offset)
+{
+    if (m_offset == offset) {
+        return;
+    }
+    m_offset = offset;
 }
 
 RasterFrame& RasterLayer::frameAt(int index)
@@ -296,6 +306,72 @@ void RasterDocument::setLayerBlendMode(int index, QPainter::CompositionMode mode
     layer.setBlendMode(mode);
     emit layerPropertyChanged(index);
     emit documentReset();
+}
+
+void RasterDocument::loadFromDescriptors(const QSize& canvasSize, const QVector<RasterLayerDescriptor>& layers, int frameCount)
+{
+    const int clampedFrameCount = qMax(1, frameCount);
+    const QSize newCanvas = canvasSize.isValid() ? canvasSize : m_canvasSize;
+
+    m_canvasSize = newCanvas;
+    m_frameCount = clampedFrameCount;
+    m_activeLayer = 0;
+    m_activeFrame = 0;
+    m_layers.clear();
+    m_layers.reserve(layers.size());
+
+    for (const RasterLayerDescriptor& descriptor : layers) {
+        RasterLayer layer(descriptor.name, m_frameCount, m_canvasSize);
+        layer.setVisible(descriptor.visible);
+        layer.setOpacity(descriptor.opacity);
+        layer.setBlendMode(descriptor.blendMode);
+        layer.setOffset(descriptor.offset);
+
+        if (layer.frameCount() > 0) {
+            QImage& image = layer.frameAt(0).image();
+            if (!descriptor.image.isNull()) {
+                image = descriptor.image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+            } else {
+                image.fill(Qt::transparent);
+            }
+        }
+
+        m_layers.append(layer);
+    }
+
+    if (m_layers.isEmpty()) {
+        m_layers.append(RasterLayer(tr("Layer 1"), m_frameCount, m_canvasSize));
+    }
+
+    clampActiveLayer();
+    clampActiveFrame();
+
+    emit canvasSizeChanged(m_canvasSize);
+    emit layerListChanged();
+    emit documentReset();
+    emit activeLayerChanged(m_activeLayer);
+    emit activeFrameChanged(m_activeFrame);
+}
+
+QVector<RasterLayerDescriptor> RasterDocument::layerDescriptors() const
+{
+    QVector<RasterLayerDescriptor> descriptors;
+    descriptors.reserve(m_layers.size());
+
+    for (const RasterLayer& layer : m_layers) {
+        RasterLayerDescriptor descriptor;
+        descriptor.name = layer.name();
+        descriptor.visible = layer.isVisible();
+        descriptor.opacity = layer.opacity();
+        descriptor.blendMode = layer.blendMode();
+        descriptor.offset = layer.offset();
+        if (layer.frameCount() > 0) {
+            descriptor.image = layer.frameAt(0).image();
+        }
+        descriptors.append(descriptor);
+    }
+
+    return descriptors;
 }
 
 QImage* RasterDocument::frameImage(int layerIndex, int frameIndex)
