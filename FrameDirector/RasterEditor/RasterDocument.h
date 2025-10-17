@@ -7,6 +7,8 @@
 #include <QRect>
 #include <QString>
 #include <QVector>
+#include <QJsonObject>
+#include <QJsonArray>
 
 class RasterFrame
 {
@@ -69,6 +71,7 @@ struct RasterLayerDescriptor
     QPainter::CompositionMode blendMode = QPainter::CompositionMode_SourceOver;
     QPointF offset;
     QImage image;
+    QVector<QImage> frames;
 };
 
 class RasterDocument : public QObject
@@ -121,6 +124,11 @@ public:
 
     bool useProjectOnionSkin() const { return m_useProjectOnionSkin; }
     void setUseProjectOnionSkin(bool enabled);
+
+    QImage flattenFrame(int frameIndex) const;
+
+    QJsonObject toJson() const;
+    bool fromJson(const QJsonObject& json);
 
 signals:
     void documentReset();

@@ -11,6 +11,8 @@
 #include "../Canvas.h"
 #include "../Timeline.h"
 #include "../Panels/LayerManager.h"
+#include "../Commands/UndoCommands.h"
+#include "../Common/GraphicsItemRoles.h"
 
 #include <QAbstractItemView>
 #include <QCheckBox>
@@ -32,6 +34,11 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 #include <QVariant>
+#include <QGraphicsPixmapItem>
+#include <QGraphicsItem>
+#include <QUndoStack>
+#include <QJsonDocument>
+#include <QUuid>
 #include <iterator>
 
 namespace
@@ -91,6 +98,7 @@ RasterEditorWindow::RasterEditorWindow(QWidget* parent)
     , m_onionProvider(nullptr)
     , m_layerMismatchWarned(false)
     , m_projectContextInitialized(false)
+    , m_sessionId(QUuid::createUuid().toString(QUuid::WithoutBraces))
 {
     setObjectName(QStringLiteral("RasterEditorWindow"));
     setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable);
@@ -207,8 +215,11 @@ void RasterEditorWindow::initializeUi()
     connect(openOraButton, &QPushButton::clicked, this, &RasterEditorWindow::onOpenOra);
     QPushButton* saveOraButton = new QPushButton(tr("Save ORA…"), layerGroup);
     connect(saveOraButton, &QPushButton::clicked, this, &RasterEditorWindow::onSaveOra);
+    QPushButton* exportButton = new QPushButton(tr("Export to Timeline"), layerGroup);
+    connect(exportButton, &QPushButton::clicked, this, &RasterEditorWindow::onExportToTimeline);
     fileButtonsLayout->addWidget(openOraButton);
     fileButtonsLayout->addWidget(saveOraButton);
+    fileButtonsLayout->addWidget(exportButton);
     layerLayout->addLayout(fileButtonsLayout);
 
     m_layerList = new QListWidget(layerGroup);
@@ -536,6 +547,84 @@ void RasterEditorWindow::onSaveOra()
     }
 }
 
+void RasterEditorWindow::onExportToTimeline()
+{
+    if (!m_document || !m_canvas || !m_mainWindow) {
+        return;
+    }
+
+    const int documentFrame = m_document->activeFrame();
+    const int projectFrame = m_canvas->getCurrentFrame();
+    const int layerIndex = m_canvas->getCurrentLayer();
+
+    if (layerIndex < 0 || projectFrame < 1) {
+        QMessageBox::warning(this, tr("Raster Editor"), tr("Select a valid layer and frame in the timeline before exporting."));
+        return;
+    }
+
+    QImage flattened = m_document->flattenFrame(documentFrame);
+    if (flattened.isNull() || flattened.isEmpty()) {
+        QMessageBox::information(this, tr("Raster Editor"), tr("There is no raster content to export for the current frame."));
+        return;
+    }
+
+    QPixmap pixmap = QPixmap::fromImage(flattened);
+    if (pixmap.isNull()) {
+        QMessageBox::warning(this, tr("Raster Editor"), tr("Failed to convert the raster document into a pixmap."));
+        return;
+    }
+
+    auto pixmapItem = new QGraphicsPixmapItem(pixmap);
+    pixmapItem->setTransformationMode(Qt::SmoothTransformation);
+    pixmapItem->setFlag(QGraphicsItem::ItemIsSelectable, true);
+    pixmapItem->setFlag(QGraphicsItem::ItemIsMovable, true);
+    pixmapItem->setData(0, 1.0);
+    pixmapItem->setOpacity(1.0);
+
+    const QByteArray documentState = serializeDocumentState();
+    if (!documentState.isEmpty()) {
+        pixmapItem->setData(GraphicsItemRoles::RasterDocumentJsonRole, documentState);
+    }
+    pixmapItem->setData(GraphicsItemRoles::RasterSessionIdRole, m_sessionId);
+    pixmapItem->setData(GraphicsItemRoles::RasterFrameIndexRole, projectFrame);
+
+    QList<QGraphicsItem*> existingItems = rasterItemsForFrame(layerIndex, projectFrame);
+    if (!existingItems.isEmpty()) {
+        if (auto previousPixmap = qgraphicsitem_cast<QGraphicsPixmapItem*>(existingItems.first())) {
+            pixmapItem->setPos(previousPixmap->pos());
+            pixmapItem->setTransform(previousPixmap->transform());
+            pixmapItem->setOffset(previousPixmap->offset());
+            pixmapItem->setZValue(previousPixmap->zValue());
+            pixmapItem->setOpacity(previousPixmap->opacity());
+            QVariant baseOpacity = previousPixmap->data(0);
+            pixmapItem->setData(0, baseOpacity.isValid() ? baseOpacity : previousPixmap->opacity());
+        }
+        else {
+            pixmapItem->setPos(existingItems.first()->pos());
+            pixmapItem->setZValue(existingItems.first()->zValue());
+        }
+    }
+    else {
+        QRectF canvasRect = m_canvas->getCanvasRect();
+        QRectF itemRect = pixmapItem->boundingRect();
+        pixmapItem->setPos(canvasRect.center() - itemRect.center());
+    }
+
+    QUndoStack* undoStack = m_mainWindow->undoStack();
+    if (!undoStack) {
+        delete pixmapItem;
+        return;
+    }
+
+    const QString macroText = tr("Export Raster Frame");
+    undoStack->beginMacro(macroText);
+    if (!existingItems.isEmpty()) {
+        undoStack->push(new RemoveItemCommand(m_canvas, existingItems));
+    }
+    undoStack->push(new AddItemCommand(m_canvas, pixmapItem));
+    undoStack->endMacro();
+}
+
 void RasterEditorWindow::setProjectContext(MainWindow* mainWindow, Canvas* canvas, Timeline* timeline, LayerManager* layerManager)
 {
     m_mainWindow = mainWindow;
@@ -676,6 +765,39 @@ void RasterEditorWindow::syncProjectLayers()
     }
 }
 
+QList<QGraphicsItem*> RasterEditorWindow::rasterItemsForFrame(int layerIndex, int frame) const
+{
+    if (!m_canvas || layerIndex < 0 || frame < 1) {
+        return QList<QGraphicsItem*>();
+    }
+
+    QList<QGraphicsItem*> items = m_canvas->getLayerFrameItems(layerIndex, frame);
+    QList<QGraphicsItem*> matches;
+    matches.reserve(items.size());
+    for (QGraphicsItem* item : items) {
+        if (!item) {
+            continue;
+        }
+
+        if (item->data(GraphicsItemRoles::RasterSessionIdRole).toString() == m_sessionId
+            && item->data(GraphicsItemRoles::RasterFrameIndexRole).toInt() == frame) {
+            matches.append(item);
+        }
+    }
+
+    return matches;
+}
+
+QByteArray RasterEditorWindow::serializeDocumentState() const
+{
+    if (!m_document) {
+        return QByteArray();
+    }
+
+    QJsonDocument doc(m_document->toJson());
+    return doc.toJson(QJsonDocument::Compact);
+}
+
 void RasterEditorWindow::refreshProjectMetadata()
 {
     updateLayerInfo();
@@ -733,6 +855,72 @@ int RasterEditorWindow::clampProjectFrame(int frame) const
         clamped = frameCount - 1;
     }
     return clamped;
+}
+
+QJsonObject RasterEditorWindow::toJson() const
+{
+    QJsonObject json;
+    json[QStringLiteral("sessionId")] = m_sessionId;
+    if (m_document) {
+        json[QStringLiteral("document")] = m_document->toJson();
+    }
+    return json;
+}
+
+void RasterEditorWindow::loadFromJson(const QJsonObject& json)
+{
+    if (json.isEmpty() || !m_document) {
+        return;
+    }
+
+    const QString sessionId = json.value(QStringLiteral("sessionId")).toString();
+    if (!sessionId.isEmpty()) {
+        m_sessionId = sessionId;
+    }
+
+    const QJsonObject documentObject = json.value(QStringLiteral("document")).toObject();
+    if (!documentObject.isEmpty()) {
+        m_document->fromJson(documentObject);
+    }
+
+    m_layerMismatchWarned = false;
+
+    refreshLayerList();
+    updateLayerPropertiesUi();
+    updateLayerInfo();
+    updateOnionSkinControls();
+    updateToolControls();
+    updateColorButton();
+    ensureDocumentFrameBounds();
+    refreshProjectMetadata();
+}
+
+void RasterEditorWindow::resetDocument()
+{
+    if (!m_document) {
+        return;
+    }
+
+    m_sessionId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    m_document->loadFromDescriptors(m_document->canvasSize(), QVector<RasterLayerDescriptor>(), 1);
+    m_layerMismatchWarned = false;
+
+    if (m_canvas) {
+        m_document->setCanvasSize(m_canvas->getCanvasSize());
+    }
+    if (m_timeline) {
+        m_document->setFrameCount(m_timeline->getTotalFrames());
+        setCurrentFrame(m_timeline->getCurrentFrame());
+    }
+
+    refreshLayerList();
+    updateLayerPropertiesUi();
+    updateLayerInfo();
+    updateOnionSkinControls();
+    updateToolControls();
+    updateColorButton();
+    ensureDocumentFrameBounds();
+    refreshProjectMetadata();
 }
 
 void RasterEditorWindow::refreshLayerList()

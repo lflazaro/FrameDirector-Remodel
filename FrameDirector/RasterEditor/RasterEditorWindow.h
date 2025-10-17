@@ -5,6 +5,8 @@
 #include <QPointer>
 #include <QPainter>
 #include <QStringList>
+#include <QJsonObject>
+#include <QByteArray>
 
 class QCheckBox;
 class QComboBox;
@@ -28,6 +30,7 @@ class MainWindow;
 class Canvas;
 class Timeline;
 class LayerManager;
+class QGraphicsItem;
 
 class RasterEditorWindow : public QDockWidget
 {
@@ -37,6 +40,9 @@ public:
     explicit RasterEditorWindow(QWidget* parent = nullptr);
 
     void setProjectContext(MainWindow* mainWindow, Canvas* canvas, Timeline* timeline, LayerManager* layerManager);
+    QJsonObject toJson() const;
+    void loadFromJson(const QJsonObject& json);
+    void resetDocument();
 
 public slots:
     void setCurrentFrame(int frame);
@@ -62,6 +68,7 @@ private slots:
     void onLayerPropertiesUpdated(int index);
     void onOpenOra();
     void onSaveOra();
+    void onExportToTimeline();
     void onProjectLayersChanged();
     void onProjectLayerRenamed(int index, const QString& name);
     void onProjectLayerAppearanceChanged();
@@ -83,6 +90,8 @@ private:
     void refreshProjectMetadata();
     void ensureDocumentFrameBounds();
     int clampProjectFrame(int frame) const;
+    QList<QGraphicsItem*> rasterItemsForFrame(int layerIndex, int frame) const;
+    QByteArray serializeDocumentState() const;
 
     QPointer<RasterDocument> m_document;
     RasterCanvasWidget* m_canvasWidget;
@@ -119,5 +128,6 @@ private:
     QStringList m_projectLayerNames;
     bool m_layerMismatchWarned;
     bool m_projectContextInitialized;
+    QString m_sessionId;
 };
 
