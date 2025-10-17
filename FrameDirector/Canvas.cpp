@@ -27,6 +27,7 @@
 #include <QDebug>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QBuffer>
 #include <QLinearGradient>
 #include <QRadialGradient>
@@ -2866,6 +2867,25 @@ QList<QGraphicsItem*> Canvas::getFrameItems(int frame) const
     return allFrameItems;
 }
 
+QList<QGraphicsItem*> Canvas::getLayerFrameItems(int layerIndex, int frame) const
+{
+    if (layerIndex < 0 || layerIndex >= m_layers.size()) {
+        return QList<QGraphicsItem*>();
+    }
+
+    if (!m_layerFrameData.contains(layerIndex)) {
+        return QList<QGraphicsItem*>();
+    }
+
+    const auto& layerFrameData = m_layerFrameData[layerIndex];
+    auto it = layerFrameData.find(frame);
+    if (it == layerFrameData.end()) {
+        return QList<QGraphicsItem*>();
+    }
+
+    return it.value().items;
+}
+
 
 QImage Canvas::renderFlattenedFrame(int frame, const QVector<int>& layerIndices) const
 {
@@ -3224,6 +3244,34 @@ QJsonObject Canvas::serializeGraphicsItem(QGraphicsItem* item) const
         buffer.open(QIODevice::WriteOnly);
         pix.save(&buffer, "PNG");
         json["data"] = QString::fromLatin1(bytes.toBase64());
+
+        const QVariant sessionVariant = pixmapItem->data(GraphicsItemRoles::RasterSessionIdRole);
+        if (sessionVariant.isValid()) {
+            json["rasterSessionId"] = sessionVariant.toString();
+        }
+
+        const QVariant frameVariant = pixmapItem->data(GraphicsItemRoles::RasterFrameIndexRole);
+        if (frameVariant.isValid()) {
+            json["rasterFrameIndex"] = frameVariant.toInt();
+        }
+
+        const QVariant documentVariant = pixmapItem->data(GraphicsItemRoles::RasterDocumentJsonRole);
+        if (documentVariant.isValid()) {
+            QByteArray raw = documentVariant.canConvert<QByteArray>()
+                ? documentVariant.toByteArray()
+                : documentVariant.toString().toUtf8();
+
+            if (!raw.isEmpty()) {
+                QJsonParseError error{};
+                QJsonDocument doc = QJsonDocument::fromJson(raw, &error);
+                if (error.error == QJsonParseError::NoError && doc.isObject()) {
+                    json["rasterDocument"] = doc.object();
+                }
+                else {
+                    json["rasterDocumentRaw"] = QString::fromLatin1(raw.toBase64());
+                }
+            }
+        }
     }
     else if (auto textItem = qgraphicsitem_cast<QGraphicsTextItem*>(item)) {
         json["class"] = "text";
@@ -3320,7 +3368,11 @@ QGraphicsItem* Canvas::deserializeGraphicsItem(const QJsonObject& json) const
         QByteArray bytes = QByteArray::fromBase64(json["data"].toString().toLatin1());
         QPixmap pix;
         pix.loadFromData(bytes, "PNG");
-        item = new QGraphicsPixmapItem(pix);
+        auto pixItem = new QGraphicsPixmapItem(pix);
+        pixItem->setTransformationMode(Qt::SmoothTransformation);
+        pixItem->setFlag(QGraphicsItem::ItemIsSelectable, true);
+        pixItem->setFlag(QGraphicsItem::ItemIsMovable, true);
+        item = pixItem;
     }
     else if (cls == "text") {
         auto textItem = new QGraphicsTextItem(json["text"].toString());
@@ -3356,6 +3408,28 @@ QGraphicsItem* Canvas::deserializeGraphicsItem(const QJsonObject& json) const
             auto blur = new QGraphicsBlurEffect();
             blur->setBlurRadius(blurRadius);
             item->setGraphicsEffect(blur);
+        }
+
+        if (json.contains("rasterSessionId")) {
+            item->setData(GraphicsItemRoles::RasterSessionIdRole, json.value("rasterSessionId").toString());
+        }
+
+        if (json.contains("rasterFrameIndex")) {
+            item->setData(GraphicsItemRoles::RasterFrameIndexRole, json.value("rasterFrameIndex").toInt());
+        }
+
+        if (json.contains("rasterDocument")) {
+            QJsonObject docObject = json.value("rasterDocument").toObject();
+            if (!docObject.isEmpty()) {
+                QJsonDocument doc(docObject);
+                item->setData(GraphicsItemRoles::RasterDocumentJsonRole, doc.toJson(QJsonDocument::Compact));
+            }
+        }
+        else if (json.contains("rasterDocumentRaw")) {
+            QByteArray raw = QByteArray::fromBase64(json.value("rasterDocumentRaw").toString().toLatin1());
+            if (!raw.isEmpty()) {
+                item->setData(GraphicsItemRoles::RasterDocumentJsonRole, raw);
+            }
         }
     }
 

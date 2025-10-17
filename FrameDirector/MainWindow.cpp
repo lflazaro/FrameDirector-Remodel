@@ -1424,6 +1424,10 @@ void MainWindow::newFile()
         m_timeline->setSelectedLayer(defaultLayer);
     }
 
+    if (m_rasterEditorWindow) {
+        m_rasterEditorWindow->resetDocument();
+    }
+
     addLayer();
     updateUI();
     setWindowTitle("FrameDirector - Untitled");
@@ -3848,6 +3852,16 @@ void MainWindow::loadFile(const QString& fileName)
         }
     }
 
+    if (m_rasterEditorWindow) {
+        const QJsonObject rasterJson = root.value("rasterEditor").toObject();
+        if (!rasterJson.isEmpty()) {
+            m_rasterEditorWindow->loadFromJson(rasterJson);
+        }
+        else {
+            m_rasterEditorWindow->resetDocument();
+        }
+    }
+
     // Restore audio settings if present
     m_audioFile = root.value("audioFile").toString();
     m_audioFrameLength = root.value("audioFrameLength").toInt(0);
@@ -3897,6 +3911,11 @@ QString MainWindow::strippedName(const QString& fullFileName)
     return QFileInfo(fullFileName).fileName();
 }
 
+QUndoStack* MainWindow::undoStack() const
+{
+    return m_undoStack;
+}
+
 QJsonObject MainWindow::createProjectJson() const
 {
     QJsonObject root;
@@ -3908,6 +3927,10 @@ QJsonObject MainWindow::createProjectJson() const
     if (!m_audioFile.isEmpty()) {
         root["audioFile"] = m_audioFile;
         root["audioFrameLength"] = m_audioFrameLength;
+    }
+
+    if (m_rasterEditorWindow) {
+        root["rasterEditor"] = m_rasterEditorWindow->toJson();
     }
 
     return root;

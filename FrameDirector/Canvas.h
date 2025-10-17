@@ -193,6 +193,7 @@ public:
     void rotateSelected(double angle);
 
     QList<QGraphicsItem*> getFrameItems(int frame) const;
+    QList<QGraphicsItem*> getLayerFrameItems(int layerIndex, int frame) const;
 
     // Rendering helpers
     QImage renderFlattenedFrame(int frame, const QVector<int>& layerIndices = QVector<int>()) const;

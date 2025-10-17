@@ -286,6 +286,7 @@ private:
     void setCurrentFile(const QString& fileName);
     void updateRecentFileActions();
     QString strippedName(const QString& fullFileName);
+    QUndoStack* undoStack() const;
     void updateUI();
     void updateStatusBar();
     void updateImportMenu();
