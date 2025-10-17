@@ -374,6 +374,7 @@ int Canvas::addLayer(const QString& name, bool visible, double opacity,
     qDebug() << "Added layer:" << layerName << "Index:" << newIndex << "UUID:" << newLayer->uuid;
 
     emit layerChanged(m_currentLayerIndex); // Refresh current layer display
+    emit layerAdded(newIndex);
 
     return newIndex;
 }
@@ -455,6 +456,7 @@ void Canvas::removeLayer(int layerIndex)
 
         storeCurrentFrameState();
         emit layerChanged(m_currentLayerIndex);
+        emit layerRemoved(layerIndex);
 
         qDebug() << "Layer removed. Current layer now:" << m_currentLayerIndex
             << "Total layers:" << m_layers.size();
@@ -504,6 +506,7 @@ void Canvas::setLayerVisible(int layerIndex, bool visible)
         }
 
         qDebug() << "Layer" << layerIndex << "UUID:" << layer->uuid << "visibility set to:" << visible;
+        emit layerVisibilityChanged(layerIndex, visible);
     }
 }
 
@@ -568,6 +571,7 @@ void Canvas::setLayerOpacity(int layerIndex, double opacity)
 
         storeCurrentFrameState();
         qDebug() << "Layer" << layerIndex << "UUID:" << layer->uuid << "opacity set to:" << layer->opacity;
+        emit layerOpacityChanged(layerIndex, layer->opacity);
     }
 }
 
@@ -597,6 +601,7 @@ void Canvas::setLayerName(int index, const QString& name)
     layer->name = trimmedName;
 
     qDebug() << "Layer" << index << "UUID:" << layer->uuid << "renamed to" << trimmedName;
+    emit layerNameChanged(index, trimmedName);
 }
 
 void Canvas::addItemToCurrentLayer(QGraphicsItem* item)
@@ -1311,7 +1316,7 @@ void Canvas::createKeyframe(int frame)
 }
 
 
-QGraphicsItem* Canvas::cloneGraphicsItem(QGraphicsItem* item)
+QGraphicsItem* Canvas::cloneGraphicsItem(QGraphicsItem* item) const
 {
     if (!item) return nullptr;
 
@@ -2859,6 +2864,83 @@ QList<QGraphicsItem*> Canvas::getFrameItems(int frame) const
     }
 
     return allFrameItems;
+}
+
+
+QImage Canvas::renderFlattenedFrame(int frame, const QVector<int>& layerIndices) const
+{
+    if (frame < 1) {
+        return QImage();
+    }
+
+    const QSize canvasSize = m_canvasSize;
+    if (!canvasSize.isValid() || canvasSize.isEmpty()) {
+        return QImage();
+    }
+
+    QVector<int> indices = layerIndices;
+    if (indices.isEmpty()) {
+        indices.reserve(m_layers.size());
+        for (int i = 0; i < m_layers.size(); ++i) {
+            indices.append(i);
+        }
+    }
+
+    std::sort(indices.begin(), indices.end());
+    indices.erase(std::unique(indices.begin(), indices.end()), indices.end());
+
+    QGraphicsScene tempScene;
+    tempScene.setSceneRect(QRectF(QPointF(0, 0), QSizeF(canvasSize)));
+
+    for (int layerIndex : indices) {
+        if (layerIndex < 0 || layerIndex >= m_layers.size()) {
+            continue;
+        }
+
+        LayerData* layer = static_cast<LayerData*>(m_layers[layerIndex]);
+        if (!layer || !layer->visible) {
+            continue;
+        }
+
+        const double layerOpacity = qBound(0.0, layer->opacity, 1.0);
+        const QList<QGraphicsItem*> items = layer->getFrameItems(frame);
+
+        int order = 0;
+        for (QGraphicsItem* item : items) {
+            if (!item || !isValidItem(item)) {
+                continue;
+            }
+
+            QGraphicsItem* clone = cloneGraphicsItem(item);
+            if (!clone) {
+                continue;
+            }
+
+            double individualOpacity = item->data(0).toDouble();
+            if (qFuzzyIsNull(individualOpacity)) {
+                individualOpacity = 1.0;
+            }
+
+            clone->setOpacity(individualOpacity * layerOpacity);
+            clone->setVisible(true);
+            clone->setFlag(QGraphicsItem::ItemIsSelectable, false);
+            clone->setFlag(QGraphicsItem::ItemIsMovable, false);
+            clone->setAcceptedMouseButtons(Qt::NoButton);
+            clone->setZValue(layerIndex * 1000 + order++);
+            tempScene.addItem(clone);
+        }
+    }
+
+    QImage flattened(canvasSize, QImage::Format_ARGB32_Premultiplied);
+    flattened.fill(Qt::transparent);
+
+    QPainter painter(&flattened);
+    painter.setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform, true);
+    tempScene.render(&painter, QRectF(QPointF(0, 0), QSizeF(canvasSize)),
+                     QRectF(QPointF(0, 0), QSizeF(canvasSize)));
+    painter.end();
+
+    return flattened;
 }
 
 

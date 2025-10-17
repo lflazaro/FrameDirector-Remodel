@@ -119,6 +119,9 @@ public:
     int onionSkinAfter() const { return m_onionSkinAfter; }
     void setOnionSkinRange(int before, int after);
 
+    bool useProjectOnionSkin() const { return m_useProjectOnionSkin; }
+    void setUseProjectOnionSkin(bool enabled);
+
 signals:
     void documentReset();
     void layerListChanged();
@@ -141,5 +144,6 @@ private:
     bool m_onionSkinEnabled;
     int m_onionSkinBefore;
     int m_onionSkinAfter;
+    bool m_useProjectOnionSkin;
 };
 

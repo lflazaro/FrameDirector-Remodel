@@ -62,6 +62,9 @@
     <ClCompile Include="RasterEditor\RasterEditorWindow.cpp">
       <Filter>RasterEditor</Filter>
     </ClCompile>
+    <ClCompile Include="RasterEditor\RasterOnionSkinProvider.cpp">
+      <Filter>RasterEditor</Filter>
+    </ClCompile>
     <ClCompile Include="RasterEditor\ORAExporter.cpp">
       <Filter>RasterEditor</Filter>
     </ClCompile>
@@ -397,6 +400,9 @@
     <QtMoc Include="RasterEditor\RasterEditorWindow.h">
       <Filter>RasterEditor</Filter>
     </QtMoc>
+    <QtMoc Include="RasterEditor\RasterOnionSkinProvider.h">
+      <Filter>RasterEditor</Filter>
+    </QtMoc>
     <QtMoc Include="RasterEditor\RasterTools.h">
       <Filter>RasterEditor</Filter>
     </QtMoc>
@@ -490,6 +496,9 @@
       <Filter>RasterEditor</Filter>
     </ClInclude>
     <ClInclude Include="RasterEditor\RasterEditorWindow.h">
+      <Filter>RasterEditor</Filter>
+    </ClInclude>
+    <ClInclude Include="RasterEditor\RasterOnionSkinProvider.h">
       <Filter>RasterEditor</Filter>
     </ClInclude>
     <ClInclude Include="RasterEditor\ORAExporter.h">

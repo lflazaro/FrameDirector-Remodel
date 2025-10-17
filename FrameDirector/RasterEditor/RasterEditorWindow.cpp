@@ -2,9 +2,15 @@
 
 #include "RasterCanvasWidget.h"
 #include "RasterDocument.h"
+#include "RasterOnionSkinProvider.h"
 #include "RasterORAImporter.h"
 #include "ORAExporter.h"
 #include "RasterTools.h"
+
+#include "../MainWindow.h"
+#include "../Canvas.h"
+#include "../Timeline.h"
+#include "../Panels/LayerManager.h"
 
 #include <QAbstractItemView>
 #include <QCheckBox>
@@ -70,6 +76,7 @@ RasterEditorWindow::RasterEditorWindow(QWidget* parent)
     , m_brushSizeValue(nullptr)
     , m_colorButton(nullptr)
     , m_onionSkinCheck(nullptr)
+    , m_projectOnionCheck(nullptr)
     , m_onionBeforeSpin(nullptr)
     , m_onionAfterSpin(nullptr)
     , m_addLayerButton(nullptr)
@@ -77,6 +84,13 @@ RasterEditorWindow::RasterEditorWindow(QWidget* parent)
     , m_opacitySpin(nullptr)
     , m_blendModeCombo(nullptr)
     , m_primaryColor(Qt::black)
+    , m_mainWindow(nullptr)
+    , m_canvas(nullptr)
+    , m_timeline(nullptr)
+    , m_layerManager(nullptr)
+    , m_onionProvider(nullptr)
+    , m_layerMismatchWarned(false)
+    , m_projectContextInitialized(false)
 {
     setObjectName(QStringLiteral("RasterEditorWindow"));
     setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable);
@@ -144,6 +158,11 @@ void RasterEditorWindow::initializeUi()
     m_onionSkinCheck = new QCheckBox(tr("Enable Onion Skin"), toolGroup);
     connect(m_onionSkinCheck, &QCheckBox::toggled, this, &RasterEditorWindow::onOnionSkinToggled);
     toolLayout->addWidget(m_onionSkinCheck);
+
+    m_projectOnionCheck = new QCheckBox(tr("Use Project Layers"), toolGroup);
+    m_projectOnionCheck->setToolTip(tr("Overlay project frames when onion skinning."));
+    connect(m_projectOnionCheck, &QCheckBox::toggled, this, &RasterEditorWindow::onProjectOnionToggled);
+    toolLayout->addWidget(m_projectOnionCheck);
 
     QHBoxLayout* beforeLayout = new QHBoxLayout();
     QLabel* beforeLabel = new QLabel(tr("Frames Before"), toolGroup);
@@ -250,6 +269,7 @@ void RasterEditorWindow::connectDocumentSignals()
     connect(m_document, &RasterDocument::activeLayerChanged, this, &RasterEditorWindow::onActiveLayerChanged);
     connect(m_document, &RasterDocument::activeFrameChanged, this, &RasterEditorWindow::onActiveFrameChanged);
     connect(m_document, &RasterDocument::layerPropertyChanged, this, &RasterEditorWindow::onLayerPropertiesUpdated);
+    connect(m_document, &RasterDocument::onionSkinSettingsChanged, this, &RasterEditorWindow::updateOnionSkinControls);
 }
 
 void RasterEditorWindow::setCurrentFrame(int frame)
@@ -258,7 +278,8 @@ void RasterEditorWindow::setCurrentFrame(int frame)
         return;
     }
 
-    m_document->setActiveFrame(frame);
+    const int targetFrame = clampProjectFrame(frame);
+    m_document->setActiveFrame(targetFrame);
     onActiveFrameChanged(m_document->activeFrame());
 }
 
@@ -435,6 +456,7 @@ void RasterEditorWindow::onDocumentLayerListChanged()
     refreshLayerList();
     updateLayerInfo();
     updateLayerPropertiesUi();
+    refreshProjectMetadata();
 }
 
 void RasterEditorWindow::onActiveLayerChanged(int index)
@@ -514,6 +536,205 @@ void RasterEditorWindow::onSaveOra()
     }
 }
 
+void RasterEditorWindow::setProjectContext(MainWindow* mainWindow, Canvas* canvas, Timeline* timeline, LayerManager* layerManager)
+{
+    m_mainWindow = mainWindow;
+    m_canvas = canvas;
+    m_timeline = timeline;
+    m_layerManager = layerManager;
+
+    if (!m_onionProvider && m_mainWindow) {
+        m_onionProvider = new RasterOnionSkinProvider(m_mainWindow, this);
+    }
+
+    if (m_canvasWidget) {
+        m_canvasWidget->setOnionSkinProvider(m_onionProvider);
+    }
+
+    if (m_document && m_onionProvider) {
+        connect(m_document, &RasterDocument::documentReset, m_onionProvider, &RasterOnionSkinProvider::invalidate, Qt::UniqueConnection);
+    }
+
+    if (!m_projectContextInitialized) {
+        if (m_canvas) {
+            connect(m_canvas, &Canvas::layerAdded, this, &RasterEditorWindow::onProjectLayersChanged, Qt::UniqueConnection);
+            connect(m_canvas, &Canvas::layerRemoved, this, &RasterEditorWindow::onProjectLayersChanged, Qt::UniqueConnection);
+            connect(m_canvas, &Canvas::layerNameChanged, this, &RasterEditorWindow::onProjectLayerRenamed, Qt::UniqueConnection);
+            connect(m_canvas, &Canvas::layerVisibilityChanged, this, &RasterEditorWindow::onProjectLayerAppearanceChanged, Qt::UniqueConnection);
+            connect(m_canvas, &Canvas::layerOpacityChanged, this, &RasterEditorWindow::onProjectLayerAppearanceChanged, Qt::UniqueConnection);
+            connect(m_canvas, &Canvas::keyframeCreated, this, &RasterEditorWindow::onProjectFrameStructureChanged, Qt::UniqueConnection);
+            connect(m_canvas, &Canvas::frameExtended, this, &RasterEditorWindow::onProjectFrameStructureChanged, Qt::UniqueConnection);
+        }
+
+        if (m_timeline) {
+            connect(m_timeline, &Timeline::totalFramesChanged, this, &RasterEditorWindow::onTimelineLengthChanged, Qt::UniqueConnection);
+            connect(m_timeline, &Timeline::keyframeAdded, this, &RasterEditorWindow::onProjectFrameStructureChanged, Qt::UniqueConnection);
+            connect(m_timeline, &Timeline::keyframeRemoved, this, &RasterEditorWindow::onProjectFrameStructureChanged, Qt::UniqueConnection);
+            connect(m_timeline, &Timeline::frameExtended, this, &RasterEditorWindow::onProjectFrameStructureChanged, Qt::UniqueConnection);
+            connect(m_timeline, &Timeline::frameChanged, this, &RasterEditorWindow::onTimelineFrameChanged, Qt::UniqueConnection);
+        }
+
+        m_projectContextInitialized = true;
+    }
+
+    if (m_document) {
+        if (m_canvas) {
+            m_document->setCanvasSize(m_canvas->getCanvasSize());
+        }
+        if (m_timeline) {
+            m_document->setFrameCount(m_timeline->getTotalFrames());
+            setCurrentFrame(m_timeline->getCurrentFrame());
+        }
+    }
+
+    syncProjectLayers();
+    updateOnionSkinControls();
+    refreshProjectMetadata();
+}
+
+void RasterEditorWindow::onProjectOnionToggled(bool enabled)
+{
+    if (!m_document) {
+        return;
+    }
+
+    m_document->setUseProjectOnionSkin(enabled);
+    updateOnionSkinControls();
+}
+
+void RasterEditorWindow::onProjectLayersChanged()
+{
+    syncProjectLayers();
+    if (m_onionProvider) {
+        m_onionProvider->invalidate();
+    }
+    refreshProjectMetadata();
+}
+
+void RasterEditorWindow::onProjectLayerRenamed(int index, const QString& name)
+{
+    Q_UNUSED(name);
+    Q_UNUSED(index);
+    syncProjectLayers();
+    if (m_onionProvider) {
+        m_onionProvider->invalidate();
+    }
+    refreshProjectMetadata();
+}
+
+void RasterEditorWindow::onProjectLayerAppearanceChanged()
+{
+    if (m_onionProvider) {
+        m_onionProvider->invalidate();
+    }
+}
+
+void RasterEditorWindow::onProjectFrameStructureChanged()
+{
+    if (m_onionProvider) {
+        m_onionProvider->invalidate();
+    }
+    ensureDocumentFrameBounds();
+    refreshProjectMetadata();
+}
+
+void RasterEditorWindow::onTimelineLengthChanged(int frames)
+{
+    if (!m_document) {
+        return;
+    }
+
+    m_document->setFrameCount(frames);
+    ensureDocumentFrameBounds();
+    if (m_onionProvider) {
+        m_onionProvider->invalidate();
+    }
+    refreshProjectMetadata();
+}
+
+void RasterEditorWindow::onTimelineFrameChanged(int frame)
+{
+    setCurrentFrame(frame);
+}
+
+void RasterEditorWindow::syncProjectLayers()
+{
+    m_projectLayerNames.clear();
+    if (m_canvas) {
+        for (int i = 0; i < m_canvas->getLayerCount(); ++i) {
+            m_projectLayerNames.append(m_canvas->getLayerName(i));
+        }
+    }
+
+    if (m_onionProvider) {
+        QVector<int> layers;
+        layers.reserve(m_projectLayerNames.size());
+        for (int i = 0; i < m_projectLayerNames.size(); ++i) {
+            layers.append(i);
+        }
+        m_onionProvider->setLayerFilter(layers);
+    }
+}
+
+void RasterEditorWindow::refreshProjectMetadata()
+{
+    updateLayerInfo();
+
+    if (!m_document) {
+        return;
+    }
+
+    const bool mismatch = m_document->layerCount() != m_projectLayerNames.size();
+    if (!m_projectOnionCheck) {
+        return;
+    }
+
+    m_projectOnionCheck->setEnabled(m_document->onionSkinEnabled() && m_onionProvider);
+
+    if (mismatch && !m_layerMismatchWarned) {
+        QMessageBox::warning(this, tr("Raster Editor"),
+                             tr("Project layers changed since the raster document was prepared. Please review layer assignments."));
+        m_layerMismatchWarned = true;
+    }
+    else if (!mismatch) {
+        m_layerMismatchWarned = false;
+    }
+}
+
+void RasterEditorWindow::ensureDocumentFrameBounds()
+{
+    if (!m_document) {
+        return;
+    }
+
+    const int frameCount = m_document->frameCount();
+    if (frameCount <= 0) {
+        return;
+    }
+
+    const int active = m_document->activeFrame();
+    if (active >= frameCount) {
+        m_document->setActiveFrame(frameCount - 1);
+    }
+}
+
+int RasterEditorWindow::clampProjectFrame(int frame) const
+{
+    if (!m_document) {
+        return 0;
+    }
+
+    int clamped = frame - 1;
+    if (clamped < 0) {
+        clamped = 0;
+    }
+    const int frameCount = m_document->frameCount();
+    if (frameCount > 0 && clamped >= frameCount) {
+        clamped = frameCount - 1;
+    }
+    return clamped;
+}
+
 void RasterEditorWindow::refreshLayerList()
 {
     if (!m_layerList || !m_document) {
@@ -549,7 +770,18 @@ void RasterEditorWindow::updateLayerInfo()
     }
 
     const RasterLayer& layerData = m_document->layerAt(layer);
-    m_layerInfoLabel->setText(tr("Selected layer: %1").arg(layerData.name()));
+    QString text = tr("Selected layer: %1").arg(layerData.name());
+    QString projectName;
+    if (layer >= 0 && layer < m_projectLayerNames.size()) {
+        projectName = m_projectLayerNames.at(layer);
+    }
+    if (!projectName.isEmpty()) {
+        text += tr(" (Project: %1)").arg(projectName);
+    }
+    if (!projectName.isEmpty() && projectName != layerData.name()) {
+        text += QStringLiteral(" ") + QString::fromUtf8("\xE2\x9A\xA0");
+    }
+    m_layerInfoLabel->setText(text);
 }
 
 void RasterEditorWindow::updateToolControls()
@@ -601,6 +833,11 @@ void RasterEditorWindow::updateOnionSkinControls()
     }
     m_onionBeforeSpin->setEnabled(enabled);
     m_onionAfterSpin->setEnabled(enabled);
+    if (m_projectOnionCheck) {
+        QSignalBlocker blocker(m_projectOnionCheck);
+        m_projectOnionCheck->setChecked(m_document->useProjectOnionSkin());
+        m_projectOnionCheck->setEnabled(enabled && m_onionProvider);
+    }
 }
 
 void RasterEditorWindow::updateLayerPropertiesUi()

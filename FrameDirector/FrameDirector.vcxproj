@@ -119,6 +119,7 @@
     <ClCompile Include="RasterEditor\RasterCanvasWidget.cpp" />
     <ClCompile Include="RasterEditor\RasterDocument.cpp" />
     <ClCompile Include="RasterEditor\RasterEditorWindow.cpp" />
+    <ClCompile Include="RasterEditor\RasterOnionSkinProvider.cpp" />
     <ClCompile Include="RasterEditor\ORAExporter.cpp" />
     <ClCompile Include="RasterEditor\RasterORAImporter.cpp" />
     <ClCompile Include="RasterEditor\RasterTools.cpp" />
@@ -235,6 +236,7 @@
     <QtMoc Include="RasterEditor\RasterCanvasWidget.h" />
     <QtMoc Include="RasterEditor\RasterDocument.h" />
     <QtMoc Include="RasterEditor\RasterEditorWindow.h" />
+    <QtMoc Include="RasterEditor\RasterOnionSkinProvider.h" />
     <QtMoc Include="RasterEditor\RasterTools.h" />
   </ItemGroup>
   <ItemGroup>
@@ -256,6 +258,7 @@
     <ClInclude Include="RasterEditor\RasterCanvasWidget.h" />
     <ClInclude Include="RasterEditor\RasterDocument.h" />
     <ClInclude Include="RasterEditor\RasterEditorWindow.h" />
+    <ClInclude Include="RasterEditor\RasterOnionSkinProvider.h" />
     <ClInclude Include="RasterEditor\ORAExporter.h" />
     <ClInclude Include="RasterEditor\RasterORAImporter.h" />
     <ClInclude Include="RasterEditor\RasterTools.h" />

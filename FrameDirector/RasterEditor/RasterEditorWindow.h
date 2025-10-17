@@ -4,6 +4,7 @@
 #include <QDockWidget>
 #include <QPointer>
 #include <QPainter>
+#include <QStringList>
 
 class QCheckBox;
 class QComboBox;
@@ -22,6 +23,11 @@ class RasterDocument;
 class RasterEraserTool;
 class RasterFillTool;
 class RasterTool;
+class RasterOnionSkinProvider;
+class MainWindow;
+class Canvas;
+class Timeline;
+class LayerManager;
 
 class RasterEditorWindow : public QDockWidget
 {
@@ -29,6 +35,8 @@ class RasterEditorWindow : public QDockWidget
 
 public:
     explicit RasterEditorWindow(QWidget* parent = nullptr);
+
+    void setProjectContext(MainWindow* mainWindow, Canvas* canvas, Timeline* timeline, LayerManager* layerManager);
 
 public slots:
     void setCurrentFrame(int frame);
@@ -41,6 +49,7 @@ private slots:
     void onOnionSkinToggled(bool enabled);
     void onOnionBeforeChanged(int value);
     void onOnionAfterChanged(int value);
+    void onProjectOnionToggled(bool enabled);
     void onLayerSelectionChanged(int index);
     void onLayerItemChanged(QListWidgetItem* item);
     void onAddLayer();
@@ -53,6 +62,12 @@ private slots:
     void onLayerPropertiesUpdated(int index);
     void onOpenOra();
     void onSaveOra();
+    void onProjectLayersChanged();
+    void onProjectLayerRenamed(int index, const QString& name);
+    void onProjectLayerAppearanceChanged();
+    void onProjectFrameStructureChanged();
+    void onTimelineLengthChanged(int frames);
+    void onTimelineFrameChanged(int frame);
 
 private:
     void initializeUi();
@@ -64,6 +79,10 @@ private:
     void updateOnionSkinControls();
     void updateLayerPropertiesUi();
     int indexForBlendMode(QPainter::CompositionMode mode) const;
+    void syncProjectLayers();
+    void refreshProjectMetadata();
+    void ensureDocumentFrameBounds();
+    int clampProjectFrame(int frame) const;
 
     QPointer<RasterDocument> m_document;
     RasterCanvasWidget* m_canvasWidget;
@@ -82,6 +101,7 @@ private:
     QPushButton* m_colorButton;
 
     QCheckBox* m_onionSkinCheck;
+    QCheckBox* m_projectOnionCheck;
     QSpinBox* m_onionBeforeSpin;
     QSpinBox* m_onionAfterSpin;
 
@@ -91,5 +111,13 @@ private:
     QComboBox* m_blendModeCombo;
 
     QColor m_primaryColor;
+    MainWindow* m_mainWindow;
+    Canvas* m_canvas;
+    Timeline* m_timeline;
+    LayerManager* m_layerManager;
+    RasterOnionSkinProvider* m_onionProvider;
+    QStringList m_projectLayerNames;
+    bool m_layerMismatchWarned;
+    bool m_projectContextInitialized;
 };
 
