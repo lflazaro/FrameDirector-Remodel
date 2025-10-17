@@ -24,6 +24,7 @@
 #include "Dialogs/AutosaveSettingsDialog.h"
 #include "Import/ORAImporter.h"
 #include "VectorGraphics/VectorGraphicsItem.h"
+#include "RasterEditor/RasterEditorWindow.h"
 
 #include <QApplication>
 #include <QMenuBar>
@@ -64,6 +65,7 @@
 #include <QPainter>
 #include <QBuffer>
 #include <QIODevice>
+#include <QSignalBlocker>
 #include <algorithm>
 #include <cmath>
 #include <QImageReader>
@@ -233,6 +235,7 @@ MainWindow::MainWindow(QWidget* parent)
     , m_propertiesPanel(nullptr)
     , m_colorPanel(nullptr)
     , m_alignmentPanel(nullptr)
+    , m_rasterEditorWindow(nullptr)
     , m_currentTool(SelectTool)
     , m_currentFile("")
     , m_isModified(false)
@@ -312,6 +315,15 @@ MainWindow::MainWindow(QWidget* parent)
     connect(m_timeline, &Timeline::keyframeAdded, this, &MainWindow::addKeyframe);
     connect(m_timeline, &Timeline::totalFramesChanged, this, &MainWindow::onTotalFramesChanged);
     connect(m_canvas, &Canvas::layerChanged, m_timeline, &Timeline::setSelectedLayer);
+
+    if (m_rasterEditorWindow) {
+        connect(m_timeline, &Timeline::frameChanged, m_rasterEditorWindow, &RasterEditorWindow::setCurrentFrame);
+        connect(m_canvas, &Canvas::frameChanged, m_rasterEditorWindow, &RasterEditorWindow::setCurrentFrame);
+        connect(m_canvas, &Canvas::layerChanged, m_rasterEditorWindow, &RasterEditorWindow::setCurrentLayer);
+        connect(m_timeline, &Timeline::layerSelected, m_rasterEditorWindow, &RasterEditorWindow::setCurrentLayer);
+        m_rasterEditorWindow->setCurrentFrame(m_currentFrame);
+        m_rasterEditorWindow->setCurrentLayer(m_currentLayerIndex);
+    }
 
     // Setup main layout
     QVBoxLayout* mainLayout = new QVBoxLayout(centralWidget);
@@ -760,6 +772,11 @@ void MainWindow::createActions()
     m_toggleRulersAction->setCheckable(true);
     connect(m_toggleRulersAction, &QAction::triggered, this, &MainWindow::toggleRulers);
 
+    m_openRasterEditorAction = new QAction("Raster &Editor", this);
+    m_openRasterEditorAction->setStatusTip("Open the raster editor window");
+    m_openRasterEditorAction->setCheckable(true);
+    connect(m_openRasterEditorAction, &QAction::toggled, this, &MainWindow::setRasterEditorVisible);
+
     // Animation Menu Actions
     m_playAction = new QAction("&Play", this);
     m_playAction->setIcon(QIcon(":/icons/Play.png"));
@@ -1053,6 +1070,8 @@ void MainWindow::createMenus()
     m_viewMenu->addAction(m_toggleGridAction);
     m_viewMenu->addAction(m_toggleSnapAction);
     m_viewMenu->addAction(m_toggleRulersAction);
+    m_viewMenu->addSeparator();
+    m_viewMenu->addAction(m_openRasterEditorAction);
 
     // ENHANCED: Animation Menu with frame extension support
     m_animationMenu = menuBar()->addMenu("&Animation");
@@ -1130,6 +1149,8 @@ void MainWindow::createToolBars()
     m_viewToolBar->addAction(m_zoomInAction);
     m_viewToolBar->addAction(m_zoomOutAction);
     m_viewToolBar->addAction(m_zoomToFitAction);
+    m_viewToolBar->addSeparator();
+    m_viewToolBar->addAction(m_openRasterEditorAction);
 
     // ENHANCED: Animation Toolbar with frame extension support
     m_animationToolBar = addToolBar("Animation");
@@ -3683,6 +3704,34 @@ void MainWindow::togglePanel(const QString& panelName)
     }
 }
 
+void MainWindow::setRasterEditorVisible(bool visible)
+{
+    if (!m_rasterEditorWindow) {
+        return;
+    }
+
+    if (visible) {
+        m_rasterEditorWindow->show();
+        m_rasterEditorWindow->raise();
+        m_rasterEditorWindow->activateWindow();
+    }
+    else {
+        m_rasterEditorWindow->hide();
+    }
+}
+
+void MainWindow::onRasterEditorVisibilityChanged(bool visible)
+{
+    if (!m_openRasterEditorAction) {
+        return;
+    }
+
+    if (m_openRasterEditorAction->isChecked() != visible) {
+        QSignalBlocker blocker(m_openRasterEditorAction);
+        m_openRasterEditorAction->setChecked(visible);
+    }
+}
+
 void MainWindow::updatePlayback()
 {
     if (m_playAction) {
@@ -4211,6 +4260,16 @@ void MainWindow::createDockWindows()
     m_propertiesDock->setWidget(m_rightPanelTabs);
     m_propertiesDock->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable);
     addDockWidget(Qt::RightDockWidgetArea, m_propertiesDock);
+
+    m_rasterEditorWindow = new RasterEditorWindow(this);
+    addDockWidget(Qt::RightDockWidgetArea, m_rasterEditorWindow);
+    tabifyDockWidget(m_propertiesDock, m_rasterEditorWindow);
+    m_rasterEditorWindow->hide();
+    connect(m_rasterEditorWindow, &QDockWidget::visibilityChanged, this, &MainWindow::onRasterEditorVisibilityChanged);
+    if (m_openRasterEditorAction) {
+        QSignalBlocker blocker(m_openRasterEditorAction);
+        m_openRasterEditorAction->setChecked(false);
+    }
 
     // Connect panels
     connect(m_toolsPanel, &ToolsPanel::toolSelected, this, &MainWindow::setTool);

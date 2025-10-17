@@ -115,6 +115,7 @@
     <ClCompile Include="Import\miniz.c" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MainWindow.cpp" />
+    <ClCompile Include="RasterEditor\RasterEditorWindow.cpp" />
     <ClCompile Include="Panels\AlignmentPanel.cpp" />
     <ClCompile Include="Panels\ColorPanel.cpp" />
     <ClCompile Include="Panels\LayerManager.cpp" />
@@ -225,6 +226,9 @@
     <QtMoc Include="Dialogs\AutosaveSettingsDialog.h" />
   </ItemGroup>
   <ItemGroup>
+    <QtMoc Include="RasterEditor\RasterEditorWindow.h" />
+  </ItemGroup>
+  <ItemGroup>
     <ClInclude Include="Animation\AnimationKeyframe.h" />
     <ClInclude Include="Animation\AnimationLayer.h" />
     <QtMoc Include="BucketFillTool.h" />
@@ -239,6 +243,7 @@
     <ClInclude Include="Import\ZipReader.h" />
     <ClInclude Include="Import\miniz.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="RasterEditor\RasterEditorWindow.h" />
     <QtMoc Include="Tools\EraseTool.h" />
     <QtMoc Include="Tools\GradientFillTool.h" />
     <ClInclude Include="third_party\clipper.h" />

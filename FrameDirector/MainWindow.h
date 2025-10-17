@@ -65,6 +65,7 @@ class PropertiesPanel;
 class ToolsPanel;
 class ColorPanel;
 class AlignmentPanel;
+class RasterEditorWindow;
 class Tool;
 class DrawingTool;
 class SelectionTool;
@@ -183,6 +184,8 @@ private slots:
     void toggleSnapToGrid();
     void toggleRulers();
     void togglePanel(const QString& panelName);
+    void setRasterEditorVisible(bool visible);
+    void onRasterEditorVisibilityChanged(bool visible);
 
     // Animation actions
     void setFrameRate(int fps);
@@ -353,6 +356,7 @@ private:
     QDockWidget* m_colorDock;
     QDockWidget* m_alignmentDock;
     QDockWidget* m_timelineDock;
+    RasterEditorWindow* m_rasterEditorWindow;
 
     // Panels
     ToolsPanel* m_toolsPanel;
@@ -434,6 +438,7 @@ private:
     QAction* m_toggleGridAction;
     QAction* m_toggleSnapAction;
     QAction* m_toggleRulersAction;
+    QAction* m_openRasterEditorAction;
 
     // Actions - Animation Menu
     QAction* m_playAction;
