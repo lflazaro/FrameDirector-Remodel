@@ -382,16 +382,24 @@ BucketFillTool::composeRegionFromSegments_Tiled(const QList<PathSegment>& segmen
         for (const QPolygonF& poly : polys) {
             auto p64 = qPolygonToPath64(poly, kClipperScale);
             if (p64.empty()) continue;
-            if (p64.size() > vertBudget) { vertBudget = -1; break; }
-            vertBudget -= int(p64.size());
+            // If a single polygon would exceed the remaining vertex budget,
+            // skip that polygon instead of aborting the whole composition.
+            // This prevents large local strokes from causing the tile-based
+            // vector compose to fail for complex scenes. We still respect the
+            // overall vertex budget and path count cap.
+            if (vertBudget > 0 && int(p64.size()) > vertBudget) {
+                // skip this polygon
+                continue;
+            }
+            if (vertBudget > 0) vertBudget -= int(p64.size());
             subjectPaths.push_back(std::move(p64));
             if (int(subjectPaths.size()) >= kMaxPaths64 || vertBudget <= 0) break;
         }
         if (vertBudget <= 0 || int(subjectPaths.size()) >= kMaxPaths64) break;
     }
 
-    if (subjectPaths.empty() || vertBudget <= 0) {
-        // Too complex  bail (let legacy/raster handle)
+    if (subjectPaths.empty()) {
+        // Nothing usable collected for vector composition; let raster handle it
         return out;
     }
 
@@ -453,7 +461,7 @@ BucketFillTool::composeRegionFromSegments_Tiled(const QList<PathSegment>& segmen
     // hole, walk up to the nearest non-hole ancestor so we always return a face.
     const PolyPath64* current = faceNode;
     while (current && current->IsHole()) {
-        current = current->Parent();
+        current = static_cast<const PolyPath64*>(current->Parent());
     }
     if (!current) return out;
 
@@ -614,6 +622,34 @@ BucketFillTool::ClosedRegion BucketFillTool::findEnclosedRegion(const QPointF& p
     // 1) Use Clipper-based tiled composition (offset->union->shrink) with caps & cache
     ClosedRegion composed = composeRegionFromSegments_Tiled(nearby, point, m_connectionTolerance);
     if (composed.isValid) return composed;
+
+    // If tiled composition failed, try expanding search radius to full canvas to catch very large regions
+    qreal maxDim = qMax(canvas.width(), canvas.height());
+    if (m_searchRadius < maxDim) {
+        QList<PathSegment> farNearby = collectNearbyPaths(point, maxDim);
+        if (!farNearby.isEmpty()) {
+            ClosedRegion composedFar = composeRegionFromSegments_Tiled(farNearby, point, m_connectionTolerance);
+            if (composedFar.isValid) return composedFar;
+
+            // Also try the non-tiled union method with the expanded set
+            ClosedRegion legacy = composeRegionFromSegments(farNearby, point, m_connectionTolerance);
+            if (legacy.isValid) return legacy;
+
+            QPainterPath closedPath = createClosedPath(farNearby, point);
+            if (!closedPath.isEmpty() && closedPath.contains(point)) {
+                region.outerBoundary = closedPath; region.bounds = closedPath.boundingRect(); region.isValid = true; return region;
+            }
+
+            QPainterPath unionPath;
+            for (const PathSegment& seg : farNearby) {
+                const QPainterPath& c = seg.geometry.isEmpty() ? seg.path : seg.geometry;
+                unionPath = unionPath.united(c);
+            }
+            if (!unionPath.isEmpty() && unionPath.contains(point)) {
+                region.outerBoundary = unionPath; region.bounds = unionPath.boundingRect(); region.isValid = true; return region;
+            }
+        }
+    }
 
     // 2) Legacy fallbacks (cheap)  keep them for resilience
     QPainterPath closedPath = createClosedPath(nearby, point);
@@ -981,9 +1017,8 @@ void BucketFillTool::performRasterFill(const QPointF& point)
 {
     if (!m_canvas || !m_canvas->scene()) return;
 
-    // Reasonable fill area
-    qreal size = 200;
-    QRectF fillArea(point.x() - size / 2, point.y() - size / 2, size, size);
+    // Determine adaptive fill area based on search radius and canvas size
+    QRectF fillArea = calculateAdaptiveFillArea(point);
 
     // Make sure fill area is within canvas bounds
     QRectF canvasRect = m_canvas->getCanvasRect();
@@ -995,7 +1030,8 @@ void BucketFillTool::performRasterFill(const QPointF& point)
     }
 
     // Render scene to image with proper resolution
-    QImage sceneImage = renderSceneToImage(fillArea, 2.0);
+    const qreal scale = 2.0;
+    QImage sceneImage = renderSceneToImage(fillArea, scale);
 
     if (sceneImage.isNull()) {
         qDebug() << "BucketFill: Failed to render scene to image";
@@ -1004,7 +1040,8 @@ void BucketFillTool::performRasterFill(const QPointF& point)
 
     // Convert scene point to image coordinates
     QPointF relativePoint = point - fillArea.topLeft();
-    QPoint imagePoint(relativePoint.x() * 2, relativePoint.y() * 2);
+    QPoint imagePoint(qBound(0, int(std::llround(relativePoint.x() * scale)), sceneImage.width() - 1),
+                      qBound(0, int(std::llround(relativePoint.y() * scale)), sceneImage.height() - 1));
 
     if (!sceneImage.rect().contains(imagePoint)) {
         qDebug() << "BucketFill: Click point outside rendered area";
@@ -1032,8 +1069,9 @@ void BucketFillTool::performRasterFill(const QPointF& point)
     // Create a copy for flood fill
     QImage fillImage = sceneImage.copy();
 
-    // Perform flood fill with size limit
-    int filledPixels = floodFillImageLimited(fillImage, imagePoint, targetColor, m_fillColor, 8000);
+    // Perform flood fill with expanded limit (use full image area)
+    int maxPixels = fillImage.width() * fillImage.height();
+    int filledPixels = floodFillImageLimited(fillImage, imagePoint, targetColor, m_fillColor, maxPixels);
 
     qDebug() << "BucketFill: Filled" << filledPixels << "pixels";
 
@@ -1042,8 +1080,11 @@ void BucketFillTool::performRasterFill(const QPointF& point)
         return;
     }
 
-    if (filledPixels > 6000) {
-        qDebug() << "BucketFill: Fill area too large (" << filledPixels << " pixels), aborting";
+    // If the filled region would cover most of the canvas, treat it as background and abort
+    double filledScenePixels = static_cast<double>(filledPixels) / (scale * scale);
+    double canvasArea = canvasRect.width() * canvasRect.height();
+    if (filledScenePixels > canvasArea * 0.95) {
+        qDebug() << "BucketFill: Filled area too large (" << filledScenePixels << "scene pixels), aborting";
         return;
     }
 
@@ -1054,7 +1095,7 @@ void BucketFillTool::performRasterFill(const QPointF& point)
         // Transform path back to scene coordinates
         QTransform transform;
         transform.translate(fillArea.x(), fillArea.y());
-        transform.scale(0.5, 0.5); // Scale back from 2x
+        transform.scale(1.0 / scale, 1.0 / scale); // Scale back from render scale
         filledPath = transform.map(filledPath);
 
         // Smooth the contour and create fill item
@@ -1066,7 +1107,39 @@ void BucketFillTool::performRasterFill(const QPointF& point)
         }
     }
     else {
-        qDebug() << "BucketFill: Failed to trace filled region";
+        qDebug() << "BucketFill: Failed to trace filled region - using bitmap fallback";
+
+        // Create transparent mask containing only filled pixels
+        QImage mask(fillImage.size(), QImage::Format_ARGB32);
+        mask.fill(Qt::transparent);
+        for (int y = 0; y < fillImage.height(); ++y) {
+            for (int x = 0; x < fillImage.width(); ++x) {
+                QColor c = getPixelColor(fillImage, QPoint(x, y));
+                if (c == m_fillColor) {
+                    mask.setPixel(x, y, m_fillColor.rgba());
+                }
+            }
+        }
+
+        QPixmap pix = QPixmap::fromImage(mask);
+        QGraphicsPixmapItem* pixItem = new QGraphicsPixmapItem(pix);
+        pixItem->setOffset(0, 0);
+        pixItem->setPos(fillArea.topLeft());
+        pixItem->setZValue(-100);
+        pixItem->setOpacity(1.0);
+
+        // If undo stack isn't available, add directly
+        if (m_mainWindow && m_mainWindow->m_undoStack) {
+            // We don't have a DrawCommand for pixmaps here; fall back to direct add
+            addItemToCanvas(pixItem);
+            pixItem->setZValue(-100);
+        }
+        else {
+            addItemToCanvas(pixItem);
+            pixItem->setZValue(-100);
+        }
+
+        qDebug() << "BucketFill: Bitmap fallback added to canvas";
     }
 }
 
@@ -1468,4 +1541,29 @@ int BucketFillTool::getDirection(const QPoint& from, const QPoint& to)
         }
     }
     return 0;
+}
+
+// Calculate adaptive fill area based on search radius and canvas size
+QRectF BucketFillTool::calculateAdaptiveFillArea(const QPointF& point)
+{
+    if (!m_canvas) return QRectF();
+
+    QRectF canvas = m_canvas->getCanvasRect();
+
+    // Prefer a region based on the current search radius, but ensure it's at least a reasonable size
+    qreal preferred = qMax(m_searchRadius * 2.0, kMinTileR * 2.0);
+
+    // If search radius is small but the canvas is large, expand to cover the canvas so raster can operate globally
+    qreal maxDim = qMax(canvas.width(), canvas.height());
+    qreal size = qMin(maxDim, qMax(preferred, m_searchRadius * 4.0));
+
+    QRectF area(point.x() - size / 2.0, point.y() - size / 2.0, size, size);
+    area = area.intersected(canvas);
+
+    // If computed area is very small (on edge cases), fall back to the whole canvas
+    if (area.width() < 10 || area.height() < 10) {
+        return canvas;
+    }
+
+    return area;
 }
