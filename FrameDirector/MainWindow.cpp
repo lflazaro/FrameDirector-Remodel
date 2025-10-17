@@ -70,6 +70,8 @@
 #include <QSvgWidget>
 #include <QDir>
 #include <QStandardPaths>
+#include <QLocale>
+#include <QStringList>
 #include <qinputdialog.h>
 #include <QUrl>
 #include <QAudioDecoder>
@@ -251,6 +253,8 @@ MainWindow::MainWindow(QWidget* parent)
     , m_currentStrokeWidth(2.0)
     , m_currentOpacity(1.0)
     , m_autosaveIntervalMinutes(10)
+    , m_lastSessionEndedUnexpectedly(false)
+    , m_recoveredAutosavePath()
 {
     setWindowTitle("FrameDirector");
     setMinimumSize(1200, 800);
@@ -333,8 +337,12 @@ MainWindow::MainWindow(QWidget* parent)
     readSettings();
     setupAutosave();
 
+    const bool recoveredAutosave = promptToRecoverAutosave();
+
     // Create default layer
-    addLayer();
+    if (!recoveredAutosave && (!m_canvas || m_canvas->getLayerCount() == 0)) {
+        addLayer();
+    }
     setupTools();
     setupAnimationSystem();
 
@@ -3844,6 +3852,10 @@ void MainWindow::readSettings()
     restoreGeometry(settings.value("geometry").toByteArray());
     restoreState(settings.value("windowState").toByteArray());
 
+    m_lastSessionEndedUnexpectedly = settings.value("session/inProgress", false).toBool();
+    settings.setValue("session/inProgress", true);
+    settings.sync();
+
     m_autosaveIntervalMinutes = settings.value("autosave/intervalMinutes", m_autosaveIntervalMinutes).toInt();
     if (m_autosaveIntervalMinutes <= 0) {
         m_autosaveIntervalMinutes = 10;
@@ -3862,6 +3874,8 @@ void MainWindow::writeSettings()
     settings.setValue("windowState", saveState());
     settings.setValue("autosave/intervalMinutes", m_autosaveIntervalMinutes);
     settings.setValue("autosave/directory", m_autosaveDirectory);
+    settings.setValue("session/inProgress", false);
+    settings.sync();
 }
 
 void MainWindow::setupAutosave()
@@ -3911,6 +3925,68 @@ QString MainWindow::defaultAutosaveDirectory() const
     }
 
     return QDir(tempPath).filePath(QStringLiteral("FrameDirector"));
+}
+
+bool MainWindow::promptToRecoverAutosave()
+{
+    if (!m_lastSessionEndedUnexpectedly) {
+        return false;
+    }
+
+    m_lastSessionEndedUnexpectedly = false;
+
+    if (m_autosaveDirectory.isEmpty()) {
+        m_autosaveDirectory = defaultAutosaveDirectory();
+    }
+
+    QDir dir(m_autosaveDirectory);
+    if (!dir.exists()) {
+        return false;
+    }
+
+    const QStringList filters{ QStringLiteral("*_autosave_*.fdr") };
+    const QFileInfoList autosaveFiles = dir.entryInfoList(filters, QDir::Files, QDir::Time);
+    if (autosaveFiles.isEmpty()) {
+        return false;
+    }
+
+    const QFileInfo latestFile = autosaveFiles.first();
+    const QString recoveredTimestamp = QLocale().toString(latestFile.lastModified(), QLocale::LongFormat);
+
+    QMessageBox messageBox(QMessageBox::Information,
+        tr("Recovered autosave available"),
+        tr("FrameDirector detected an autosaved project from %1. The application may have closed unexpectedly.\n\n"
+           "Recovered file: %2\n\nWould you like to open the recovered project now?")
+            .arg(recoveredTimestamp, latestFile.fileName()),
+        QMessageBox::Yes | QMessageBox::No,
+        this);
+
+    if (messageBox.exec() != QMessageBox::Yes) {
+        return false;
+    }
+
+    loadFile(latestFile.absoluteFilePath());
+    m_isModified = true;
+    m_currentFile.clear();
+    m_recoveredAutosavePath = latestFile.absoluteFilePath();
+
+    QString displayName = latestFile.completeBaseName();
+    const QString marker = QStringLiteral("_autosave_");
+    const int markerIndex = displayName.indexOf(marker);
+    if (markerIndex > 0) {
+        displayName = displayName.left(markerIndex);
+    }
+
+    setWindowTitle(tr("FrameDirector - %1 (Recovered Autosave)").arg(displayName));
+
+    if (m_statusLabel) {
+        m_statusLabel->setText(tr("Recovered autosave loaded"));
+    }
+
+    statusBar()->showMessage(tr("Recovered project loaded from %1").arg(latestFile.fileName()), 10000);
+    updateUI();
+
+    return true;
 }
 
 bool MainWindow::writeProjectSnapshot(const QString& fileName) const
