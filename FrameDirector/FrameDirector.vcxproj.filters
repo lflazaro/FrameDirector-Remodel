@@ -39,6 +39,9 @@
     <Filter Include="Dialogs">
       <UniqueIdentifier>{deae9bab-17a7-458e-8b31-e70a5892bf38}</UniqueIdentifier>
     </Filter>
+    <Filter Include="RasterEditor">
+      <UniqueIdentifier>{8E8CBE5D-96A5-4E0D-9C9D-8AEF35277F96}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Canvas.cpp">
@@ -49,6 +52,9 @@
     </ClCompile>
     <ClCompile Include="MainWindow.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="RasterEditor\RasterEditorWindow.cpp">
+      <Filter>RasterEditor</Filter>
     </ClCompile>
     <ClCompile Include="Timeline.cpp">
       <Filter>Source Files</Filter>
@@ -364,6 +370,9 @@
     <QtMoc Include="Tools\GradientFillTool.h">
       <Filter>Tools</Filter>
     </QtMoc>
+    <QtMoc Include="RasterEditor\RasterEditorWindow.h">
+      <Filter>RasterEditor</Filter>
+    </QtMoc>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animation\AnimationKeyframe.h">
@@ -443,6 +452,9 @@
     </ClInclude>
     <ClInclude Include="Common\GraphicsItemRoles.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RasterEditor\RasterEditorWindow.h">
+      <Filter>RasterEditor</Filter>
     </ClInclude>
     <ClInclude Include="third_party\clipper.h">
       <Filter>Header Files</Filter>
