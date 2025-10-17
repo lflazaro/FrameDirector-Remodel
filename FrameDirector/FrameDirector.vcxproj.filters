@@ -62,6 +62,12 @@
     <ClCompile Include="RasterEditor\RasterEditorWindow.cpp">
       <Filter>RasterEditor</Filter>
     </ClCompile>
+    <ClCompile Include="RasterEditor\ORAExporter.cpp">
+      <Filter>RasterEditor</Filter>
+    </ClCompile>
+    <ClCompile Include="RasterEditor\RasterORAImporter.cpp">
+      <Filter>RasterEditor</Filter>
+    </ClCompile>
     <ClCompile Include="RasterEditor\RasterTools.cpp">
       <Filter>RasterEditor</Filter>
     </ClCompile>
@@ -144,6 +150,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Import\ZipReader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Import\ZipWriter.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Import\miniz.c">
@@ -423,6 +432,9 @@
     <ClInclude Include="Import\PSDImporter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Import\ZipWriter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="Import\ZipReader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -478,6 +490,12 @@
       <Filter>RasterEditor</Filter>
     </ClInclude>
     <ClInclude Include="RasterEditor\RasterEditorWindow.h">
+      <Filter>RasterEditor</Filter>
+    </ClInclude>
+    <ClInclude Include="RasterEditor\ORAExporter.h">
+      <Filter>RasterEditor</Filter>
+    </ClInclude>
+    <ClInclude Include="RasterEditor\RasterORAImporter.h">
       <Filter>RasterEditor</Filter>
     </ClInclude>
     <ClInclude Include="RasterEditor\RasterTools.h">

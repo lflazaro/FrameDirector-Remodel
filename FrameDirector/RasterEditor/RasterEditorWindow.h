@@ -51,6 +51,8 @@ private slots:
     void onActiveLayerChanged(int index);
     void onActiveFrameChanged(int frame);
     void onLayerPropertiesUpdated(int index);
+    void onOpenOra();
+    void onSaveOra();
 
 private:
     void initializeUi();

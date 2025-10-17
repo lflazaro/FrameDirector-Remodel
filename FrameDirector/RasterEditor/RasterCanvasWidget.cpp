@@ -328,13 +328,14 @@ void RasterCanvasWidget::drawFrameComposite(QPainter& painter, int frameIndex, q
         painter.save();
         painter.setOpacity(opacity * layer.opacity());
         painter.setCompositionMode(layer.blendMode());
-        painter.drawImage(QPointF(0.0, 0.0), *image);
+        const QPointF origin = layer.offset();
+        painter.drawImage(origin, *image);
 
         if (applyTint) {
             painter.setCompositionMode(QPainter::CompositionMode_SourceAtop);
             QColor overlay = tint;
             overlay.setAlphaF(qBound(0.0, overlay.alphaF() * opacity, 1.0));
-            painter.fillRect(QRectF(QPointF(0.0, 0.0), QSizeF(image->size())), overlay);
+            painter.fillRect(QRectF(origin, QSizeF(image->size())), overlay);
         }
 
         painter.restore();
