@@ -150,8 +150,10 @@ void RasterCanvasWidget::mousePressEvent(QMouseEvent* event)
         return;
     }
 
+    const QPointF layerPos = mapToActiveLayer(canvasPos);
+
     if (m_activeTool->isStrokeTool()) {
-        m_activeTool->beginStroke(m_document, m_document->activeLayer(), m_document->activeFrame(), canvasPos);
+        m_activeTool->beginStroke(m_document, m_document->activeLayer(), m_document->activeFrame(), layerPos);
         m_mouseDown = true;
         m_lastCanvasPosition = canvasPos;
         if (m_document) {
@@ -159,7 +161,7 @@ void RasterCanvasWidget::mousePressEvent(QMouseEvent* event)
         }
         update();
     } else {
-        m_activeTool->applyClick(m_document, m_document->activeLayer(), m_document->activeFrame(), canvasPos);
+        m_activeTool->applyClick(m_document, m_document->activeLayer(), m_document->activeFrame(), layerPos);
         if (m_document) {
             m_document->notifyFrameImageChanged(m_document->activeLayer(), m_document->activeFrame(), m_activeTool->dirtyRect());
         }
@@ -181,7 +183,9 @@ void RasterCanvasWidget::mouseMoveEvent(QMouseEvent* event)
         return;
     }
 
-    m_activeTool->strokeTo(canvasPos);
+    const QPointF layerPos = mapToActiveLayer(canvasPos);
+
+    m_activeTool->strokeTo(layerPos);
     m_lastCanvasPosition = canvasPos;
 
     if (m_document) {
@@ -204,7 +208,7 @@ void RasterCanvasWidget::mouseReleaseEvent(QMouseEvent* event)
     if (m_document && m_activeTool && m_activeTool->isStrokeTool()) {
         const QPointF canvasPos = mapToCanvas(eventPosition(event));
         if (isInsideCanvas(canvasPos)) {
-            m_activeTool->strokeTo(canvasPos);
+            m_activeTool->strokeTo(mapToActiveLayer(canvasPos));
         }
         m_activeTool->endStroke();
         m_document->notifyFrameImageChanged(m_document->activeLayer(), m_document->activeFrame(), m_activeTool->dirtyRect());
@@ -256,6 +260,20 @@ QPointF RasterCanvasWidget::mapToCanvas(const QPointF& pos) const
 
     const QPointF delta = pos - canvasRect.topLeft();
     return QPointF(delta.x() / m_zoomFactor, delta.y() / m_zoomFactor);
+}
+
+QPointF RasterCanvasWidget::mapToActiveLayer(const QPointF& canvasPos) const
+{
+    if (!m_document) {
+        return canvasPos;
+    }
+
+    const int layerIndex = m_document->activeLayer();
+    if (layerIndex < 0 || layerIndex >= m_document->layerCount()) {
+        return canvasPos;
+    }
+
+    return canvasPos - m_document->layerAt(layerIndex).offset();
 }
 
 bool RasterCanvasWidget::isInsideCanvas(const QPointF& canvasPos) const

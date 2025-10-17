@@ -43,6 +43,7 @@ private slots:
 private:
     QRectF canvasRectInWidget() const;
     QPointF mapToCanvas(const QPointF& pos) const;
+    QPointF mapToActiveLayer(const QPointF& canvasPos) const;
     bool isInsideCanvas(const QPointF& canvasPos) const;
     void drawCheckerboard(QPainter& painter, const QSize& size);
     void drawFrameStack(QPainter& painter);
