@@ -115,7 +115,10 @@
     <ClCompile Include="Import\miniz.c" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MainWindow.cpp" />
+    <ClCompile Include="RasterEditor\RasterCanvasWidget.cpp" />
+    <ClCompile Include="RasterEditor\RasterDocument.cpp" />
     <ClCompile Include="RasterEditor\RasterEditorWindow.cpp" />
+    <ClCompile Include="RasterEditor\RasterTools.cpp" />
     <ClCompile Include="Panels\AlignmentPanel.cpp" />
     <ClCompile Include="Panels\ColorPanel.cpp" />
     <ClCompile Include="Panels\LayerManager.cpp" />
@@ -226,7 +229,10 @@
     <QtMoc Include="Dialogs\AutosaveSettingsDialog.h" />
   </ItemGroup>
   <ItemGroup>
+    <QtMoc Include="RasterEditor\RasterCanvasWidget.h" />
+    <QtMoc Include="RasterEditor\RasterDocument.h" />
     <QtMoc Include="RasterEditor\RasterEditorWindow.h" />
+    <QtMoc Include="RasterEditor\RasterTools.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animation\AnimationKeyframe.h" />
@@ -243,7 +249,10 @@
     <ClInclude Include="Import\ZipReader.h" />
     <ClInclude Include="Import\miniz.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="RasterEditor\RasterCanvasWidget.h" />
+    <ClInclude Include="RasterEditor\RasterDocument.h" />
     <ClInclude Include="RasterEditor\RasterEditorWindow.h" />
+    <ClInclude Include="RasterEditor\RasterTools.h" />
     <QtMoc Include="Tools\EraseTool.h" />
     <QtMoc Include="Tools\GradientFillTool.h" />
     <ClInclude Include="third_party\clipper.h" />
