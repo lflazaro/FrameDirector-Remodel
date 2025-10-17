@@ -268,6 +268,7 @@ private:
     void performAutosave();
     bool ensureAutosaveDirectoryExists() const;
     QString defaultAutosaveDirectory() const;
+    bool promptToRecoverAutosave();
     bool writeProjectSnapshot(const QString& fileName) const;
     QJsonObject createProjectJson() const;
     bool maybeSave();
@@ -413,6 +414,8 @@ private:
 
     int m_autosaveIntervalMinutes;
     QString m_autosaveDirectory;
+    bool m_lastSessionEndedUnexpectedly;
+    QString m_recoveredAutosavePath;
 
     // Actions - Edit Menu
     QAction* m_undoAction;
