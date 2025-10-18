@@ -251,7 +251,6 @@ void RasterBrushTool::applyFallbackStroke(const QPointF& position, bool initial)
     const qreal radius = qMax<qreal>(m_size, 1.0);
     QPainter painter(m_targetImage);
     painter.setRenderHint(QPainter::Antialiasing, true);
-    painter.setRenderHint(QPainter::HighQualityAntialiasing, true);
 
     if (!initial && m_lastPointValid) {
         painter.save();

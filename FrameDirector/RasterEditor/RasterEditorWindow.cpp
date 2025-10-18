@@ -165,7 +165,7 @@ void RasterEditorWindow::initializeUi()
         headerLayout->addWidget(button);
     };
 
-    createToolButton(m_brushButton, tr("Brush"), QStyle::SP_BrushCursor, 0);
+    createToolButton(m_brushButton, tr("Brush"), QStyle::SP_DialogApplyButton, 0);
     createToolButton(m_eraserButton, tr("Eraser"), QStyle::SP_DialogResetButton, 1);
     createToolButton(m_fillButton, tr("Fill"), QStyle::SP_FileDialogNewFolder, 2);
 
@@ -230,13 +230,13 @@ void RasterEditorWindow::initializeUi()
     QLabel* beforeLabel = new QLabel(tr("Frames Before"), toolPanel);
     m_onionBeforeSpin = new QSpinBox(toolPanel);
     m_onionBeforeSpin->setRange(0, 12);
-    connect(m_onionBeforeSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, &RasterEditorWindow::onOnionBeforeChanged);
+    connect(m_onionBeforeSpin, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), this, &RasterEditorWindow::onOnionBeforeChanged);
     onionGrid->addWidget(beforeLabel, 0, 0);
     onionGrid->addWidget(m_onionBeforeSpin, 0, 1);
     QLabel* afterLabel = new QLabel(tr("Frames After"), toolPanel);
     m_onionAfterSpin = new QSpinBox(toolPanel);
     m_onionAfterSpin->setRange(0, 12);
-    connect(m_onionAfterSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, &RasterEditorWindow::onOnionAfterChanged);
+    connect(m_onionAfterSpin, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), this, &RasterEditorWindow::onOnionAfterChanged);
     onionGrid->addWidget(afterLabel, 1, 0);
     onionGrid->addWidget(m_onionAfterSpin, 1, 1);
     toolLayout->addLayout(onionGrid);
@@ -303,7 +303,7 @@ void RasterEditorWindow::initializeUi()
     m_opacitySpin->setRange(0.0, 100.0);
     m_opacitySpin->setDecimals(1);
     m_opacitySpin->setSuffix(tr(" %"));
-    connect(m_opacitySpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &RasterEditorWindow::onOpacityChanged);
+    connect(m_opacitySpin, static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged), this, &RasterEditorWindow::onOpacityChanged);
     layerLayout->addWidget(opacityLabel);
     layerLayout->addWidget(m_opacitySpin);
 
@@ -312,7 +312,7 @@ void RasterEditorWindow::initializeUi()
     for (const BlendModeOption& option : kBlendModes) {
         m_blendModeCombo->addItem(QObject::tr(option.label), static_cast<int>(option.mode));
     }
-    connect(m_blendModeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &RasterEditorWindow::onBlendModeChanged);
+    connect(m_blendModeCombo, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, &RasterEditorWindow::onBlendModeChanged);
     layerLayout->addWidget(blendLabel);
     layerLayout->addWidget(m_blendModeCombo);
 
@@ -332,7 +332,7 @@ void RasterEditorWindow::initializeUi()
 
     mainLayout->addWidget(splitter, 1);
 
-    connect(m_toolButtonGroup, QOverload<int>::of(&QButtonGroup::buttonClicked), this, &RasterEditorWindow::onToolChanged);
+    connect(m_toolButtonGroup, static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), this, &RasterEditorWindow::onToolChanged);
     if (QAbstractButton* brushButton = m_toolButtonGroup->button(0)) {
         brushButton->setChecked(true);
     }

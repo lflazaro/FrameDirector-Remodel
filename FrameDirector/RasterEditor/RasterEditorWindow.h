@@ -12,6 +12,7 @@
 
 class QCheckBox;
 class QButtonGroup;
+class QComboBox;
 class QDoubleSpinBox;
 class QLabel;
 class QListWidget;
