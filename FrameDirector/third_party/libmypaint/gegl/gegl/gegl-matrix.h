@@ -22,7 +22,7 @@
 
 #include <glib.h>
 #include <glib-object.h>
-#include <gegl-buffer-matrix2.h>
+#include <third_party/libmypaint/gegl/gegl/buffer/gegl-buffer-matrix2.h>
 
 G_BEGIN_DECLS
 
