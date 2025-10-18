@@ -829,7 +829,8 @@ void RasterEditorWindow::onLayerItemChanged(QListWidgetItem* item)
         return;
     }
 
-    const int layerIndex = item->data(Qt::UserRole).toInt(-1);
+    const QVariant v = item->data(Qt::UserRole);
+    const int layerIndex = v.isValid() ? v.toInt() : -1;
     if (layerIndex < 0 || layerIndex >= m_document->layerCount()) {
         return;
     }
@@ -867,7 +868,8 @@ void RasterEditorWindow::onRemoveLayer()
     }
 
     if (QListWidgetItem* item = m_layerList->item(row)) {
-        const int layerIndex = item->data(Qt::UserRole).toInt(-1);
+        const QVariant v = item->data(Qt::UserRole);
+        const int layerIndex = v.isValid() ? v.toInt() : -1;
         if (layerIndex >= 0) {
             m_document->removeLayer(layerIndex);
         }
@@ -925,7 +927,9 @@ void RasterEditorWindow::onActiveLayerChanged(int index)
         bool needsUpdate = true;
         if (currentRow >= 0) {
             if (QListWidgetItem* currentItem = m_layerList->item(currentRow)) {
-                needsUpdate = (currentItem->data(Qt::UserRole).toInt(-1) != index);
+                const QVariant v = currentItem->data(Qt::UserRole);
+                const int idx = v.isValid() ? v.toInt() : -1;
+                needsUpdate = (idx != index);
             }
         }
 
@@ -933,7 +937,9 @@ void RasterEditorWindow::onActiveLayerChanged(int index)
             QSignalBlocker blocker(m_layerList);
             for (int row = 0; row < m_layerList->count(); ++row) {
                 if (QListWidgetItem* item = m_layerList->item(row)) {
-                    if (item->data(Qt::UserRole).toInt(-1) == index) {
+                    const QVariant v = item->data(Qt::UserRole);
+                    const int idx = v.isValid() ? v.toInt() : -1;
+                    if (idx == index) {
                         m_layerList->setCurrentRow(row);
                         break;
                     }
@@ -941,6 +947,7 @@ void RasterEditorWindow::onActiveLayerChanged(int index)
             }
         }
     }
+
 
     updateLayerInfo();
     updateLayerPropertiesUi();
