@@ -2,9 +2,11 @@
 
 #include <QObject>
 #include <QColor>
+#include <QElapsedTimer>
+#include <QPair>
 #include <QPointF>
 #include <QRect>
-#include <QElapsedTimer>
+#include <QVector>
 #include <memory>
 
 #include <third_party/libmypaint/mypaint-brush.h>
@@ -70,6 +72,8 @@ public:
 
     void setEraserMode(bool eraser);
     bool eraserMode() const { return m_eraserMode; }
+
+    void applyPreset(const QVector<QPair<MyPaintBrushSetting, float>>& values);
 
 protected:
     void updateBrushParameters();

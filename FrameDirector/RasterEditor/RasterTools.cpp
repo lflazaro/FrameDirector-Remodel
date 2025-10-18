@@ -7,6 +7,7 @@
 #include <QColor>
 #include <QPainter>
 #include <QPen>
+#include <QRadialGradient>
 #include <QPoint>
 #include <QRect>
 #include <QStack>
@@ -75,9 +76,22 @@ private:
             painter.setBrush(QColor(0, 0, 0, static_cast<int>(alpha * 255.0f)));
         } else {
             QColor color = surface->m_color;
-            color.setAlphaF(qBound(0.0f, opaque, 1.0f) * color.alphaF());
+            const qreal baseAlpha = qBound(0.0f, opaque, 1.0f) * color.alphaF();
+            color.setAlphaF(baseAlpha);
             painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
-            painter.setBrush(color);
+            const qreal hardnessRatio = qBound<qreal>(hardness, 0.0, 1.0);
+            if (hardnessRatio >= 0.999) {
+                painter.setBrush(color);
+            } else {
+                const qreal maxRadius = qMax(rx, ry);
+                QRadialGradient gradient(QPointF(0.0, 0.0), maxRadius);
+                QColor edgeColor = color;
+                edgeColor.setAlphaF(0.0);
+                gradient.setColorAt(0.0, color);
+                gradient.setColorAt(qBound<qreal>(0.0, hardnessRatio, 1.0), color);
+                gradient.setColorAt(1.0, edgeColor);
+                painter.setBrush(gradient);
+            }
         }
 
         painter.translate(x, y);
@@ -443,6 +457,20 @@ void RasterBrushTool::setEraserMode(bool eraser)
     m_eraserMode = eraser;
     if (m_surface) {
         m_surface->setEraser(m_eraserMode);
+    }
+}
+
+void RasterBrushTool::applyPreset(const QVector<QPair<MyPaintBrushSetting, float>>& values)
+{
+    if (!m_brush) {
+        return;
+    }
+
+    mypaint_brush_from_defaults(m_brush);
+    updateBrushParameters();
+
+    for (const auto& value : values) {
+        mypaint_brush_set_base_value(m_brush, value.first, value.second);
     }
 }
 
