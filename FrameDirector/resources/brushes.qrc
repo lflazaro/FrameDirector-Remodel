@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/brushes">
+        <file>brushes/bulk.myb</file>
+        <file>brushes/charcoal.myb</file>
+        <file>brushes/coarse_bulk_2.myb</file>
+        <file>brushes/impressionism.myb</file>
+        <file>brushes/modelling.myb</file>
+    </qresource>
+</RCC>

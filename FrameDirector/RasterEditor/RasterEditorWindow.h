@@ -172,6 +172,7 @@ protected:
         float opacity;
         float hardness;
         float spacing;
+        QString brushResource;
         QVector<QPair<MyPaintBrushSetting, float>> settings;
     };
 

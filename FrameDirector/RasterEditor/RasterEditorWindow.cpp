@@ -503,6 +503,7 @@ void RasterEditorWindow::loadAvailableBrushes()
     standard.opacity = 1.0f;
     standard.hardness = 0.85f;
     standard.spacing = 0.22f;
+    standard.brushResource = QStringLiteral(":/brushes/bulk.myb");
     standard.settings = {
         { MYPAINT_BRUSH_SETTING_ANTI_ALIASING, 1.0f },
         { MYPAINT_BRUSH_SETTING_DABS_PER_SECOND, 0.0f }
@@ -515,6 +516,7 @@ void RasterEditorWindow::loadAvailableBrushes()
     soft.opacity = 0.65f;
     soft.hardness = 0.2f;
     soft.spacing = 0.18f;
+    soft.brushResource = QStringLiteral(":/brushes/impressionism.myb");
     soft.settings = {
         { MYPAINT_BRUSH_SETTING_OPAQUE_MULTIPLY, 0.35f },
         { MYPAINT_BRUSH_SETTING_RADIUS_BY_RANDOM, 0.08f },
@@ -529,6 +531,7 @@ void RasterEditorWindow::loadAvailableBrushes()
     charcoal.opacity = 0.8f;
     charcoal.hardness = 0.35f;
     charcoal.spacing = 1.2f;
+    charcoal.brushResource = QStringLiteral(":/brushes/charcoal.myb");
     charcoal.settings = {
         { MYPAINT_BRUSH_SETTING_DABS_PER_SECOND, 8.0f },
         { MYPAINT_BRUSH_SETTING_RADIUS_BY_RANDOM, 0.45f },
@@ -543,6 +546,7 @@ void RasterEditorWindow::loadAvailableBrushes()
     watercolor.opacity = 0.55f;
     watercolor.hardness = 0.25f;
     watercolor.spacing = 0.4f;
+    watercolor.brushResource = QStringLiteral(":/brushes/coarse_bulk_2.myb");
     watercolor.settings = {
         { MYPAINT_BRUSH_SETTING_SMUDGE, 0.6f },
         { MYPAINT_BRUSH_SETTING_SMUDGE_LENGTH, 0.45f },
@@ -557,6 +561,7 @@ void RasterEditorWindow::loadAvailableBrushes()
     marker.opacity = 0.9f;
     marker.hardness = 0.7f;
     marker.spacing = 0.12f;
+    marker.brushResource = QStringLiteral(":/brushes/modelling.myb");
     marker.settings = {
         { MYPAINT_BRUSH_SETTING_LOCK_ALPHA, 0.0f },
         { MYPAINT_BRUSH_SETTING_OPAQUE_LINEARIZE, 0.6f },
@@ -616,7 +621,7 @@ void RasterEditorWindow::applyBrushPreset(int index)
         m_eraserTool->setSpacing(preset.spacing);
     }
 
-    m_brushTool->applyPreset(preset.settings);
+    m_brushTool->applyPreset(preset.settings, preset.brushResource);
 
     if (m_opacitySlider) {
         QSignalBlocker blocker(m_opacitySlider);

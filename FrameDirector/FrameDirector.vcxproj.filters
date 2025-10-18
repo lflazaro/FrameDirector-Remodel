@@ -3606,6 +3606,9 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
+    <QtRcc Include="resources\brushes.qrc">
+      <Filter>Resource Files</Filter>
+    </QtRcc>
     <QtRcc Include="resources\icons.qrc">
       <Filter>Resource Files</Filter>
     </QtRcc>

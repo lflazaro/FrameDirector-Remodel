@@ -682,6 +682,7 @@
     <ResourceCompile Include="FrameDirector.rc" />
   </ItemGroup>
   <ItemGroup>
+    <QtRcc Include="resources\brushes.qrc" />
     <QtRcc Include="resources\icons.qrc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
