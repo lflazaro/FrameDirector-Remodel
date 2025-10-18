@@ -541,7 +541,7 @@ QImage RasterDocument::flattenFrame(int frameIndex) const
         }
 
         const QImage& source = layer.frameAt(frameIndex).image();
-        if (source.isNull() || source.isEmpty()) {
+        if (source.isNull() || source.size().isEmpty()) {
             continue;
         }
 
@@ -591,7 +591,7 @@ QJsonObject RasterDocument::toJson() const
             frameObject[QStringLiteral("index")] = frame;
 
             const QImage& image = layer.frameAt(frame).image();
-            if (!image.isNull() && !image.isEmpty()) {
+            if (!image.isNull() && !image.size().isEmpty()) {
                 QImage exportImage = image;
                 if (exportImage.format() != QImage::Format_ARGB32_Premultiplied) {
                     exportImage = exportImage.convertToFormat(QImage::Format_ARGB32_Premultiplied);

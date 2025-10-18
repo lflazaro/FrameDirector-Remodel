@@ -323,6 +323,93 @@
     <ClCompile Include="third_party\clipper2\src\clipper.rectclip.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\mypaint-gegl-surface.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\glib\mypaint-brush.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\glib\mypaint-gegl-glib.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\tests\gegl\test-gegl-surface.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\tests\mypaint-benchmark.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\tests\mypaint-test-surface.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\tests\mypaint-utils-stroke-player.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\tests\test-brush-load.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\tests\test-brush-persistence.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\tests\test-details.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\tests\test-fixed-tiled-surface.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\tests\test-rng.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\tests\testutils.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\brushmodes.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\fifo.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\helpers.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\mypaint.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\mypaint-brush.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\mypaint-brush-settings.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\mypaint-fixed-tiled-surface.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\mypaint-mapping.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\mypaint-matrix.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\mypaint-rectangle.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\mypaint-surface.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\mypaint-symmetry.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\mypaint-tiled-surface.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\operationqueue.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\rng-double.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\tilemap.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="Canvas.h">
@@ -489,25 +576,10 @@
     <ClInclude Include="Common\GraphicsItemRoles.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="RasterEditor\RasterCanvasWidget.h">
-      <Filter>RasterEditor</Filter>
-    </ClInclude>
-    <ClInclude Include="RasterEditor\RasterDocument.h">
-      <Filter>RasterEditor</Filter>
-    </ClInclude>
-    <ClInclude Include="RasterEditor\RasterEditorWindow.h">
-      <Filter>RasterEditor</Filter>
-    </ClInclude>
-    <ClInclude Include="RasterEditor\RasterOnionSkinProvider.h">
-      <Filter>RasterEditor</Filter>
-    </ClInclude>
     <ClInclude Include="RasterEditor\ORAExporter.h">
       <Filter>RasterEditor</Filter>
     </ClInclude>
     <ClInclude Include="RasterEditor\RasterORAImporter.h">
-      <Filter>RasterEditor</Filter>
-    </ClInclude>
-    <ClInclude Include="RasterEditor\RasterTools.h">
       <Filter>RasterEditor</Filter>
     </ClInclude>
     <ClInclude Include="third_party\clipper.h">
@@ -529,6 +601,108 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="third_party\clipper2\clipper.version.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\fastapprox\cast.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\fastapprox\fastexp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\fastapprox\fastlog.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\fastapprox\fastpow.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\fastapprox\sse.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\mypaint-gegl-surface.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\glib\mypaint-brush.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\glib\mypaint-gegl-glib.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\tests\mypaint-benchmark.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\tests\mypaint-test-surface.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\tests\mypaint-utils-stroke-player.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\tests\testutils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\brushmodes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\brushsettings-gen.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\fifo.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\helpers.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\mypaint.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\mypaint-brush.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\mypaint-brush-settings.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\mypaint-brush-settings-gen.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\mypaint-config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\mypaint-fixed-tiled-surface.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\mypaint-glib-compat.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\mypaint-mapping.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\mypaint-matrix.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\mypaint-rectangle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\mypaint-surface.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\mypaint-symmetry.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\mypaint-tiled-surface.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\operationqueue.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\rng-double.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\tiled-surface-private.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\tilemap.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -706,6 +880,122 @@
     <None Include="resources\styles\dark-theme.qss">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="third_party\libmypaint\gegl\Makefile.in" />
+    <None Include="third_party\libmypaint\gegl\libmypaint-gegl.pc.in" />
+    <None Include="third_party\libmypaint\gegl\Makefile.am" />
+    <None Include="third_party\libmypaint\aclocal.m4" />
+    <None Include="third_party\libmypaint\ar-lib" />
+    <None Include="third_party\libmypaint\brushsettings.json" />
+    <None Include="third_party\libmypaint\CODE_OF_CONDUCT.md" />
+    <None Include="third_party\libmypaint\compile" />
+    <None Include="third_party\libmypaint\config.guess" />
+    <None Include="third_party\libmypaint\config.h.in" />
+    <None Include="third_party\libmypaint\config.sub" />
+    <None Include="third_party\libmypaint\configure" />
+    <None Include="third_party\libmypaint\configure.ac" />
+    <None Include="third_party\libmypaint\CONTRIBUTING.md" />
+    <None Include="third_party\libmypaint\COPYING" />
+    <None Include="third_party\libmypaint\depcomp" />
+    <None Include="third_party\libmypaint\generate.py" />
+    <None Include="third_party\libmypaint\install-sh" />
+    <None Include="third_party\libmypaint\libmypaint.pc.in" />
+    <None Include="third_party\libmypaint\ltmain.sh" />
+    <None Include="third_party\libmypaint\Makefile.am" />
+    <None Include="third_party\libmypaint\Makefile.in" />
+    <None Include="third_party\libmypaint\missing" />
+    <None Include="third_party\libmypaint\README.md" />
+    <None Include="third_party\libmypaint\TODO" />
+    <None Include="third_party\libmypaint\test-driver" />
+    <None Include="third_party\libmypaint\po\zh_TW.po" />
+    <None Include="third_party\libmypaint\po\af.po" />
+    <None Include="third_party\libmypaint\po\ar.po" />
+    <None Include="third_party\libmypaint\po\as.po" />
+    <None Include="third_party\libmypaint\po\ast.po" />
+    <None Include="third_party\libmypaint\po\az.po" />
+    <None Include="third_party\libmypaint\po\be.po" />
+    <None Include="third_party\libmypaint\po\bg.po" />
+    <None Include="third_party\libmypaint\po\bn.po" />
+    <None Include="third_party\libmypaint\po\br.po" />
+    <None Include="third_party\libmypaint\po\bs.po" />
+    <None Include="third_party\libmypaint\po\ca.po" />
+    <None Include="third_party\libmypaint\po\ca%40valencia.po" />
+    <None Include="third_party\libmypaint\po\cs.po" />
+    <None Include="third_party\libmypaint\po\csb.po" />
+    <None Include="third_party\libmypaint\po\da.po" />
+    <None Include="third_party\libmypaint\po\de.po" />
+    <None Include="third_party\libmypaint\po\dz.po" />
+    <None Include="third_party\libmypaint\po\el.po" />
+    <None Include="third_party\libmypaint\po\en_CA.po" />
+    <None Include="third_party\libmypaint\po\en_GB.po" />
+    <None Include="third_party\libmypaint\po\eo.po" />
+    <None Include="third_party\libmypaint\po\es.po" />
+    <None Include="third_party\libmypaint\po\et.po" />
+    <None Include="third_party\libmypaint\po\eu.po" />
+    <None Include="third_party\libmypaint\po\fa.po" />
+    <None Include="third_party\libmypaint\po\fi.po" />
+    <None Include="third_party\libmypaint\po\fr.po" />
+    <None Include="third_party\libmypaint\po\fy.po" />
+    <None Include="third_party\libmypaint\po\ga.po" />
+    <None Include="third_party\libmypaint\po\gl.po" />
+    <None Include="third_party\libmypaint\po\gu.po" />
+    <None Include="third_party\libmypaint\po\he.po" />
+    <None Include="third_party\libmypaint\po\hi.po" />
+    <None Include="third_party\libmypaint\po\hr.po" />
+    <None Include="third_party\libmypaint\po\hu.po" />
+    <None Include="third_party\libmypaint\po\hy.po" />
+    <None Include="third_party\libmypaint\po\id.po" />
+    <None Include="third_party\libmypaint\po\is.po" />
+    <None Include="third_party\libmypaint\po\it.po" />
+    <None Include="third_party\libmypaint\po\ja.po" />
+    <None Include="third_party\libmypaint\po\ka.po" />
+    <None Include="third_party\libmypaint\po\kab.po" />
+    <None Include="third_party\libmypaint\po\kk.po" />
+    <None Include="third_party\libmypaint\po\kn.po" />
+    <None Include="third_party\libmypaint\po\ko.po" />
+    <None Include="third_party\libmypaint\po\LINGUAS" />
+    <None Include="third_party\libmypaint\po\lt.po" />
+    <None Include="third_party\libmypaint\po\lv.po" />
+    <None Include="third_party\libmypaint\po\mai.po" />
+    <None Include="third_party\libmypaint\po\Makefile.in.in" />
+    <None Include="third_party\libmypaint\po\mn.po" />
+    <None Include="third_party\libmypaint\po\mr.po" />
+    <None Include="third_party\libmypaint\po\ms.po" />
+    <None Include="third_party\libmypaint\po\nb.po" />
+    <None Include="third_party\libmypaint\po\nl.po" />
+    <None Include="third_party\libmypaint\po\nn_NO.po" />
+    <None Include="third_party\libmypaint\po\oc.po" />
+    <None Include="third_party\libmypaint\po\pa.po" />
+    <None Include="third_party\libmypaint\po\pl.po" />
+    <None Include="third_party\libmypaint\po\POTFILES.in" />
+    <None Include="third_party\libmypaint\po\pt.po" />
+    <None Include="third_party\libmypaint\po\pt_BR.po" />
+    <None Include="third_party\libmypaint\po\ro.po" />
+    <None Include="third_party\libmypaint\po\ru.po" />
+    <None Include="third_party\libmypaint\po\sc.po" />
+    <None Include="third_party\libmypaint\po\se.po" />
+    <None Include="third_party\libmypaint\po\sk.po" />
+    <None Include="third_party\libmypaint\po\sl.po" />
+    <None Include="third_party\libmypaint\po\sq.po" />
+    <None Include="third_party\libmypaint\po\sr.po" />
+    <None Include="third_party\libmypaint\po\sr%40latin.po" />
+    <None Include="third_party\libmypaint\po\sv.po" />
+    <None Include="third_party\libmypaint\po\ta.po" />
+    <None Include="third_party\libmypaint\po\te.po" />
+    <None Include="third_party\libmypaint\po\tg.po" />
+    <None Include="third_party\libmypaint\po\th.po" />
+    <None Include="third_party\libmypaint\po\tr.po" />
+    <None Include="third_party\libmypaint\po\uk.po" />
+    <None Include="third_party\libmypaint\po\uz.po" />
+    <None Include="third_party\libmypaint\po\vi.po" />
+    <None Include="third_party\libmypaint\po\wa.po" />
+    <None Include="third_party\libmypaint\po\zh_CN.po" />
+    <None Include="third_party\libmypaint\po\zh_HK.po" />
+    <None Include="third_party\libmypaint\m4macros\introspection.m4" />
+    <None Include="third_party\libmypaint\m4macros\ax_check_compile_flag.m4" />
+    <None Include="third_party\libmypaint\m4macros\ax_check_link_flag.m4" />
+    <None Include="third_party\libmypaint\doc\Makefile.in" />
+    <None Include="third_party\libmypaint\doc\Doxyfile.in" />
+    <None Include="third_party\libmypaint\doc\Makefile.am" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="FrameDirector.rc">

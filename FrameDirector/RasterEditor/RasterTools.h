@@ -7,7 +7,7 @@
 #include <QElapsedTimer>
 #include <memory>
 
-#include <mypaint-brush.h>
+#include <third_party/libmypaint/mypaint-brush.h>
 
 class QImage;
 class RasterDocument;

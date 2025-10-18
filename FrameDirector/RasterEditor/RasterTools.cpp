@@ -40,23 +40,20 @@ public:
     void setEraser(bool eraser) { m_eraser = eraser; }
 
 private:
+    // Match MyPaintSurfaceDrawDabFunction signature (no posterize/paint extras)
     static int drawDab(MyPaintSurface* self, float x, float y,
                        float radius, float color_r, float color_g, float color_b,
-                       float opaque, float hardness, float softness,
-                       float alpha_eraser, float aspect_ratio, float angle,
-                       float lock_alpha, float colorize, float posterize, float posterize_num,
-                       float paint)
+                       float opaque, float hardness,
+                       float alpha_eraser,
+                       float aspect_ratio, float angle,
+                       float lock_alpha, float colorize)
     {
         Q_UNUSED(color_r);
         Q_UNUSED(color_g);
         Q_UNUSED(color_b);
         Q_UNUSED(hardness);
-        Q_UNUSED(softness);
         Q_UNUSED(lock_alpha);
         Q_UNUSED(colorize);
-        Q_UNUSED(posterize);
-        Q_UNUSED(posterize_num);
-        Q_UNUSED(paint);
 
         auto* surface = static_cast<Surface*>(self);
         QImage& image = surface->m_image;
@@ -90,12 +87,11 @@ private:
         return 1;
     }
 
+    // Match MyPaintSurfaceGetColorFunction signature (no 'paint' param)
     static void getColor(MyPaintSurface* self, float x, float y, float radius,
-                         float* color_r, float* color_g, float* color_b, float* color_a,
-                         float paint)
+                         float* color_r, float* color_g, float* color_b, float* color_a)
     {
         Q_UNUSED(radius);
-        Q_UNUSED(paint);
         auto* surface = static_cast<Surface*>(self);
         const QImage& image = surface->m_image;
         if (image.isNull()) {
@@ -103,11 +99,7 @@ private:
             return;
         }
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
         const QPoint pt(qRound(x), qRound(y));
-#else
-        const QPoint pt(qRound(x), qRound(y));
-#endif
         if (!QRect(QPoint(0, 0), image.size()).contains(pt)) {
             *color_r = *color_g = *color_b = *color_a = 0.0f;
             return;
@@ -125,7 +117,8 @@ private:
         Q_UNUSED(self);
     }
 
-    static void endAtomic(MyPaintSurface* self, MyPaintRectangles* roi)
+    // Match MyPaintSurfaceEndAtomicFunction signature: MyPaintRectangle*
+    static void endAtomic(MyPaintSurface* self, MyPaintRectangle* roi)
     {
         Q_UNUSED(self);
         Q_UNUSED(roi);
@@ -250,7 +243,8 @@ void RasterBrushTool::beginStroke(RasterDocument* document, int layerIndex, int 
     m_timer.start();
 
     const float pressure = 1.0f;
-    mypaint_brush_stroke_to(m_brush, m_surface.get(), position.x(), position.y(), pressure, 0.0f, 0.0f, 0.0, 1.0f, 0.0f, 0.0f, 1);
+    // mypaint_brush_stroke_to expects: (brush, surface, x, y, pressure, xtilt, ytilt, dtime)
+    mypaint_brush_stroke_to(m_brush, m_surface.get(), position.x(), position.y(), pressure, 0.0f, 0.0f, 0.0);
     expandDirtyRect(position, m_size);
     m_lastPosition = position;
     m_activeStroke = true;
@@ -269,8 +263,7 @@ void RasterBrushTool::strokeTo(const QPointF& position, double deltaTimeSeconds)
     }
 
     const float pressure = 1.0f;
-    mypaint_brush_stroke_to(m_brush, m_surface.get(), position.x(), position.y(), pressure, 0.0f, 0.0f,
-                            deltaTimeSeconds, 1.0f, 0.0f, 0.0f, 1);
+    mypaint_brush_stroke_to(m_brush, m_surface.get(), position.x(), position.y(), pressure, 0.0f, 0.0f, deltaTimeSeconds);
     expandDirtyRect(position, m_size);
     m_lastPosition = position;
 }

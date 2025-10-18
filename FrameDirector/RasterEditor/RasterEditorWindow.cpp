@@ -563,7 +563,7 @@ void RasterEditorWindow::onExportToTimeline()
     }
 
     QImage flattened = m_document->flattenFrame(documentFrame);
-    if (flattened.isNull() || flattened.isEmpty()) {
+    if (flattened.size().isEmpty()) {
         QMessageBox::information(this, tr("Raster Editor"), tr("There is no raster content to export for the current frame."));
         return;
     }
@@ -610,7 +610,10 @@ void RasterEditorWindow::onExportToTimeline()
         pixmapItem->setPos(canvasRect.center() - itemRect.center());
     }
 
-    QUndoStack* undoStack = m_mainWindow->undoStack();
+    QUndoStack* undoStack = nullptr;
+    if (m_mainWindow) {
+        undoStack = m_mainWindow->getUndoStack();
+    }
     if (!undoStack) {
         delete pixmapItem;
         return;

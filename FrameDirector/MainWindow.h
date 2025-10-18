@@ -87,6 +87,9 @@ public:
     ~MainWindow();
     bool hasClipboardItems() const { return !m_clipboardItems.isEmpty(); }
 
+    // New public accessor for undo stack
+    QUndoStack* getUndoStack() const { return m_undoStack; }
+
     enum ToolType {
         SelectTool,
         DrawTool,
@@ -530,7 +533,6 @@ private:
     QAction* m_setTimelineLengthAction;
     QGraphicsItem* duplicateGraphicsItem(QGraphicsItem* item);
 
-}
-;
+};
 
 #endif // MAINWINDOW_H

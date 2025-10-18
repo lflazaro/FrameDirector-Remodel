@@ -5,8 +5,9 @@
 #include <QString>
 #include <QVector>
 
+#include "RasterDocument.h"
+
 class RasterDocument;
-struct RasterLayerDescriptor;
 
 class RasterORAImporter
 {
