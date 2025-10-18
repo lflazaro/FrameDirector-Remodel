@@ -252,7 +252,7 @@ bool RasterBrushTool::applyMyPaintStroke(const QPointF& position, double deltaTi
 
     const float pressure = 1.0f;
     const int result = mypaint_brush_stroke_to(m_brush, m_surface.get(), position.x(), position.y(), pressure, 0.0f, 0.0f, elapsedSeconds);
-    if (result <= 0) {
+    if (result < 0) {
         return false;
     }
 
