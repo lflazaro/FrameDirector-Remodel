@@ -82,7 +82,7 @@ private:
     struct Surface;
 
     void ensureSurface();
-    bool applyMyPaintStroke(const QPointF& position, double deltaTimeSeconds);
+    int applyMyPaintStroke(const QPointF& position, double deltaTimeSeconds);
     void applyFallbackStroke(const QPointF& position, bool initial);
 
     std::unique_ptr<Surface> m_surface;
