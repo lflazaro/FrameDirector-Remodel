@@ -14,9 +14,6 @@
 #include "strerror_override.h"
 #include <stdio.h>
 #include <stdlib.h>
-#ifdef HAVE_BSD_STDLIB_H
-#include <bsd/stdlib.h>
-#endif
 
 #define DEBUG_SEED(s)
 

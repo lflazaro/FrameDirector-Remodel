@@ -33,9 +33,6 @@
 #include <fcntl.h>
 #endif /* HAVE_FCNTL_H */
 
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif /* HAVE_UNISTD_H */
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -153,7 +150,7 @@ struct json_object *json_object_from_file(const char *filename)
 	struct json_object *obj;
 	int fd;
 
-	if ((fd = open(filename, O_RDONLY)) < 0)
+	if ((fd = _open(filename, O_RDONLY)) < 0)
 	{
 		_json_c_set_last_err("json_object_from_file: error opening file %s: %s\n",
 		                     filename, strerror(errno));
@@ -177,7 +174,7 @@ int json_object_to_file_ext(const char *filename, struct json_object *obj, int f
 		return -1;
 	}
 
-	if ((fd = open(filename, O_WRONLY | O_TRUNC | O_CREAT, 0644)) < 0)
+	if ((fd = _open(filename, O_WRONLY | O_TRUNC | O_CREAT, 0644)) < 0)
 	{
 		_json_c_set_last_err("json_object_to_file_ext: error opening file %s: %s\n",
 		                     filename, strerror(errno));
@@ -217,7 +214,7 @@ static int _json_object_to_fd(int fd, struct json_object *obj, int flags, const 
 	wpos = 0;
 	while (wpos < wsize)
 	{
-		if ((ret = write(fd, json_str + wpos, wsize - wpos)) < 0)
+		if ((ret = _write(fd, json_str + wpos, wsize - wpos)) < 0)
 		{
 			_json_c_set_last_err("json_object_to_fd: error writing file %s: %s\n",
 			                     filename, strerror(errno));

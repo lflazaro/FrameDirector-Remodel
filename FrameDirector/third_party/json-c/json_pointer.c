@@ -236,7 +236,7 @@ int json_pointer_get_internal(struct json_object *obj, const char *path,
 	}
 
 	/* pass a working copy to the recursive call */
-	if (!(path_copy = strdup(path)))
+	if (!(path_copy = _strdup(path)))
 	{
 		errno = ENOMEM;
 		return -1;
@@ -334,7 +334,7 @@ int json_pointer_set_with_array_cb(struct json_object **obj, const char *path,
 	}
 
 	/* pass a working copy to the recursive call */
-	if (!(path_copy = strdup(path)))
+	if (!(path_copy = _strdup(path)))
 	{
 		errno = ENOMEM;
 		return -1;

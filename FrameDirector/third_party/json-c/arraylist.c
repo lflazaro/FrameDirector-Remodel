@@ -18,9 +18,6 @@
 #include <string.h>
 #endif /* STDC_HEADERS */
 
-#if defined(HAVE_STRINGS_H) && !defined(_STRING_H) && !defined(__USE_BSD)
-#include <strings.h>
-#endif /* HAVE_STRINGS_H */
 
 #ifndef SIZE_T_MAX
 #if SIZEOF_SIZE_T == SIZEOF_INT

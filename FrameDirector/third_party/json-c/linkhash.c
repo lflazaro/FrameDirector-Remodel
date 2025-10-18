@@ -20,9 +20,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef HAVE_ENDIAN_H
-#include <endian.h> /* attempt to define endianness */
-#endif
 
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #ifndef WIN32_LEAN_AND_MEAN

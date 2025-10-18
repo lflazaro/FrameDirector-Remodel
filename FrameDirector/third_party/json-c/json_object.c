@@ -1185,7 +1185,7 @@ struct json_object *json_object_new_double_s(double d, const char *ds)
 	if (!jso)
 		return NULL;
 
-	new_ds = strdup(ds);
+	new_ds = _strdup(ds);
 	if (!new_ds)
 	{
 		json_object_generic_delete(jso);
@@ -1715,7 +1715,7 @@ static int json_object_copy_serializer_data(struct json_object *src, struct json
 	{
 		char *p;
 		assert(src->_userdata);
-		p = strdup(src->_userdata);
+		p = _strdup(src->_userdata);
 		if (p == NULL)
 		{
 			_json_c_set_last_err("json_object_copy_serializer_data: out of memory\n");

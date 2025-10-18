@@ -309,7 +309,9 @@
     <ClInclude Include="third_party\include\psd_config.h" />
     <ClInclude Include="third_party\include\psd_types.h" />
     <ClInclude Include="third_party\json-c\arraylist.h" />
+    <ClInclude Include="third_party\json-c\config.h" />
     <ClInclude Include="third_party\json-c\debug.h" />
+    <ClInclude Include="third_party\json-c\json_config.h" />
     <ClInclude Include="third_party\json-c\json_c_version.h" />
     <ClInclude Include="third_party\json-c\json_inttypes.h" />
     <ClInclude Include="third_party\json-c\json_object.h" />
@@ -545,6 +547,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\styles\dark-theme.qss" />
+    <None Include="third_party\json-c\json_config.h.in" />
+    <None Include="third_party\json-c\json_config.h.win32" />
     <None Include="third_party\json-c\README.html" />
     <None Include="third_party\libmypaint\aclocal.m4" />
     <None Include="third_party\libmypaint\ar-lib" />

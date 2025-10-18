@@ -13,7 +13,7 @@
  * (https://www.opensource.org/licenses/mit-license.php)
  */
 
-#include "config.h"
+#include "third_party/json-c/config.h"
 
 #include "math_compat.h"
 #include <assert.h>
@@ -37,12 +37,6 @@
 #ifdef HAVE_LOCALE_H
 #include <locale.h>
 #endif /* HAVE_LOCALE_H */
-#ifdef HAVE_XLOCALE_H
-#include <xlocale.h>
-#endif
-#ifdef HAVE_STRINGS_H
-#include <strings.h>
-#endif /* HAVE_STRINGS_H */
 
 #define jt_hexdigit(x) (((x) <= '9') ? (x) - '0' : ((x)&7) + 9)
 
@@ -322,8 +316,6 @@ struct json_object *json_tokener_parse_ex(struct json_tokener *tok, const char *
 	unsigned int *nBytesp = &nBytes;
 
 #ifdef HAVE_USELOCALE
-	locale_t oldlocale = uselocale(NULL);
-	locale_t newloc;
 #elif defined(HAVE_SETLOCALE)
 	char *oldlocale = NULL;
 #endif
@@ -346,21 +338,10 @@ struct json_object *json_tokener_parse_ex(struct json_tokener *tok, const char *
 #ifdef HAVE_USELOCALE
 	{
 #ifdef HAVE_DUPLOCALE
-		locale_t duploc = duplocale(oldlocale);
-		if (duploc == NULL && errno == ENOMEM)
-		{
-			tok->err = json_tokener_error_memory;
-			return NULL;
-		}
-		newloc = newlocale(LC_NUMERIC_MASK, "C", duploc);
 #else
 		newloc = newlocale(LC_NUMERIC_MASK, "C", oldlocale);
 #endif
-		if (newloc == NULL)
-		{
-			tok->err = json_tokener_error_memory;
 #ifdef HAVE_DUPLOCALE
-			freelocale(duploc);
 #endif
 			return NULL;
 		}
@@ -371,8 +352,7 @@ struct json_object *json_tokener_parse_ex(struct json_tokener *tok, const char *
 		freelocale(duploc);
 #endif
 #endif
-		uselocale(newloc);
-	}
+	
 #elif defined(HAVE_SETLOCALE)
 	{
 		char *tmplocale;
@@ -1232,7 +1212,7 @@ struct json_object *json_tokener_parse_ex(struct json_tokener *tok, const char *
 				{
 					printbuf_memappend_checked(tok->pb, case_start,
 					                           str - case_start);
-					obj_field_name = strdup(tok->pb->buf);
+					obj_field_name = _strdup(tok->pb->buf);
 					if (obj_field_name == NULL)
 					{
 						tok->err = json_tokener_error_memory;
@@ -1346,8 +1326,6 @@ out:
 	}
 
 #ifdef HAVE_USELOCALE
-	uselocale(oldlocale);
-	freelocale(newloc);
 #elif defined(HAVE_SETLOCALE)
 	setlocale(LC_NUMERIC, oldlocale);
 	free(oldlocale);
