@@ -58,6 +58,32 @@
 /* Define to 1 if glib is used */
 #define MYPAINT_CONFIG_USE_GLIB 1
 
+#ifdef _WIN32
+#undef HAVE_BIND_TEXTDOMAIN_CODESET
+#define HAVE_BIND_TEXTDOMAIN_CODESET 0
+
+#undef HAVE_DCGETTEXT
+#define HAVE_DCGETTEXT 0
+
+#undef HAVE_GETTEXT
+#define HAVE_GETTEXT 0
+
+#undef HAVE_DLFCN_H
+#define HAVE_DLFCN_H 0
+
+#undef HAVE_STRINGS_H
+#define HAVE_STRINGS_H 0
+
+#undef HAVE_UNISTD_H
+#define HAVE_UNISTD_H 0
+
+#undef MYPAINT_CONFIG_USE_GLIB
+#define MYPAINT_CONFIG_USE_GLIB 0
+
+#undef ENABLE_NLS
+#define ENABLE_NLS 0
+#endif
+
 /* Define to the address where bug reports for this package should be sent. */
 #define PACKAGE_BUGREPORT "https://github.com/mypaint/libmypaint/issues"
 

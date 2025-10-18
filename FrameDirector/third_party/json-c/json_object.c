@@ -33,7 +33,7 @@
 #include "printbuf.h"
 #include "snprintf_compat.h"
 #include "strdup_compat.h"
-#include <cstdint>
+#include <stdint.h>
 
 /* Avoid ctype.h and locale overhead */
 #define is_plain_digit(c) ((c) >= '0' && (c) <= '9')
