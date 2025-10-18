@@ -6,6 +6,7 @@
 #include <QImage>
 #include <QColor>
 #include <QPainter>
+#include <QPen>
 #include <QPoint>
 #include <QRect>
 #include <QStack>
@@ -188,9 +189,11 @@ RasterBrushTool::RasterBrushTool(QObject* parent)
     , m_size(kDefaultBrushSize)
     , m_eraserMode(false)
     , m_lastPosition()
+    , m_lastPointValid(false)
     , m_activeStroke(false)
     , m_targetImage(nullptr)
     , m_brush(mypaint_brush_new())
+    , m_useFallback(false)
 {
     if (m_brush) {
         mypaint_brush_from_defaults(m_brush);
@@ -218,9 +221,72 @@ void RasterBrushTool::ensureSurface()
     m_surface->setEraser(m_eraserMode);
 }
 
+bool RasterBrushTool::applyMyPaintStroke(const QPointF& position, double deltaTimeSeconds)
+{
+    if (!m_surface || !m_brush) {
+        return false;
+    }
+
+    double elapsedSeconds = deltaTimeSeconds;
+    if (elapsedSeconds <= 0.0) {
+        elapsedSeconds = m_timer.isValid() ? m_timer.restart() / 1000.0 : 0.0;
+    }
+
+    const float pressure = 1.0f;
+    const int result = mypaint_brush_stroke_to(m_brush, m_surface.get(), position.x(), position.y(), pressure, 0.0f, 0.0f, elapsedSeconds);
+    if (result <= 0) {
+        return false;
+    }
+
+    expandDirtyRect(position, m_size);
+    return true;
+}
+
+void RasterBrushTool::applyFallbackStroke(const QPointF& position, bool initial)
+{
+    if (!m_targetImage) {
+        return;
+    }
+
+    const qreal radius = qMax<qreal>(m_size, 1.0);
+    QPainter painter(m_targetImage);
+    painter.setRenderHint(QPainter::Antialiasing, true);
+
+    if (!initial && m_lastPointValid) {
+        painter.save();
+        painter.setBrush(Qt::NoBrush);
+        if (m_eraserMode) {
+            painter.setCompositionMode(QPainter::CompositionMode_Clear);
+            QPen pen(Qt::transparent, radius * 2.0, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
+            painter.setPen(pen);
+        } else {
+            QPen pen(m_color, radius * 2.0, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
+            painter.setPen(pen);
+            painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
+        }
+        painter.drawLine(m_lastPosition, position);
+        painter.restore();
+        expandDirtyRect(m_lastPosition, radius);
+    }
+
+    painter.save();
+    painter.setPen(Qt::NoPen);
+    if (m_eraserMode) {
+        painter.setCompositionMode(QPainter::CompositionMode_Clear);
+        painter.setBrush(Qt::transparent);
+    } else {
+        painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
+        painter.setBrush(m_color);
+    }
+    painter.drawEllipse(QRectF(position.x() - radius, position.y() - radius, radius * 2.0, radius * 2.0));
+    painter.restore();
+
+    expandDirtyRect(position, radius);
+}
+
 void RasterBrushTool::beginStroke(RasterDocument* document, int layerIndex, int frameIndex, const QPointF& position)
 {
-    if (!document || !m_brush) {
+    if (!document) {
         return;
     }
 
@@ -231,41 +297,60 @@ void RasterBrushTool::beginStroke(RasterDocument* document, int layerIndex, int 
 
     RasterTool::beginStroke(document, layerIndex, frameIndex, position);
     m_targetImage = image;
+    m_lastPosition = position;
+    m_lastPointValid = false;
+    m_useFallback = false;
     ensureSurface();
-    if (!m_surface) {
-        return;
-    }
 
     image->detach();
 
-    mypaint_brush_reset(m_brush);
-    mypaint_brush_new_stroke(m_brush);
-    m_timer.start();
+    if (m_brush) {
+        mypaint_brush_reset(m_brush);
+        mypaint_brush_new_stroke(m_brush);
+    }
 
-    const float pressure = 1.0f;
-    // mypaint_brush_stroke_to expects: (brush, surface, x, y, pressure, xtilt, ytilt, dtime)
-    mypaint_brush_stroke_to(m_brush, m_surface.get(), position.x(), position.y(), pressure, 0.0f, 0.0f, 0.0);
-    expandDirtyRect(position, m_size);
-    m_lastPosition = position;
+    m_timer.restart();
     m_activeStroke = true;
+
+    bool painted = false;
+    if (m_surface && m_brush) {
+        painted = applyMyPaintStroke(position, 0.0);
+    }
+
+    if (!painted) {
+        m_useFallback = true;
+        applyFallbackStroke(position, true);
+        painted = true;
+    }
+
+    if (painted) {
+        m_lastPointValid = true;
+    }
 }
 
 void RasterBrushTool::strokeTo(const QPointF& position, double deltaTimeSeconds)
 {
-    if (!m_activeStroke || !m_surface || !m_brush) {
+    if (!m_activeStroke) {
         return;
     }
 
-    if (deltaTimeSeconds <= 0.0) {
-        if (m_timer.isValid()) {
-            deltaTimeSeconds = m_timer.restart() / 1000.0;
+    bool painted = false;
+    if (!m_useFallback && m_surface && m_brush) {
+        painted = applyMyPaintStroke(position, deltaTimeSeconds);
+        if (!painted) {
+            m_useFallback = true;
         }
     }
 
-    const float pressure = 1.0f;
-    mypaint_brush_stroke_to(m_brush, m_surface.get(), position.x(), position.y(), pressure, 0.0f, 0.0f, deltaTimeSeconds);
-    expandDirtyRect(position, m_size);
-    m_lastPosition = position;
+    if (m_useFallback) {
+        applyFallbackStroke(position, !m_lastPointValid);
+        painted = true;
+    }
+
+    if (painted) {
+        m_lastPosition = position;
+        m_lastPointValid = true;
+    }
 }
 
 void RasterBrushTool::endStroke()
@@ -277,6 +362,9 @@ void RasterBrushTool::endStroke()
     m_activeStroke = false;
     m_surface.reset();
     m_targetImage = nullptr;
+    m_lastPointValid = false;
+    m_useFallback = false;
+    m_timer.invalidate();
 }
 
 void RasterBrushTool::setColor(const QColor& color)

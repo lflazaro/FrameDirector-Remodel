@@ -11,6 +11,7 @@
 #include "RasterDocument.h"
 
 class QCheckBox;
+class QButtonGroup;
 class QComboBox;
 class QDoubleSpinBox;
 class QLabel;
@@ -20,6 +21,8 @@ class QPushButton;
 class QSlider;
 class QSpinBox;
 class QToolButton;
+class QFrame;
+class QSplitter;
 
 class RasterBrushTool;
 class RasterCanvasWidget;
@@ -105,7 +108,10 @@ private:
     QListWidget* m_layerList;
     QLabel* m_layerInfoLabel;
 
-    QComboBox* m_toolSelector;
+    QButtonGroup* m_toolButtonGroup;
+    QToolButton* m_brushButton;
+    QToolButton* m_eraserButton;
+    QToolButton* m_fillButton;
     QSlider* m_brushSizeSlider;
     QLabel* m_brushSizeValue;
     QPushButton* m_colorButton;

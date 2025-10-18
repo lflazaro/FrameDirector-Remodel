@@ -15,23 +15,28 @@
 #include "../Common/GraphicsItemRoles.h"
 
 #include <QAbstractItemView>
+#include <QAbstractButton>
+#include <QButtonGroup>
 #include <QCheckBox>
+#include <QFrame>
 #include <QColorDialog>
 #include <QComboBox>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QDoubleSpinBox>
-#include <QGroupBox>
+#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QListWidget>
 #include <QListWidgetItem>
 #include <QMessageBox>
+#include <QSplitter>
 #include <QPushButton>
 #include <QSignalBlocker>
 #include <QSlider>
 #include <QSpinBox>
 #include <QToolButton>
+#include <QSizePolicy>
 #include <QVBoxLayout>
 #include <QVariant>
 #include <QGraphicsPixmapItem>
@@ -39,7 +44,12 @@
 #include <QUndoStack>
 #include <QJsonDocument>
 #include <QUuid>
+#include <QStyle>
+#include <QRgb>
+#include <QtGlobal>
+#include <QPalette>
 #include <iterator>
+#include <algorithm>
 
 namespace
 {
@@ -78,7 +88,10 @@ RasterEditorWindow::RasterEditorWindow(QWidget* parent)
     , m_frameLabel(nullptr)
     , m_layerList(nullptr)
     , m_layerInfoLabel(nullptr)
-    , m_toolSelector(nullptr)
+    , m_toolButtonGroup(nullptr)
+    , m_brushButton(nullptr)
+    , m_eraserButton(nullptr)
+    , m_fillButton(nullptr)
     , m_brushSizeSlider(nullptr)
     , m_brushSizeValue(nullptr)
     , m_colorButton(nullptr)
@@ -128,101 +141,142 @@ void RasterEditorWindow::initializeUi()
     QWidget* container = new QWidget(this);
     setWidget(container);
 
-    QHBoxLayout* rootLayout = new QHBoxLayout(container);
-    rootLayout->setContentsMargins(12, 12, 12, 12);
-    rootLayout->setSpacing(12);
+    QVBoxLayout* mainLayout = new QVBoxLayout(container);
+    mainLayout->setContentsMargins(12, 12, 12, 12);
+    mainLayout->setSpacing(12);
 
-    // Tool controls
-    QGroupBox* toolGroup = new QGroupBox(tr("Tool Controls"), container);
-    QVBoxLayout* toolLayout = new QVBoxLayout(toolGroup);
+    QFrame* headerFrame = new QFrame(container);
+    headerFrame->setObjectName(QStringLiteral("rasterEditorHeader"));
+    headerFrame->setFrameShape(QFrame::StyledPanel);
+    headerFrame->setFrameShadow(QFrame::Raised);
+    QHBoxLayout* headerLayout = new QHBoxLayout(headerFrame);
+    headerLayout->setContentsMargins(12, 8, 12, 8);
+    headerLayout->setSpacing(12);
 
-    QLabel* toolLabel = new QLabel(tr("Active Tool"), toolGroup);
-    m_toolSelector = new QComboBox(toolGroup);
-    m_toolSelector->addItem(tr("Brush"));
-    m_toolSelector->addItem(tr("Eraser"));
-    m_toolSelector->addItem(tr("Fill"));
-    connect(m_toolSelector, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &RasterEditorWindow::onToolChanged);
-    toolLayout->addWidget(toolLabel);
-    toolLayout->addWidget(m_toolSelector);
+    m_toolButtonGroup = new QButtonGroup(this);
+    auto createToolButton = [&](QToolButton*& button, const QString& text, QStyle::StandardPixmap icon, int id) {
+        button = new QToolButton(headerFrame);
+        button->setText(text);
+        button->setCheckable(true);
+        button->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+        button->setIcon(style()->standardIcon(icon));
+        button->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+        m_toolButtonGroup->addButton(button, id);
+        headerLayout->addWidget(button);
+    };
 
-    QLabel* sizeLabel = new QLabel(tr("Brush Size"), toolGroup);
-    m_brushSizeSlider = new QSlider(Qt::Horizontal, toolGroup);
+    createToolButton(m_brushButton, tr("Brush"), QStyle::SP_DialogApplyButton, 0);
+    createToolButton(m_eraserButton, tr("Eraser"), QStyle::SP_DialogResetButton, 1);
+    createToolButton(m_fillButton, tr("Fill"), QStyle::SP_FileDialogNewFolder, 2);
+
+    headerLayout->addSpacing(8);
+
+    QWidget* sizeContainer = new QWidget(headerFrame);
+    QVBoxLayout* sizeLayout = new QVBoxLayout(sizeContainer);
+    sizeLayout->setContentsMargins(0, 0, 0, 0);
+    sizeLayout->setSpacing(4);
+    QHBoxLayout* sizeLabelLayout = new QHBoxLayout();
+    sizeLabelLayout->setContentsMargins(0, 0, 0, 0);
+    QLabel* sizeLabel = new QLabel(tr("Brush Size"), sizeContainer);
+    m_brushSizeValue = new QLabel(QString::number(kDefaultBrushSize), sizeContainer);
+    m_brushSizeValue->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    sizeLabelLayout->addWidget(sizeLabel);
+    sizeLabelLayout->addStretch(1);
+    sizeLabelLayout->addWidget(m_brushSizeValue);
+    m_brushSizeSlider = new QSlider(Qt::Horizontal, sizeContainer);
     m_brushSizeSlider->setRange(1, 256);
     m_brushSizeSlider->setValue(kDefaultBrushSize);
     connect(m_brushSizeSlider, &QSlider::valueChanged, this, &RasterEditorWindow::onBrushSizeChanged);
-    m_brushSizeValue = new QLabel(QString::number(kDefaultBrushSize), toolGroup);
-    m_brushSizeValue->setAlignment(Qt::AlignRight);
+    sizeLayout->addLayout(sizeLabelLayout);
+    sizeLayout->addWidget(m_brushSizeSlider);
+    sizeContainer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    headerLayout->addWidget(sizeContainer, 1);
 
-    toolLayout->addWidget(sizeLabel);
-    toolLayout->addWidget(m_brushSizeSlider);
-    toolLayout->addWidget(m_brushSizeValue);
-
-    m_colorButton = new QPushButton(tr("Primary Color"), toolGroup);
+    m_colorButton = new QPushButton(tr("Primary Color"), headerFrame);
+    m_colorButton->setMinimumWidth(140);
     connect(m_colorButton, &QPushButton::clicked, this, &RasterEditorWindow::onColorButtonClicked);
-    toolLayout->addWidget(m_colorButton);
+    headerLayout->addWidget(m_colorButton);
 
-    toolLayout->addSpacing(8);
+    headerLayout->addStretch(1);
 
-    m_onionSkinCheck = new QCheckBox(tr("Enable Onion Skin"), toolGroup);
+    mainLayout->addWidget(headerFrame);
+
+    QSplitter* splitter = new QSplitter(Qt::Horizontal, container);
+    splitter->setChildrenCollapsible(false);
+
+    QFrame* toolPanel = new QFrame(splitter);
+    toolPanel->setFrameShape(QFrame::StyledPanel);
+    QVBoxLayout* toolLayout = new QVBoxLayout(toolPanel);
+    toolLayout->setContentsMargins(12, 12, 12, 12);
+    toolLayout->setSpacing(8);
+
+    QLabel* onionTitle = new QLabel(tr("Onion Skin"), toolPanel);
+    onionTitle->setStyleSheet(QStringLiteral("font-weight: 600;"));
+    toolLayout->addWidget(onionTitle);
+
+    m_onionSkinCheck = new QCheckBox(tr("Enable Onion Skin"), toolPanel);
     connect(m_onionSkinCheck, &QCheckBox::toggled, this, &RasterEditorWindow::onOnionSkinToggled);
     toolLayout->addWidget(m_onionSkinCheck);
 
-    m_projectOnionCheck = new QCheckBox(tr("Use Project Layers"), toolGroup);
+    m_projectOnionCheck = new QCheckBox(tr("Use Project Layers"), toolPanel);
     m_projectOnionCheck->setToolTip(tr("Overlay project frames when onion skinning."));
     connect(m_projectOnionCheck, &QCheckBox::toggled, this, &RasterEditorWindow::onProjectOnionToggled);
     toolLayout->addWidget(m_projectOnionCheck);
 
-    QHBoxLayout* beforeLayout = new QHBoxLayout();
-    QLabel* beforeLabel = new QLabel(tr("Frames Before"), toolGroup);
-    m_onionBeforeSpin = new QSpinBox(toolGroup);
+    QGridLayout* onionGrid = new QGridLayout();
+    onionGrid->setContentsMargins(0, 0, 0, 0);
+    onionGrid->setHorizontalSpacing(8);
+    onionGrid->setVerticalSpacing(4);
+    QLabel* beforeLabel = new QLabel(tr("Frames Before"), toolPanel);
+    m_onionBeforeSpin = new QSpinBox(toolPanel);
     m_onionBeforeSpin->setRange(0, 12);
-    connect(m_onionBeforeSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, &RasterEditorWindow::onOnionBeforeChanged);
-    beforeLayout->addWidget(beforeLabel);
-    beforeLayout->addWidget(m_onionBeforeSpin);
-    toolLayout->addLayout(beforeLayout);
-
-    QHBoxLayout* afterLayout = new QHBoxLayout();
-    QLabel* afterLabel = new QLabel(tr("Frames After"), toolGroup);
-    m_onionAfterSpin = new QSpinBox(toolGroup);
+    connect(m_onionBeforeSpin, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), this, &RasterEditorWindow::onOnionBeforeChanged);
+    onionGrid->addWidget(beforeLabel, 0, 0);
+    onionGrid->addWidget(m_onionBeforeSpin, 0, 1);
+    QLabel* afterLabel = new QLabel(tr("Frames After"), toolPanel);
+    m_onionAfterSpin = new QSpinBox(toolPanel);
     m_onionAfterSpin->setRange(0, 12);
-    connect(m_onionAfterSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, &RasterEditorWindow::onOnionAfterChanged);
-    afterLayout->addWidget(afterLabel);
-    afterLayout->addWidget(m_onionAfterSpin);
-    toolLayout->addLayout(afterLayout);
-
+    connect(m_onionAfterSpin, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), this, &RasterEditorWindow::onOnionAfterChanged);
+    onionGrid->addWidget(afterLabel, 1, 0);
+    onionGrid->addWidget(m_onionAfterSpin, 1, 1);
+    toolLayout->addLayout(onionGrid);
     toolLayout->addStretch(1);
 
-    // Canvas
-    QGroupBox* canvasGroup = new QGroupBox(tr("Canvas"), container);
-    QVBoxLayout* canvasLayout = new QVBoxLayout(canvasGroup);
-    m_canvasWidget = new RasterCanvasWidget(canvasGroup);
+    QWidget* canvasPanel = new QWidget(splitter);
+    QVBoxLayout* canvasLayout = new QVBoxLayout(canvasPanel);
+    canvasLayout->setContentsMargins(0, 0, 0, 0);
+    canvasLayout->setSpacing(8);
+    m_canvasWidget = new RasterCanvasWidget(canvasPanel);
     m_canvasWidget->setDocument(m_document);
     m_canvasWidget->setActiveTool(m_brushTool);
     m_activeTool = m_brushTool;
-    m_toolSelector->setCurrentIndex(0);
-
     canvasLayout->addWidget(m_canvasWidget, 1);
-    m_frameLabel = new QLabel(tr("Frame: 1"), canvasGroup);
+    m_frameLabel = new QLabel(tr("Frame: 1"), canvasPanel);
     m_frameLabel->setAlignment(Qt::AlignCenter);
     canvasLayout->addWidget(m_frameLabel);
 
-    // Layer controls
-    QGroupBox* layerGroup = new QGroupBox(tr("Layers"), container);
-    QVBoxLayout* layerLayout = new QVBoxLayout(layerGroup);
+    QFrame* layerPanel = new QFrame(splitter);
+    layerPanel->setFrameShape(QFrame::StyledPanel);
+    QVBoxLayout* layerLayout = new QVBoxLayout(layerPanel);
+    layerLayout->setContentsMargins(12, 12, 12, 12);
+    layerLayout->setSpacing(8);
 
     QHBoxLayout* fileButtonsLayout = new QHBoxLayout();
-    QPushButton* openOraButton = new QPushButton(tr("Open ORA…"), layerGroup);
+    fileButtonsLayout->setContentsMargins(0, 0, 0, 0);
+    fileButtonsLayout->setSpacing(8);
+    QPushButton* openOraButton = new QPushButton(tr("Open ORA…"), layerPanel);
     connect(openOraButton, &QPushButton::clicked, this, &RasterEditorWindow::onOpenOra);
-    QPushButton* saveOraButton = new QPushButton(tr("Save ORA…"), layerGroup);
+    QPushButton* saveOraButton = new QPushButton(tr("Save ORA…"), layerPanel);
     connect(saveOraButton, &QPushButton::clicked, this, &RasterEditorWindow::onSaveOra);
-    QPushButton* exportButton = new QPushButton(tr("Export to Timeline"), layerGroup);
+    QPushButton* exportButton = new QPushButton(tr("Export"), layerPanel);
+    exportButton->setToolTip(tr("Export the current frame to the active timeline layer."));
     connect(exportButton, &QPushButton::clicked, this, &RasterEditorWindow::onExportToTimeline);
     fileButtonsLayout->addWidget(openOraButton);
     fileButtonsLayout->addWidget(saveOraButton);
     fileButtonsLayout->addWidget(exportButton);
     layerLayout->addLayout(fileButtonsLayout);
 
-    m_layerList = new QListWidget(layerGroup);
+    m_layerList = new QListWidget(layerPanel);
     m_layerList->setSelectionMode(QAbstractItemView::SingleSelection);
     m_layerList->setEditTriggers(QAbstractItemView::EditKeyPressed | QAbstractItemView::SelectedClicked);
     connect(m_layerList, &QListWidget::currentRowChanged, this, &RasterEditorWindow::onLayerSelectionChanged);
@@ -230,44 +284,58 @@ void RasterEditorWindow::initializeUi()
     layerLayout->addWidget(m_layerList, 1);
 
     QHBoxLayout* layerButtonLayout = new QHBoxLayout();
-    m_addLayerButton = new QToolButton(layerGroup);
-    m_addLayerButton->setText(tr("+").trimmed());
-    m_addLayerButton->setToolTip(tr("Add Layer"));
+    layerButtonLayout->setContentsMargins(0, 0, 0, 0);
+    layerButtonLayout->setSpacing(8);
+    m_addLayerButton = new QToolButton(layerPanel);
+    m_addLayerButton->setText(tr("Add"));
+    m_addLayerButton->setToolTip(tr("Add a new raster layer"));
     connect(m_addLayerButton, &QToolButton::clicked, this, &RasterEditorWindow::onAddLayer);
-    m_removeLayerButton = new QToolButton(layerGroup);
-    m_removeLayerButton->setText(tr("-").trimmed());
-    m_removeLayerButton->setToolTip(tr("Remove Layer"));
+    m_removeLayerButton = new QToolButton(layerPanel);
+    m_removeLayerButton->setText(tr("Remove"));
+    m_removeLayerButton->setToolTip(tr("Remove the selected raster layer"));
     connect(m_removeLayerButton, &QToolButton::clicked, this, &RasterEditorWindow::onRemoveLayer);
     layerButtonLayout->addWidget(m_addLayerButton);
     layerButtonLayout->addWidget(m_removeLayerButton);
     layerLayout->addLayout(layerButtonLayout);
 
-    QLabel* opacityLabel = new QLabel(tr("Opacity"), layerGroup);
-    m_opacitySpin = new QDoubleSpinBox(layerGroup);
+    QLabel* opacityLabel = new QLabel(tr("Layer Opacity"), layerPanel);
+    m_opacitySpin = new QDoubleSpinBox(layerPanel);
     m_opacitySpin->setRange(0.0, 100.0);
     m_opacitySpin->setDecimals(1);
     m_opacitySpin->setSuffix(tr(" %"));
-    connect(m_opacitySpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &RasterEditorWindow::onOpacityChanged);
+    connect(m_opacitySpin, static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged), this, &RasterEditorWindow::onOpacityChanged);
     layerLayout->addWidget(opacityLabel);
     layerLayout->addWidget(m_opacitySpin);
 
-    QLabel* blendLabel = new QLabel(tr("Blend Mode"), layerGroup);
-    m_blendModeCombo = new QComboBox(layerGroup);
+    QLabel* blendLabel = new QLabel(tr("Blend Mode"), layerPanel);
+    m_blendModeCombo = new QComboBox(layerPanel);
     for (const BlendModeOption& option : kBlendModes) {
         m_blendModeCombo->addItem(QObject::tr(option.label), static_cast<int>(option.mode));
     }
-    connect(m_blendModeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &RasterEditorWindow::onBlendModeChanged);
+    connect(m_blendModeCombo, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, &RasterEditorWindow::onBlendModeChanged);
     layerLayout->addWidget(blendLabel);
     layerLayout->addWidget(m_blendModeCombo);
 
-    m_layerInfoLabel = new QLabel(layerGroup);
-    m_layerInfoLabel->setAlignment(Qt::AlignLeft);
+    m_layerInfoLabel = new QLabel(layerPanel);
+    m_layerInfoLabel->setWordWrap(true);
     layerLayout->addWidget(m_layerInfoLabel);
 
-    rootLayout->addWidget(toolGroup);
-    rootLayout->addWidget(canvasGroup, 1);
-    rootLayout->addWidget(layerGroup);
-    rootLayout->setStretchFactor(canvasGroup, 1);
+    splitter->addWidget(toolPanel);
+    splitter->addWidget(canvasPanel);
+    splitter->addWidget(layerPanel);
+    splitter->setStretchFactor(0, 0);
+    splitter->setStretchFactor(1, 1);
+    splitter->setStretchFactor(2, 0);
+
+    toolPanel->setMinimumWidth(220);
+    layerPanel->setMinimumWidth(260);
+
+    mainLayout->addWidget(splitter, 1);
+
+    connect(m_toolButtonGroup, static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), this, &RasterEditorWindow::onToolChanged);
+    if (QAbstractButton* brushButton = m_toolButtonGroup->button(0)) {
+        brushButton->setChecked(true);
+    }
 }
 
 void RasterEditorWindow::connectDocumentSignals()
@@ -306,6 +374,13 @@ void RasterEditorWindow::setCurrentLayer(int layer)
 
 void RasterEditorWindow::onToolChanged(int index)
 {
+    if (m_toolButtonGroup) {
+        if (QAbstractButton* button = m_toolButtonGroup->button(index)) {
+            QSignalBlocker blocker(m_toolButtonGroup);
+            button->setChecked(true);
+        }
+    }
+
     RasterTool* tool = m_brushTool;
     switch (index) {
     case 0:
@@ -809,20 +884,53 @@ void RasterEditorWindow::refreshProjectMetadata()
         return;
     }
 
-    const bool mismatch = m_document->layerCount() != m_projectLayerNames.size();
     if (!m_projectOnionCheck) {
         return;
     }
 
     m_projectOnionCheck->setEnabled(m_document->onionSkinEnabled() && m_onionProvider);
 
-    if (mismatch && !m_layerMismatchWarned) {
+    const bool mismatch = m_document->layerCount() != m_projectLayerNames.size();
+    if (!mismatch) {
+        m_layerMismatchWarned = false;
+        return;
+    }
+
+    auto frameHasContent = [](const QImage& image) {
+        if (image.isNull()) {
+            return false;
+        }
+
+        QImage converted = image;
+        if (converted.format() != QImage::Format_ARGB32_Premultiplied) {
+            converted = converted.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+        }
+
+        for (int y = 0; y < converted.height(); ++y) {
+            const QRgb* row = reinterpret_cast<const QRgb*>(converted.constScanLine(y));
+            for (int x = 0; x < converted.width(); ++x) {
+                if (qAlpha(row[x]) > 0) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+
+    const QVector<RasterLayerDescriptor> descriptors = m_document->layerDescriptors();
+    const bool documentHasContent = std::any_of(descriptors.begin(), descriptors.end(), [&](const RasterLayerDescriptor& descriptor) {
+        return std::any_of(descriptor.frames.begin(), descriptor.frames.end(), frameHasContent);
+    });
+
+    if (!documentHasContent) {
+        m_layerMismatchWarned = false;
+        return;
+    }
+
+    if (!m_layerMismatchWarned) {
         QMessageBox::warning(this, tr("Raster Editor"),
                              tr("Project layers changed since the raster document was prepared. Please review layer assignments."));
         m_layerMismatchWarned = true;
-    }
-    else if (!mismatch) {
-        m_layerMismatchWarned = false;
     }
 }
 
@@ -957,6 +1065,7 @@ void RasterEditorWindow::updateLayerInfo()
     const int layer = m_document->activeLayer();
     if (layer < 0 || layer >= m_document->layerCount()) {
         m_layerInfoLabel->setText(tr("Selected layer: none"));
+        m_layerInfoLabel->setStyleSheet(QString());
         return;
     }
 
@@ -969,10 +1078,17 @@ void RasterEditorWindow::updateLayerInfo()
     if (!projectName.isEmpty()) {
         text += tr(" (Project: %1)").arg(projectName);
     }
+    bool nameMismatch = false;
     if (!projectName.isEmpty() && projectName != layerData.name()) {
         text += QStringLiteral(" ") + QString::fromUtf8("\xE2\x9A\xA0");
+        nameMismatch = true;
     }
     m_layerInfoLabel->setText(text);
+    if (nameMismatch) {
+        m_layerInfoLabel->setStyleSheet(QStringLiteral("color: %1; font-weight: 600;").arg(palette().color(QPalette::Link).name()));
+    } else {
+        m_layerInfoLabel->setStyleSheet(QString());
+    }
 }
 
 void RasterEditorWindow::updateToolControls()
@@ -998,9 +1114,12 @@ void RasterEditorWindow::updateColorButton()
         return;
     }
 
-    const QString style = QStringLiteral("QPushButton { background-color: %1; border: 1px solid palette(mid); }")
-                              .arg(m_primaryColor.name(QColor::HexArgb));
+    const QColor textColor = (qGray(m_primaryColor.rgb()) < 128) ? Qt::white : Qt::black;
+    const QString style = QStringLiteral("QPushButton { background-color: %1; color: %2; border: 1px solid palette(mid); padding: 6px 12px; }")
+                              .arg(m_primaryColor.name(QColor::HexArgb))
+                              .arg(textColor.name());
     m_colorButton->setStyleSheet(style);
+    m_colorButton->setToolTip(tr("Current brush color: %1").arg(m_primaryColor.name(QColor::HexRgb).toUpper()));
 }
 
 void RasterEditorWindow::updateOnionSkinControls()
