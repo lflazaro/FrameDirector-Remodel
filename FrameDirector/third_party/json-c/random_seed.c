@@ -166,11 +166,13 @@ retry:
 
 #endif /* defined ENABLE_RDRAND */
 
-#ifdef HAVE_GETRANDOM
-
+#if defined(HAVE_GETRANDOM) && HAVE_GETRANDOM
+#ifndef GRND_NONBLOCK
+#define GRND_NONBLOCK 0x0001
+#endif
 #include <stdlib.h>
 #ifdef HAVE_SYS_RANDOM_H
-#include <sys/random.h>
+//#include <random.h>
 #endif
 
 static int get_getrandom_seed(int *seed)
@@ -307,9 +309,7 @@ static int get_cryptgenrandom_seed(int *seed)
 #pragma warning(pop)
 #endif
 
-/* get_time_seed */
-
-#ifndef HAVE_ARC4RANDOM
+#if !defined(HAVE_ARC4RANDOM) || !HAVE_ARC4RANDOM
 #include <time.h>
 
 static int get_time_seed(void)
@@ -336,7 +336,7 @@ int json_c_get_random_seed(void)
         /* arc4random never fails, so use it if it's available */
         return arc4random();
 #else
-#ifdef HAVE_GETRANDOM
+#if defined(HAVE_GETRANDOM) && HAVE_GETRANDOM
 	{
 		int seed = 0;
 		if (get_getrandom_seed(&seed) == 0)
