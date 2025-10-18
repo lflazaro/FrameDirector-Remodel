@@ -20,7 +20,7 @@
 #include <assert.h>
 
 #include "mypaint-gegl-surface.h"
-#include <third_party/libmypaint/gegl/gegl/gegl-utils.h>
+#include <gegl-utils.h>
 
 #define GEGL_GE_0_4_14 (GEGL_MAJOR_VERSION == 0 && GEGL_MINOR_VERSION == 4 && GEGL_MICRO_VERSION >= 14)
 

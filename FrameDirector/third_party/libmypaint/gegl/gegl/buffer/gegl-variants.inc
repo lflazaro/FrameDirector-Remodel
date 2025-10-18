@@ -1,9 +1,0 @@
-
-#if ARCH_X86_64
-GEGL_VARIANTS(x86_64_v2)
-GEGL_VARIANTS(x86_64_v3)
-#endif
-#if ARCH_ARM
-GEGL_VARIANTS(arm_neon)
-#endif
-

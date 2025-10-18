@@ -17,14 +17,13 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <third_party/libmypaint/gegl/gegl/gegl.h>
+#include <gegl.h>
 
 G_BEGIN_DECLS
 
 #include "mypaint-config.h"
 #include "glib/mypaint-gegl-glib.h"
 #include "mypaint-tiled-surface.h"
-#include "gegl/buffer/gegl-buffer.h"
 
 typedef struct MyPaintGeglTiledSurface MyPaintGeglTiledSurface;
 

@@ -139,15 +139,18 @@ mypaint_utils_stroke_player_iterate(MyPaintUtilsStrokePlayer *self)
         last_event_time = last_event->time;
     }
     const float dtime = event->time - last_event_time;
-
+    const float linear = FALSE;
     if (event->valid) {
         if (self->transaction_on_stroke) {
             mypaint_surface_begin_atomic(self->surface);
         }
 
-        mypaint_brush_stroke_to(
-            self->brush, self->surface, event->x * self->scale, event->y * self->scale, event->pressure, event->xtilt,
-            event->ytilt, dtime);
+        mypaint_brush_stroke_to(self->brush, self->surface,
+                                event->x*self->scale, event->y*self->scale,
+                                event->pressure,
+                                event->xtilt, event->ytilt, dtime,
+                                event->viewzoom, event->viewrotation,
+                                event->barrel_rotation, linear);
 
         if (self->transaction_on_stroke) {
             mypaint_surface_end_atomic(self->surface, NULL);

@@ -23,8 +23,6 @@
 #include "mypaint-glib-compat.h"
 #endif
 
-#include <stddef.h>
-
 G_BEGIN_DECLS
 
 typedef struct {

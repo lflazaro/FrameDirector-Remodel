@@ -58,10 +58,10 @@ introspection_sources = \
 	tilemap.c
 
 # CAUTION: some of these need to use the underscored API version string.
-MyPaint-@LIBMYPAINT_API_PLATFORM_VERSION@.gir: libmypaint.la Makefile
+MyPaint-@LIBMYPAINT_API_PLATFORM_VERSION@.gir: libmypaint-@LIBMYPAINT_API_PLATFORM_VERSION@.la Makefile
 MyPaint_@LIBMYPAINT_API_PLATFORM_VERSION_UL@_gir_INCLUDES = GObject-2.0 GLib-2.0
 MyPaint_@LIBMYPAINT_API_PLATFORM_VERSION_UL@_gir_CFLAGS = $(AM_CFLAGS) $(AM_CPPFLAGS)
-MyPaint_@LIBMYPAINT_API_PLATFORM_VERSION_UL@_gir_LIBS = libmypaint.la
+MyPaint_@LIBMYPAINT_API_PLATFORM_VERSION_UL@_gir_LIBS = libmypaint-@LIBMYPAINT_API_PLATFORM_VERSION@.la
 MyPaint_@LIBMYPAINT_API_PLATFORM_VERSION_UL@_gir_FILES = $(introspection_sources)
 INTROSPECTION_GIRS += MyPaint-@LIBMYPAINT_API_PLATFORM_VERSION@.gir
 
@@ -79,7 +79,7 @@ endif # HAVE_INTROSPECTION
 
 pkgconfigdir = $(libdir)/pkgconfig
 
-pkgconfig_DATA = libmypaint.pc
+pkgconfig_DATA = libmypaint-@LIBMYPAINT_API_PLATFORM_VERSION@.pc
 
 ## libmypaint-@LIBMYPAINT_API_PLATFORM_VERSION@ ##
 
@@ -87,14 +87,15 @@ AM_CFLAGS = $(JSON_CFLAGS) $(GLIB_CFLAGS) $(OPENMP_CFLAGS)
 
 LIBS = $(JSON_LIBS) $(GLIB_LIBS) @LIBS@
 
-lib_LTLIBRARIES = libmypaint.la
+lib_LTLIBRARIES = libmypaint-@LIBMYPAINT_API_PLATFORM_VERSION@.la
 
-libmypaint_la_LDFLAGS = \
+libmypaint_@LIBMYPAINT_API_PLATFORM_VERSION@_la_LDFLAGS = \
     -version-info @LIBMYPAINT_ABI_VERSION_INFO@ \
     -no-undefined
 
+#    -release @LIBMYPAINT_API_PLATFORM_VERSION@
 
-libmypaint_publicdir = $(includedir)/libmypaint
+libmypaint_publicdir = $(includedir)/libmypaint-$(LIBMYPAINT_API_PLATFORM_VERSION)
 
 nobase_libmypaint_public_HEADERS = \
 	mypaint-config.h				\
@@ -124,7 +125,7 @@ LIBMYPAINT_SOURCES = \
 	rng-double.c					\
 	tilemap.c
 
-libmypaint_la_SOURCES = $(libmypaint_public_HEADERS) $(LIBMYPAINT_SOURCES)
+libmypaint_@LIBMYPAINT_API_PLATFORM_VERSION@_la_SOURCES = $(libmypaint_public_HEADERS) $(LIBMYPAINT_SOURCES)
 
 DISTCLEANFILES = MyPaint-@LIBMYPAINT_API_PLATFORM_VERSION@.gir.files
 

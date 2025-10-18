@@ -1,8 +1,8 @@
 
 #include <stddef.h>
 
-#include <third_party/libmypaint/gegl/mypaint-gegl-surface.h>
-#include "third_party/libmypaint/tests/mypaint-test-surface.h"
+#include <mypaint-gegl-surface.h>
+#include "mypaint-test-surface.h"
 
 MyPaintSurface *
 gegl_surface_factory(gpointer user_data)
