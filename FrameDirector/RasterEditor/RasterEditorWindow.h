@@ -178,4 +178,3 @@ protected:
     QVector<BrushPreset> m_brushPresets;
     int m_activePresetIndex = -1;
 };
-

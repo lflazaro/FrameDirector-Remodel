@@ -58,28 +58,28 @@
 
 namespace
 {
-struct BlendModeOption
-{
-    const char* label;
-    QPainter::CompositionMode mode;
-};
+    struct BlendModeOption
+    {
+        const char* label;
+        QPainter::CompositionMode mode;
+    };
 
-constexpr BlendModeOption kBlendModes[] = {
-    { "Normal", QPainter::CompositionMode_SourceOver },
-    { "Multiply", QPainter::CompositionMode_Multiply },
-    { "Screen", QPainter::CompositionMode_Screen },
-    { "Overlay", QPainter::CompositionMode_Overlay },
-    { "Darken", QPainter::CompositionMode_Darken },
-    { "Lighten", QPainter::CompositionMode_Lighten },
-    { "Color Dodge", QPainter::CompositionMode_ColorDodge },
-    { "Color Burn", QPainter::CompositionMode_ColorBurn },
-    { "Hard Light", QPainter::CompositionMode_HardLight },
-    { "Soft Light", QPainter::CompositionMode_SoftLight },
-    { "Difference", QPainter::CompositionMode_Difference },
-    { "Exclusion", QPainter::CompositionMode_Exclusion }
-};
+    constexpr BlendModeOption kBlendModes[] = {
+        { "Normal", QPainter::CompositionMode_SourceOver },
+        { "Multiply", QPainter::CompositionMode_Multiply },
+        { "Screen", QPainter::CompositionMode_Screen },
+        { "Overlay", QPainter::CompositionMode_Overlay },
+        { "Darken", QPainter::CompositionMode_Darken },
+        { "Lighten", QPainter::CompositionMode_Lighten },
+        { "Color Dodge", QPainter::CompositionMode_ColorDodge },
+        { "Color Burn", QPainter::CompositionMode_ColorBurn },
+        { "Hard Light", QPainter::CompositionMode_HardLight },
+        { "Soft Light", QPainter::CompositionMode_SoftLight },
+        { "Difference", QPainter::CompositionMode_Difference },
+        { "Exclusion", QPainter::CompositionMode_Exclusion }
+    };
 
-constexpr int kDefaultBrushSize = 12;
+    constexpr int kDefaultBrushSize = 12;
 }
 
 RasterEditorWindow::RasterEditorWindow(QWidget* parent)
@@ -829,18 +829,18 @@ void RasterEditorWindow::onLayerItemChanged(QListWidgetItem* item)
         return;
     }
 
-    const int layerIndex = item->data(Qt::UserRole).toInt(-1);
-    if (layerIndex < 0 || layerIndex >= m_document->layerCount()) {
+    const int row = m_layerList->row(item);
+    if (row < 0 || row >= m_document->layerCount()) {
         return;
     }
 
-    const RasterLayer& layer = m_document->layerAt(layerIndex);
+    const RasterLayer& layer = m_document->layerAt(row);
     const bool visible = item->checkState() == Qt::Checked;
     if (layer.isVisible() != visible) {
-        m_document->setLayerVisible(layerIndex, visible);
+        m_document->setLayerVisible(row, visible);
     }
     if (layer.name() != item->text()) {
-        m_document->renameLayer(layerIndex, item->text());
+        m_document->renameLayer(row, item->text());
     }
 }
 
@@ -861,16 +861,9 @@ void RasterEditorWindow::onRemoveLayer()
         return;
     }
 
-    const int row = m_layerList ? m_layerList->currentRow() : -1;
-    if (row < 0) {
-        return;
-    }
-
-    if (QListWidgetItem* item = m_layerList->item(row)) {
-        const int layerIndex = item->data(Qt::UserRole).toInt(-1);
-        if (layerIndex >= 0) {
-            m_document->removeLayer(layerIndex);
-        }
+    const int row = m_layerList->currentRow();
+    if (row >= 0) {
+        m_document->removeLayer(row);
     }
 }
 
@@ -920,28 +913,10 @@ void RasterEditorWindow::onActiveLayerChanged(int index)
         return;
     }
 
-    if (m_layerList) {
-        const int currentRow = m_layerList->currentRow();
-        bool needsUpdate = true;
-        if (currentRow >= 0) {
-            if (QListWidgetItem* currentItem = m_layerList->item(currentRow)) {
-                needsUpdate = (currentItem->data(Qt::UserRole).toInt(-1) != index);
-            }
-        }
-
-        if (needsUpdate) {
-            QSignalBlocker blocker(m_layerList);
-            for (int row = 0; row < m_layerList->count(); ++row) {
-                if (QListWidgetItem* item = m_layerList->item(row)) {
-                    if (item->data(Qt::UserRole).toInt(-1) == index) {
-                        m_layerList->setCurrentRow(row);
-                        break;
-                    }
-                }
-            }
-        }
+    if (m_layerList && m_layerList->currentRow() != index) {
+        QSignalBlocker blocker(m_layerList);
+        m_layerList->setCurrentRow(index);
     }
-
 
     updateLayerInfo();
     updateLayerPropertiesUi();
@@ -1307,12 +1282,12 @@ void RasterEditorWindow::refreshProjectMetadata()
             }
         }
         return false;
-    };
+        };
 
     const QVector<RasterLayerDescriptor> descriptors = m_document->layerDescriptors();
     const bool documentHasContent = std::any_of(descriptors.begin(), descriptors.end(), [&](const RasterLayerDescriptor& descriptor) {
         return std::any_of(descriptor.frames.begin(), descriptor.frames.end(), frameHasContent);
-    });
+        });
 
     if (!documentHasContent) {
         m_layerMismatchWarned = false;
@@ -1321,7 +1296,7 @@ void RasterEditorWindow::refreshProjectMetadata()
 
     if (!m_layerMismatchWarned) {
         QMessageBox::warning(this, tr("Raster Editor"),
-                             tr("Project layers changed since the raster document was prepared. Please review layer assignments."));
+            tr("Project layers changed since the raster document was prepared. Please review layer assignments."));
         m_layerMismatchWarned = true;
     }
 }
@@ -1487,7 +1462,8 @@ void RasterEditorWindow::updateLayerInfo()
     m_layerInfoLabel->setText(text);
     if (nameMismatch) {
         m_layerInfoLabel->setStyleSheet(QStringLiteral("color: %1; font-weight: 600;").arg(palette().color(QPalette::Link).name()));
-    } else {
+    }
+    else {
         m_layerInfoLabel->setStyleSheet(QString());
     }
 }
@@ -1512,7 +1488,8 @@ void RasterEditorWindow::updateToolControls()
     RasterBrushTool* activeBrushTool = nullptr;
     if (isBrushTool) {
         activeBrushTool = m_brushTool;
-    } else if (isEraserTool) {
+    }
+    else if (isEraserTool) {
         activeBrushTool = m_eraserTool;
     }
 
@@ -1565,8 +1542,8 @@ void RasterEditorWindow::updateColorButton()
 
     const QColor textColor = (qGray(m_primaryColor.rgb()) < 128) ? Qt::white : Qt::black;
     const QString style = QStringLiteral("QPushButton { background-color: %1; color: %2; border: 1px solid palette(mid); padding: 6px 12px; }")
-                              .arg(m_primaryColor.name(QColor::HexArgb))
-                              .arg(textColor.name());
+        .arg(m_primaryColor.name(QColor::HexArgb))
+        .arg(textColor.name());
     m_colorButton->setStyleSheet(style);
     m_colorButton->setToolTip(tr("Current brush color: %1").arg(m_primaryColor.name(QColor::HexRgb).toUpper()));
 }
@@ -1655,4 +1632,3 @@ void RasterEditorWindow::closeEvent(QCloseEvent* event)
     event->ignore();
     hide();
 }
-

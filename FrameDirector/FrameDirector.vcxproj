@@ -155,6 +155,7 @@
     <ClCompile Include="third_party\libmypaint\mypaint.c" />
     <ClCompile Include="third_party\libmypaint\operationqueue.c" />
     <ClCompile Include="third_party\libmypaint\rng-double.c" />
+    <ClCompile Include="third_party\libmypaint\tests\mypaint-benchmark.c" />
     <ClCompile Include="third_party\libmypaint\tilemap.c" />
     <ClCompile Include="third_party\json-c\arraylist.c" />
     <ClCompile Include="third_party\json-c\debug.c" />
@@ -358,6 +359,9 @@
     <ClInclude Include="third_party\libmypaint\mypaint.h" />
     <ClInclude Include="third_party\libmypaint\operationqueue.h" />
     <ClInclude Include="third_party\libmypaint\rng-double.h" />
+    <ClInclude Include="third_party\libmypaint\tests\mypaint-benchmark.h" />
+    <ClInclude Include="third_party\libmypaint\tests\mypaint-utils-stroke-player.h" />
+    <ClInclude Include="third_party\libmypaint\tests\testutils.h" />
     <ClInclude Include="third_party\libmypaint\tiled-surface-private.h" />
     <ClInclude Include="third_party\libmypaint\tilemap.h" />
     <ClInclude Include="third_party\libmypaint\deps\glib-object.h" />
@@ -662,6 +666,16 @@
     <None Include="third_party\libmypaint\po\zh_TW.po" />
     <None Include="third_party\libmypaint\README.md" />
     <None Include="third_party\libmypaint\test-driver" />
+    <None Include="third_party\libmypaint\tests\.gitignore" />
+    <None Include="third_party\libmypaint\tests\brushes\bulk.myb" />
+    <None Include="third_party\libmypaint\tests\brushes\charcoal.myb" />
+    <None Include="third_party\libmypaint\tests\brushes\coarse_bulk_2.myb" />
+    <None Include="third_party\libmypaint\tests\brushes\impressionism.myb" />
+    <None Include="third_party\libmypaint\tests\brushes\modelling.myb" />
+    <None Include="third_party\libmypaint\tests\ctests.py" />
+    <None Include="third_party\libmypaint\tests\events\painting30sec.dat" />
+    <None Include="third_party\libmypaint\tests\Makefile.am" />
+    <None Include="third_party\libmypaint\tests\test_ctests.py" />
     <None Include="third_party\libmypaint\TODO" />
   </ItemGroup>
   <ItemGroup>
