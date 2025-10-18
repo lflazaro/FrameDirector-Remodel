@@ -4,11 +4,13 @@
 #include "RasterOnionSkinProvider.h"
 #include "RasterTools.h"
 
+#include <QCursor>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPen>
 #include <QPaintEvent>
 #include <QResizeEvent>
+#include <QSizePolicy>
 #include <QtMath>
 #include <QtGlobal>
 
@@ -48,6 +50,9 @@ RasterCanvasWidget::RasterCanvasWidget(QWidget* parent)
 {
     setAttribute(Qt::WA_OpaquePaintEvent);
     setMouseTracking(true);
+    setFocusPolicy(Qt::StrongFocus);
+    setCursor(Qt::CrossCursor);
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 }
 
 void RasterCanvasWidget::setDocument(RasterDocument* document)
