@@ -4,7 +4,8 @@
 #include <QPointer>
 #include <QWidget>
 
-class RasterDocument;
+#include "RasterDocument.h"
+
 class RasterTool;
 class RasterOnionSkinProvider;
 
