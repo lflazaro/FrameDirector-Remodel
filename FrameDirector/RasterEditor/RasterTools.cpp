@@ -191,9 +191,13 @@ RasterBrushTool::RasterBrushTool(QObject* parent)
     , m_lastPosition()
     , m_lastPointValid(false)
     , m_activeStroke(false)
+    , m_timer()
     , m_targetImage(nullptr)
     , m_brush(mypaint_brush_new())
     , m_useFallback(false)
+    , m_opacity(1.0f)
+    , m_hardness(1.0f)
+    , m_spacing(0.25f)
 {
     if (m_brush) {
         mypaint_brush_from_defaults(m_brush);
@@ -390,6 +394,46 @@ void RasterBrushTool::setSize(qreal size)
     updateBrushParameters();
 }
 
+void RasterBrushTool::setOpacity(float value)
+{
+    const float clamped = qBound(0.0f, value, 1.0f);
+    if (qFuzzyCompare(m_opacity, clamped)) {
+        return;
+    }
+
+    m_opacity = clamped;
+    if (m_brush) {
+        mypaint_brush_set_base_value(m_brush, MYPAINT_BRUSH_SETTING_OPAQUE, m_opacity);
+    }
+}
+
+void RasterBrushTool::setHardness(float value)
+{
+    const float clamped = qBound(0.0f, value, 1.0f);
+    if (qFuzzyCompare(m_hardness, clamped)) {
+        return;
+    }
+
+    m_hardness = clamped;
+    if (m_brush) {
+        mypaint_brush_set_base_value(m_brush, MYPAINT_BRUSH_SETTING_HARDNESS, m_hardness);
+    }
+}
+
+void RasterBrushTool::setSpacing(float value)
+{
+    const float clamped = qBound(0.01f, value, 5.0f);
+    if (qFuzzyCompare(m_spacing, clamped)) {
+        return;
+    }
+
+    m_spacing = clamped;
+    if (m_brush) {
+        const float dabsPerRadius = 1.0f / qMax(m_spacing, 0.01f);
+        mypaint_brush_set_base_value(m_brush, MYPAINT_BRUSH_SETTING_DABS_PER_ACTUAL_RADIUS, dabsPerRadius);
+    }
+}
+
 void RasterBrushTool::setEraserMode(bool eraser)
 {
     if (m_eraserMode == eraser) {
@@ -410,7 +454,10 @@ void RasterBrushTool::updateBrushParameters()
 
     const float radius = qMax<qreal>(m_size, 1.0);
     mypaint_brush_set_base_value(m_brush, MYPAINT_BRUSH_SETTING_RADIUS_LOGARITHMIC, std::log(radius));
-    mypaint_brush_set_base_value(m_brush, MYPAINT_BRUSH_SETTING_OPAQUE, 1.0f);
+    mypaint_brush_set_base_value(m_brush, MYPAINT_BRUSH_SETTING_OPAQUE, m_opacity);
+    mypaint_brush_set_base_value(m_brush, MYPAINT_BRUSH_SETTING_HARDNESS, m_hardness);
+    const float dabsPerRadius = 1.0f / qMax(m_spacing, 0.01f);
+    mypaint_brush_set_base_value(m_brush, MYPAINT_BRUSH_SETTING_DABS_PER_ACTUAL_RADIUS, dabsPerRadius);
 }
 
 RasterEraserTool::RasterEraserTool(QObject* parent)

@@ -59,6 +59,15 @@ public:
     void setSize(qreal size);
     qreal size() const { return m_size; }
 
+    void setOpacity(float value);
+    float opacity() const { return m_opacity; }
+
+    void setHardness(float value);
+    float hardness() const { return m_hardness; }
+
+    void setSpacing(float value);
+    float spacing() const { return m_spacing; }
+
     void setEraserMode(bool eraser);
     bool eraserMode() const { return m_eraserMode; }
 
@@ -84,6 +93,9 @@ private:
     QImage* m_targetImage;
     MyPaintBrush* m_brush;
     bool m_useFallback;
+    float m_opacity;
+    float m_hardness;
+    float m_spacing;
 };
 
 class RasterEraserTool : public RasterBrushTool
