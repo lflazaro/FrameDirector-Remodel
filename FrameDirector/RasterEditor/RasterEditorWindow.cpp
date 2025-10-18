@@ -19,6 +19,7 @@
 #include <QButtonGroup>
 #include <QCheckBox>
 #include <QFrame>
+#include <QFormLayout>
 #include <QColorDialog>
 #include <QComboBox>
 #include <QFileDialog>
@@ -120,6 +121,12 @@ RasterEditorWindow::RasterEditorWindow(QWidget* parent)
     m_brushTool->setSize(kDefaultBrushSize);
     m_brushTool->setColor(m_primaryColor);
     m_eraserTool->setSize(kDefaultBrushSize);
+    m_brushTool->setOpacity(1.0f);
+    m_brushTool->setHardness(1.0f);
+    m_brushTool->setSpacing(0.25f);
+    m_eraserTool->setOpacity(1.0f);
+    m_eraserTool->setHardness(1.0f);
+    m_eraserTool->setSpacing(0.25f);
     m_fillTool->setColor(m_primaryColor);
 
     initializeUi();
@@ -294,7 +301,7 @@ void RasterEditorWindow::initializeUi()
     connect(m_hardnessSlider, &QSlider::valueChanged, this, &RasterEditorWindow::onBrushHardnessChanged);
 
     m_spacingSlider = new QSlider(Qt::Horizontal, leftPanel);
-    m_spacingSlider->setRange(0, 200);
+    m_spacingSlider->setRange(1, 200);
     m_spacingSlider->setValue(25);
     m_spacingValue = new QLabel("25%", leftPanel);
     m_spacingValue->setMinimumWidth(35);
@@ -506,31 +513,50 @@ void RasterEditorWindow::onBrushSelected(int index)
 
 void RasterEditorWindow::onBrushOpacityChanged(int value)
 {
+    const int clamped = qBound(0, value, 100);
     if (m_opacityValue) {
-        m_opacityValue->setText(QString::number(value) + "%");
+        m_opacityValue->setText(QString::number(clamped) + "%");
     }
-    if (m_brushTool && m_brush) {
-        mypaint_brush_set_base_value(m_brush, MYPAINT_BRUSH_SETTING_OPAQUE, value / 100.0f);
+    const float normalized = clamped / 100.0f;
+    if (m_brushTool) {
+        m_brushTool->setOpacity(normalized);
+    }
+    if (m_eraserTool) {
+        m_eraserTool->setOpacity(normalized);
     }
 }
 
 void RasterEditorWindow::onBrushHardnessChanged(int value)
 {
+    const int clamped = qBound(0, value, 100);
     if (m_hardnessValue) {
-        m_hardnessValue->setText(QString::number(value) + "%");
+        m_hardnessValue->setText(QString::number(clamped) + "%");
     }
-    if (m_brushTool && m_brush) {
-        mypaint_brush_set_base_value(m_brush, MYPAINT_BRUSH_SETTING_HARDNESS, value / 100.0f);
+    const float normalized = clamped / 100.0f;
+    if (m_brushTool) {
+        m_brushTool->setHardness(normalized);
+    }
+    if (m_eraserTool) {
+        m_eraserTool->setHardness(normalized);
     }
 }
 
 void RasterEditorWindow::onBrushSpacingChanged(int value)
 {
-    if (m_spacingValue) {
-        m_spacingValue->setText(QString::number(value) + "%");
+    const int clamped = qMax(1, value);
+    if (m_spacingSlider && clamped != value) {
+        QSignalBlocker blocker(m_spacingSlider);
+        m_spacingSlider->setValue(clamped);
     }
-    if (m_brushTool && m_brush) {
-        mypaint_brush_set_base_value(m_brush, MYPAINT_BRUSH_SETTING_SPACING, value / 100.0f);
+    if (m_spacingValue) {
+        m_spacingValue->setText(QString::number(clamped) + "%");
+    }
+    const float spacingRatio = clamped / 100.0f;
+    if (m_brushTool) {
+        m_brushTool->setSpacing(spacingRatio);
+    }
+    if (m_eraserTool) {
+        m_eraserTool->setSpacing(spacingRatio);
     }
 }
 
@@ -1314,6 +1340,54 @@ void RasterEditorWindow::updateToolControls()
     }
     if (m_colorButton) {
         m_colorButton->setEnabled(!isEraserTool);
+    }
+
+    const bool brushSettingsEnabled = isBrushTool || isEraserTool;
+    RasterBrushTool* activeBrushTool = nullptr;
+    if (isBrushTool) {
+        activeBrushTool = m_brushTool;
+    } else if (isEraserTool) {
+        activeBrushTool = m_eraserTool;
+    }
+
+    if (m_opacitySlider) {
+        m_opacitySlider->setEnabled(brushSettingsEnabled);
+        if (activeBrushTool) {
+            QSignalBlocker blocker(m_opacitySlider);
+            m_opacitySlider->setValue(qRound(activeBrushTool->opacity() * 100.0f));
+        }
+    }
+    if (m_opacityValue) {
+        m_opacityValue->setEnabled(brushSettingsEnabled);
+        if (activeBrushTool) {
+            m_opacityValue->setText(QString::number(qRound(activeBrushTool->opacity() * 100.0f)) + QStringLiteral("%"));
+        }
+    }
+    if (m_hardnessSlider) {
+        m_hardnessSlider->setEnabled(brushSettingsEnabled);
+        if (activeBrushTool) {
+            QSignalBlocker blocker(m_hardnessSlider);
+            m_hardnessSlider->setValue(qRound(activeBrushTool->hardness() * 100.0f));
+        }
+    }
+    if (m_hardnessValue) {
+        m_hardnessValue->setEnabled(brushSettingsEnabled);
+        if (activeBrushTool) {
+            m_hardnessValue->setText(QString::number(qRound(activeBrushTool->hardness() * 100.0f)) + QStringLiteral("%"));
+        }
+    }
+    if (m_spacingSlider) {
+        m_spacingSlider->setEnabled(brushSettingsEnabled);
+        if (activeBrushTool) {
+            QSignalBlocker blocker(m_spacingSlider);
+            m_spacingSlider->setValue(qRound(activeBrushTool->spacing() * 100.0f));
+        }
+    }
+    if (m_spacingValue) {
+        m_spacingValue->setEnabled(brushSettingsEnabled);
+        if (activeBrushTool) {
+            m_spacingValue->setText(QString::number(qRound(activeBrushTool->spacing() * 100.0f)) + QStringLiteral("%"));
+        }
     }
 }
 

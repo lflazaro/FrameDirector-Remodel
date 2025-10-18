@@ -9,7 +9,6 @@
 #include <QByteArray>
 
 #include "RasterDocument.h"
-#include <third_party/libmypaint/mypaint-brush.h>
 
 class QCheckBox;
 class QButtonGroup;
@@ -152,6 +151,5 @@ private:
     QSlider* m_spacingSlider;             // Brush spacing
     QLabel* m_spacingValue;               // Spacing display
     QLabel* m_statusLabel;                // Status indicator
-    MyPaintBrush* m_brush;                // LibMyPaint brush instance
 };
 
