@@ -33,7 +33,7 @@
  *
  * Returns a pointer to the allocated memory.
  */
-gpointer   gegl_malloc         (gsize         n_bytes) G_GNUC_MALLOC;
+gpointer   gegl_malloc(gsize         n_bytes) { G_GNUC_MALLOC; }
 
 /**
  * gegl_try_malloc: (skip)
@@ -44,7 +44,7 @@ gpointer   gegl_malloc         (gsize         n_bytes) G_GNUC_MALLOC;
  *
  * Returns a pointer to the allocated memory, or NULL.
  */
-gpointer   gegl_try_malloc     (gsize         n_bytes) G_GNUC_MALLOC;
+gpointer   gegl_try_malloc(gsize         n_bytes) { G_GNUC_MALLOC; }
 
 /**
  * gegl_free: (skip)
@@ -62,7 +62,9 @@ void       gegl_free           (gpointer      mem);
  * allocated 0'd memory.
  */
 gpointer   gegl_calloc         (gsize         size,
-                                gint          n_memb) G_GNUC_MALLOC;
+                                gint          n_memb) {
+    G_GNUC_MALLOC;
+}
 
 /**
  * gegl_memeq_zero: (skip)

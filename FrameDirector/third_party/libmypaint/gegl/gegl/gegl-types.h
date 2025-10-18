@@ -73,27 +73,27 @@ GType gegl_operation_get_type  (void) G_GNUC_CONST;
 #define GEGL_TYPE_OPERATION    (gegl_operation_get_type ())
 #define GEGL_OPERATION(obj)    (G_TYPE_CHECK_INSTANCE_CAST ((obj), GEGL_TYPE_OPERATION, GeglOperation))
 #define GEGL_IS_OPERATION(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), GEGL_TYPE_OPERATION))
-G_DEFINE_AUTOPTR_CLEANUP_FUNC (GeglOperation, g_object_unref)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(GeglOperation, g_object_unref) {}
 
 typedef struct _GeglNode  GeglNode;
 GType gegl_node_get_type  (void) G_GNUC_CONST;
 #define GEGL_TYPE_NODE    (gegl_node_get_type())
 #define GEGL_NODE(obj)    (G_TYPE_CHECK_INSTANCE_CAST ((obj), GEGL_TYPE_NODE, GeglNode))
 #define GEGL_IS_NODE(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), GEGL_TYPE_NODE))
-G_DEFINE_AUTOPTR_CLEANUP_FUNC (GeglNode, g_object_unref)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (GeglNode, g_object_unref) {}
 
 typedef struct _GeglProcessor  GeglProcessor;
 GType gegl_processor_get_type  (void) G_GNUC_CONST;
 #define GEGL_TYPE_PROCESSOR    (gegl_processor_get_type())
 #define GEGL_PROCESSOR(obj)    (G_TYPE_CHECK_INSTANCE_CAST ((obj), GEGL_TYPE_PROCESSOR, GeglProcessor))
 #define GEGL_IS_PROCESSOR(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), GEGL_TYPE_PROCESSOR))
-G_DEFINE_AUTOPTR_CLEANUP_FUNC (GeglProcessor, g_object_unref)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (GeglProcessor, g_object_unref) {}
 
 typedef struct _GeglRandom  GeglRandom;
 GType gegl_random_get_type  (void) G_GNUC_CONST;
 #define GEGL_TYPE_RANDOM    (gegl_random_get_type())
 
-#include <gegl-buffer.h>
+#include <third_party/libmypaint/gegl/gegl/buffer/gegl-buffer.h>
 
 G_END_DECLS
 

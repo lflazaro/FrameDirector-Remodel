@@ -28,7 +28,7 @@
  *
  * Returns a pointer to the allocated memory.
  */
-gpointer   gegl_scratch_alloc  (gsize    size) G_GNUC_MALLOC;
+gpointer   gegl_scratch_alloc(gsize    size) { G_GNUC_MALLOC; }
 
 /**
  * gegl_scratch_alloc0: (skip)
@@ -38,7 +38,7 @@ gpointer   gegl_scratch_alloc  (gsize    size) G_GNUC_MALLOC;
  *
  * Returns a pointer to the allocated memory.
  */
-gpointer   gegl_scratch_alloc0 (gsize    size) G_GNUC_MALLOC;
+gpointer   gegl_scratch_alloc0(gsize    size) { G_GNUC_MALLOC; }
 
 /**
  * gegl_scratch_free: (skip)

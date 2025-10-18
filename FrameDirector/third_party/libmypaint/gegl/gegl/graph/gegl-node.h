@@ -84,9 +84,11 @@ GeglNode     * gegl_node_new             (void);
  * g_object_ref/g_object_unref, but in general relying on the parents reference
  * counting is easiest.)
  */
-GeglNode    * gegl_node_new_child        (GeglNode      *parent,
-                                          const gchar   *first_property_name,
-                                          ...) G_GNUC_NULL_TERMINATED;
+GeglNode* gegl_node_new_child(GeglNode* parent,
+    const gchar* first_property_name,
+    ...) {
+    G_GNUC_NULL_TERMINATED;
+}
 
 /***
  * Making connections:
@@ -112,11 +114,13 @@ GeglNode    * gegl_node_new_child        (GeglNode      *parent,
  * Returns TRUE if the connection was successfully made.
  */
 
-gboolean      gegl_node_connect_from     (GeglNode      *sink,
-                                          const gchar   *input_pad_name,
-                                          GeglNode      *source,
-                                          const gchar   *output_pad_name)
-G_DEPRECATED_FOR (gegl_node_connect or gegl_node_link if pads are "input" and "output");
+gboolean      gegl_node_connect_from(GeglNode* sink,
+    const gchar* input_pad_name,
+    GeglNode* source,
+    const gchar* output_pad_name)
+{
+    G_DEPRECATED_FOR(gegl_node_connect /* or gegl_node_link if pads are "input" and "output" */);
+}
 
 /**
  * gegl_node_connect_to:
@@ -129,11 +133,13 @@ G_DEPRECATED_FOR (gegl_node_connect or gegl_node_link if pads are "input" and "o
  *
  * Returns TRUE if the connection was successfully made.
  */
-gboolean      gegl_node_connect_to       (GeglNode      *source,
-                                          const gchar   *output_pad_name,
-                                          GeglNode      *sink,
-                                          const gchar   *input_pad_name)
-G_DEPRECATED_FOR (gegl_node_connect or gegl_node_link if pads are "output" and "input");
+gboolean      gegl_node_connect_to(GeglNode* source,
+    const gchar* output_pad_name,
+    GeglNode* sink,
+    const gchar* input_pad_name)
+{
+    G_DEPRECATED_FOR(gegl_node_connect);
+}
 
 /**
  * gegl_node_connect:
@@ -171,9 +177,11 @@ void          gegl_node_link             (GeglNode      *source,
  * Synthetic sugar for linking a chain of nodes with "output"->"input". The
  * list is NULL terminated.
  */
-void          gegl_node_link_many        (GeglNode      *source,
-                                          GeglNode      *first_sink,
-                                          ...) G_GNUC_NULL_TERMINATED;
+void          gegl_node_link_many(GeglNode* source,
+    GeglNode* first_sink,
+    ...) {
+    G_GNUC_NULL_TERMINATED;
+}
 
 /**
  * gegl_node_disconnect:
@@ -216,9 +224,11 @@ gboolean      gegl_node_disconnect       (GeglNode      *node,
  *                      "contrast",   2.0,
  *                      NULL);
  */
-void          gegl_node_set              (GeglNode      *node,
-                                          const gchar   *first_property_name,
-                                          ...) G_GNUC_NULL_TERMINATED;
+void          gegl_node_set(GeglNode* node,
+    const gchar* first_property_name,
+    ...) {
+    G_GNUC_NULL_TERMINATED;
+}
 
 /**
  * gegl_node_set_valist:
@@ -248,9 +258,11 @@ void          gegl_node_set_valist       (GeglNode      *node,
  * gegl_node_get (png_save, "path", &path, NULL);
  * gegl_node_get (threshold, "level", &level, NULL);
  */
-void          gegl_node_get              (GeglNode      *node,
-                                          const gchar   *first_property_name,
-                                          ...) G_GNUC_NULL_TERMINATED;
+void          gegl_node_get(GeglNode* node,
+    const gchar* first_property_name,
+    ...) {
+    G_GNUC_NULL_TERMINATED;
+}
 
 /**
  * gegl_node_get_valist:
