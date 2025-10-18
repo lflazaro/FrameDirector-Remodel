@@ -10,3 +10,26 @@ GType g_boxed_type_register_static(const char *name,
     (void)boxed_free;
     return next_type++;
 }
+
+gpointer g_object_ref(gpointer object)
+{
+    GObject *obj = (GObject *)object;
+    if (obj)
+    {
+        obj->ref_count++;
+    }
+    return object;
+}
+
+void g_object_unref(gpointer object)
+{
+    GObject *obj = (GObject *)object;
+    if (!obj)
+    {
+        return;
+    }
+    if (obj->ref_count > 0)
+    {
+        obj->ref_count--;
+    }
+}
