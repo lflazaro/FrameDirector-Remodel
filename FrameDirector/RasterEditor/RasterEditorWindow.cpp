@@ -24,6 +24,7 @@
 #include <QDoubleSpinBox>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QDirIterator>
 #include <QFormLayout>
 #include <QFrame>
 #include <QGridLayout>
@@ -48,13 +49,18 @@
 #include <QGraphicsScene>
 #include <QUndoStack>
 #include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonValue>
+#include <QStringList>
 #include <QUuid>
 #include <QStyle>
 #include <QRgb>
+#include <QRegularExpression>
 #include <QtGlobal>
 #include <QPalette>
 #include <iterator>
 #include <algorithm>
+#include <cmath>
 
 namespace
 {
@@ -80,6 +86,41 @@ namespace
     };
 
     constexpr int kDefaultBrushSize = 12;
+    constexpr float kDefaultBrushOpacity = 1.0f;
+    constexpr float kDefaultBrushHardness = 1.0f;
+    constexpr float kDefaultBrushSpacing = 0.25f;
+
+    QString formatBrushName(const QString& baseName)
+    {
+        QString cleaned = baseName;
+        cleaned.replace(QRegularExpression(QStringLiteral("[_-]+")), QStringLiteral(" "));
+        QStringList parts = cleaned.split(QRegularExpression(QStringLiteral("\\s+")), Qt::SkipEmptyParts);
+        for (QString& part : parts) {
+            if (!part.isEmpty()) {
+                part[0] = part[0].toUpper();
+                for (int i = 1; i < part.size(); ++i) {
+                    part[i] = part[i].toLower();
+                }
+            }
+        }
+        if (parts.isEmpty()) {
+            return baseName;
+        }
+        return parts.join(QLatin1Char(' '));
+    }
+
+    double readBrushSetting(const QJsonObject& settings, const QString& key, double fallback)
+    {
+        const QJsonValue value = settings.value(key);
+        if (!value.isObject()) {
+            return fallback;
+        }
+        const QJsonValue baseValue = value.toObject().value(QStringLiteral("base_value"));
+        if (!baseValue.isDouble()) {
+            return fallback;
+        }
+        return baseValue.toDouble();
+    }
 }
 
 RasterEditorWindow::RasterEditorWindow(QWidget* parent)
@@ -497,84 +538,87 @@ void RasterEditorWindow::loadAvailableBrushes()
     m_brushPresets.clear();
     m_brushSelector->clear();
 
-    BrushPreset standard;
-    standard.name = tr("Standard Round");
-    standard.size = 12.0f;
-    standard.opacity = 1.0f;
-    standard.hardness = 0.85f;
-    standard.spacing = 0.22f;
-    standard.brushResource = QStringLiteral(":/brushes/bulk.myb");
-    standard.settings = {
-        { MYPAINT_BRUSH_SETTING_ANTI_ALIASING, 1.0f },
-        { MYPAINT_BRUSH_SETTING_DABS_PER_SECOND, 0.0f }
-    };
-    m_brushPresets.push_back(standard);
+    QVector<BrushPreset> loadedPresets;
+    QDirIterator it(QStringLiteral(":/brushes"), QStringList() << QStringLiteral("*.myb"), QDir::Files, QDirIterator::NoIteratorFlags);
+    while (it.hasNext()) {
+        const QString resourcePath = it.next();
+        QFile file(resourcePath);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            qWarning() << "Failed to open brush definition" << resourcePath;
+            continue;
+        }
 
-    BrushPreset soft;
-    soft.name = tr("Soft Shader");
-    soft.size = 28.0f;
-    soft.opacity = 0.65f;
-    soft.hardness = 0.2f;
-    soft.spacing = 0.18f;
-    soft.brushResource = QStringLiteral(":/brushes/impressionism.myb");
-    soft.settings = {
-        { MYPAINT_BRUSH_SETTING_OPAQUE_MULTIPLY, 0.35f },
-        { MYPAINT_BRUSH_SETTING_RADIUS_BY_RANDOM, 0.08f },
-        { MYPAINT_BRUSH_SETTING_SMUDGE, 0.18f },
-        { MYPAINT_BRUSH_SETTING_SMUDGE_LENGTH, 0.3f }
-    };
-    m_brushPresets.push_back(soft);
+        const QByteArray data = file.readAll();
+        file.close();
 
-    BrushPreset charcoal;
-    charcoal.name = tr("Charcoal");
-    charcoal.size = 36.0f;
-    charcoal.opacity = 0.8f;
-    charcoal.hardness = 0.35f;
-    charcoal.spacing = 1.2f;
-    charcoal.brushResource = QStringLiteral(":/brushes/charcoal.myb");
-    charcoal.settings = {
-        { MYPAINT_BRUSH_SETTING_DABS_PER_SECOND, 8.0f },
-        { MYPAINT_BRUSH_SETTING_RADIUS_BY_RANDOM, 0.45f },
-        { MYPAINT_BRUSH_SETTING_OPAQUE_MULTIPLY, 0.6f },
-        { MYPAINT_BRUSH_SETTING_TRACKING_NOISE, 0.2f }
-    };
-    m_brushPresets.push_back(charcoal);
+        BrushPreset preset;
+        preset.brushResource = resourcePath;
+        preset.settings.clear();
 
-    BrushPreset watercolor;
-    watercolor.name = tr("Watercolor Wash");
-    watercolor.size = 42.0f;
-    watercolor.opacity = 0.55f;
-    watercolor.hardness = 0.25f;
-    watercolor.spacing = 0.4f;
-    watercolor.brushResource = QStringLiteral(":/brushes/coarse_bulk_2.myb");
-    watercolor.settings = {
-        { MYPAINT_BRUSH_SETTING_SMUDGE, 0.6f },
-        { MYPAINT_BRUSH_SETTING_SMUDGE_LENGTH, 0.45f },
-        { MYPAINT_BRUSH_SETTING_SMUDGE_TRANSPARENCY, 0.2f },
-        { MYPAINT_BRUSH_SETTING_OPAQUE_MULTIPLY, 0.25f }
-    };
-    m_brushPresets.push_back(watercolor);
+        const QFileInfo info(resourcePath);
+        preset.name = formatBrushName(info.baseName());
+        if (preset.name.isEmpty()) {
+            preset.name = info.fileName();
+        }
 
-    BrushPreset marker;
-    marker.name = tr("Marker");
-    marker.size = 18.0f;
-    marker.opacity = 0.9f;
-    marker.hardness = 0.7f;
-    marker.spacing = 0.12f;
-    marker.brushResource = QStringLiteral(":/brushes/modelling.myb");
-    marker.settings = {
-        { MYPAINT_BRUSH_SETTING_LOCK_ALPHA, 0.0f },
-        { MYPAINT_BRUSH_SETTING_OPAQUE_LINEARIZE, 0.6f },
-        { MYPAINT_BRUSH_SETTING_DABS_PER_ACTUAL_RADIUS, 2.8f }
-    };
-    m_brushPresets.push_back(marker);
+        preset.size = kDefaultBrushSize;
+        preset.opacity = kDefaultBrushOpacity;
+        preset.hardness = kDefaultBrushHardness;
+        preset.spacing = kDefaultBrushSpacing;
+
+        QJsonParseError parseError;
+        const QJsonDocument document = QJsonDocument::fromJson(data, &parseError);
+        if (parseError.error == QJsonParseError::NoError && document.isObject()) {
+            const QJsonObject settings = document.object().value(QStringLiteral("settings")).toObject();
+
+            const double radiusLog = readBrushSetting(settings, QStringLiteral("radius_logarithmic"), std::log(static_cast<double>(kDefaultBrushSize)));
+            const double resolvedRadius = std::exp(radiusLog);
+            if (resolvedRadius > 0.0) {
+                preset.size = static_cast<qreal>(qBound(1.0, resolvedRadius, 200.0));
+            }
+
+            const double opacityValue = readBrushSetting(settings, QStringLiteral("opaque"), kDefaultBrushOpacity);
+            preset.opacity = qBound(0.0f, static_cast<float>(opacityValue), 1.0f);
+
+            const double hardnessValue = readBrushSetting(settings, QStringLiteral("hardness"), kDefaultBrushHardness);
+            preset.hardness = qBound(0.0f, static_cast<float>(hardnessValue), 1.0f);
+
+            const double defaultDabs = 1.0 / std::max(static_cast<double>(kDefaultBrushSpacing), 0.01);
+            const double dabsValue = readBrushSetting(settings, QStringLiteral("dabs_per_actual_radius"), defaultDabs);
+            if (dabsValue > 0.0) {
+                const float spacing = static_cast<float>(1.0 / dabsValue);
+                preset.spacing = qBound(0.01f, spacing, 2.0f);
+            }
+        } else {
+            qWarning() << "Failed to parse brush" << resourcePath << parseError.errorString();
+        }
+
+        loadedPresets.push_back(preset);
+    }
+
+    std::sort(loadedPresets.begin(), loadedPresets.end(), [](const BrushPreset& a, const BrushPreset& b) {
+        return a.name.toLower() < b.name.toLower();
+    });
+
+    if (loadedPresets.isEmpty()) {
+        BrushPreset fallback;
+        fallback.name = tr("Standard Round");
+        fallback.size = kDefaultBrushSize;
+        fallback.opacity = kDefaultBrushOpacity;
+        fallback.hardness = kDefaultBrushHardness;
+        fallback.spacing = kDefaultBrushSpacing;
+        fallback.brushResource.clear();
+        fallback.settings.clear();
+        loadedPresets.push_back(fallback);
+    }
+
+    m_brushPresets = loadedPresets;
 
     for (const BrushPreset& preset : m_brushPresets) {
         m_brushSelector->addItem(preset.name);
     }
 
     if (!m_brushPresets.isEmpty()) {
-        m_brushSelector->setCurrentIndex(0);
         applyBrushPreset(0);
     }
 }
