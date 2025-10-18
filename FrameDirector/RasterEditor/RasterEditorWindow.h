@@ -9,6 +9,7 @@
 #include <QByteArray>
 
 #include "RasterDocument.h"
+#include <third_party/libmypaint/mypaint-brush.h>
 
 class QCheckBox;
 class QButtonGroup;
@@ -79,6 +80,10 @@ private slots:
     void onProjectFrameStructureChanged();
     void onTimelineLengthChanged(int frames);
     void onTimelineFrameChanged(int frame);
+    void onBrushSelected(int index);
+    void onBrushOpacityChanged(int value);
+    void onBrushHardnessChanged(int value);
+    void onBrushSpacingChanged(int value);
 
 private:
     void initializeUi();
@@ -96,6 +101,7 @@ private:
     int clampProjectFrame(int frame) const;
     QList<QGraphicsItem*> rasterItemsForFrame(int layerIndex, int frame) const;
     QByteArray serializeDocumentState() const;
+    void loadAvailableBrushes();
 
     QPointer<RasterDocument> m_document;
     RasterCanvasWidget* m_canvasWidget;
@@ -136,5 +142,16 @@ private:
     bool m_layerMismatchWarned;
     bool m_projectContextInitialized;
     QString m_sessionId;
+
+
+    QComboBox* m_brushSelector;           // Brush selection dropdown
+    QSlider* m_opacitySlider;             // Brush opacity
+    QLabel* m_opacityValue;               // Opacity display
+    QSlider* m_hardnessSlider;            // Brush hardness
+    QLabel* m_hardnessValue;              // Hardness display
+    QSlider* m_spacingSlider;             // Brush spacing
+    QLabel* m_spacingValue;               // Spacing display
+    QLabel* m_statusLabel;                // Status indicator
+    MyPaintBrush* m_brush;                // LibMyPaint brush instance
 };
 
