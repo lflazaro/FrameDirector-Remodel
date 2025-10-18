@@ -3733,9 +3733,6 @@ void MainWindow::setRasterEditorVisible(bool visible)
     }
 
     if (visible) {
-        if (!m_rasterEditorWindow->isFloating()) {
-            m_rasterEditorWindow->setFloating(true);
-        }
         m_rasterEditorWindow->show();
         m_rasterEditorWindow->raise();
         m_rasterEditorWindow->activateWindow();
@@ -4306,14 +4303,10 @@ void MainWindow::createDockWindows()
     addDockWidget(Qt::RightDockWidgetArea, m_propertiesDock);
 
     m_rasterEditorWindow = new RasterEditorWindow(this);
-    m_rasterEditorWindow->setFeatures(QDockWidget::DockWidgetClosable | QDockWidget::DockWidgetFloatable);
-    addDockWidget(Qt::RightDockWidgetArea, m_rasterEditorWindow);
-    m_rasterEditorWindow->setAllowedAreas(Qt::NoDockWidgetArea);
-    m_rasterEditorWindow->setFloating(true);
     m_rasterEditorWindow->resize(980, 720);
     m_rasterEditorWindow->hide();
     m_rasterEditorWindow->setProjectContext(this, m_canvas, m_timeline, m_layerManager);
-    connect(m_rasterEditorWindow, &QDockWidget::visibilityChanged, this, &MainWindow::onRasterEditorVisibilityChanged);
+    connect(m_rasterEditorWindow, &RasterEditorWindow::visibilityChanged, this, &MainWindow::onRasterEditorVisibilityChanged);
     if (m_openRasterEditorAction) {
         QSignalBlocker blocker(m_openRasterEditorAction);
         m_openRasterEditorAction->setChecked(false);

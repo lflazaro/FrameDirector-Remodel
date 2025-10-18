@@ -14,34 +14,38 @@
 #include "../Commands/UndoCommands.h"
 #include "../Common/GraphicsItemRoles.h"
 
-#include <QAbstractItemView>
 #include <QAbstractButton>
+#include <QAbstractItemView>
 #include <QButtonGroup>
 #include <QCheckBox>
-#include <QFrame>
-#include <QFormLayout>
+#include <QCloseEvent>
 #include <QColorDialog>
 #include <QComboBox>
+#include <QDoubleSpinBox>
 #include <QFileDialog>
 #include <QFileInfo>
-#include <QDoubleSpinBox>
+#include <QFormLayout>
+#include <QFrame>
 #include <QGridLayout>
+#include <QHideEvent>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QListWidget>
 #include <QListWidgetItem>
 #include <QMessageBox>
-#include <QSplitter>
 #include <QPushButton>
+#include <QShowEvent>
 #include <QSignalBlocker>
+#include <QSizePolicy>
 #include <QSlider>
 #include <QSpinBox>
+#include <QSplitter>
 #include <QToolButton>
-#include <QSizePolicy>
 #include <QVBoxLayout>
 #include <QVariant>
-#include <QGraphicsPixmapItem>
 #include <QGraphicsItem>
+#include <QGraphicsPixmapItem>
+#include <QGraphicsScene>
 #include <QUndoStack>
 #include <QJsonDocument>
 #include <QUuid>
@@ -79,7 +83,7 @@ constexpr int kDefaultBrushSize = 12;
 }
 
 RasterEditorWindow::RasterEditorWindow(QWidget* parent)
-    : QDockWidget(QObject::tr("Raster Editor"), parent)
+    : QMainWindow(parent, Qt::Window)
     , m_document(new RasterDocument(this))
     , m_canvasWidget(nullptr)
     , m_brushTool(new RasterBrushTool(this))
@@ -115,8 +119,9 @@ RasterEditorWindow::RasterEditorWindow(QWidget* parent)
     , m_sessionId(QUuid::createUuid().toString(QUuid::WithoutBraces))
 {
     setObjectName(QStringLiteral("RasterEditorWindow"));
-    setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable);
-    setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
+    setWindowTitle(tr("Raster Editor"));
+    setWindowFlags(windowFlags() | Qt::WindowMinMaxButtonsHint | Qt::WindowCloseButtonHint);
+    setAttribute(Qt::WA_DeleteOnClose, false);
 
     m_brushTool->setSize(kDefaultBrushSize);
     m_brushTool->setColor(m_primaryColor);
@@ -146,7 +151,7 @@ RasterEditorWindow::RasterEditorWindow(QWidget* parent)
 void RasterEditorWindow::initializeUi()
 {
     QWidget* container = new QWidget(this);
-    setWidget(container);
+    setCentralWidget(container);
     container->setStyleSheet(
         "QWidget { background-color: #2D2D30; color: #FFFFFF; }"
         "QLabel { color: #FFFFFF; }"
@@ -235,25 +240,6 @@ void RasterEditorWindow::initializeUi()
     toolButtonLayout->addWidget(m_colorButton);
     headerLayout->addLayout(toolButtonLayout);
 
-    // Brush selector
-    QFrame* brushSelectorFrame = new QFrame(headerFrame);
-    QHBoxLayout* brushSelectorLayout = new QHBoxLayout(brushSelectorFrame);
-    brushSelectorLayout->setContentsMargins(0, 0, 0, 0);
-    brushSelectorLayout->setSpacing(8);
-    QLabel* brushLabel = new QLabel(tr("Brush"), brushSelectorFrame);
-    brushLabel->setStyleSheet("font-weight: 600; font-size: 11px;");
-    m_brushSelector = new QComboBox(brushSelectorFrame);
-    m_brushSelector->setMinimumHeight(28);
-    m_brushSelector->setStyleSheet(
-        "QComboBox { padding: 4px 8px; border-radius: 3px; }"
-        "QComboBox::drop-down { border: none; }"
-    );
-    connect(m_brushSelector, QOverload<int>::of(&QComboBox::currentIndexChanged),
-        this, &RasterEditorWindow::onBrushSelected);
-    brushSelectorLayout->addWidget(brushLabel);
-    brushSelectorLayout->addWidget(m_brushSelector, 1);
-    headerLayout->addLayout(brushSelectorLayout);
-
     mainLayout->addWidget(headerFrame);
 
     // === MAIN CONTENT: Canvas + Side Panels ===
@@ -327,6 +313,28 @@ void RasterEditorWindow::initializeUi()
     m_projectOnionCheck->setToolTip(tr("Overlay project frames when onion skinning."));
     connect(m_projectOnionCheck, &QCheckBox::toggled, this, &RasterEditorWindow::onProjectOnionToggled);
     leftLayout->addWidget(m_projectOnionCheck);
+
+    QFrame* brushPresetFrame = new QFrame(leftPanel);
+    QVBoxLayout* brushPresetLayout = new QVBoxLayout(brushPresetFrame);
+    brushPresetLayout->setContentsMargins(0, 0, 0, 0);
+    brushPresetLayout->setSpacing(4);
+    QLabel* brushLabel = new QLabel(tr("Brush Preset"), brushPresetFrame);
+    brushLabel->setStyleSheet("font-weight: 600; font-size: 11px;");
+    m_brushSelector = new QComboBox(brushPresetFrame);
+    m_brushSelector->setMinimumHeight(28);
+    m_brushSelector->setStyleSheet(
+        "QComboBox { padding: 4px 8px; border-radius: 3px; }"
+        "QComboBox::drop-down { border: none; }"
+    );
+    connect(m_brushSelector, QOverload<int>::of(&QComboBox::currentIndexChanged),
+        this, &RasterEditorWindow::onBrushSelected);
+    m_statusLabel = new QLabel(brushPresetFrame);
+    m_statusLabel->setStyleSheet("color: #C8C8C8; font-size: 11px;");
+    m_statusLabel->setText(tr("Brush: %1").arg(tr("Standard")));
+    brushPresetLayout->addWidget(brushLabel);
+    brushPresetLayout->addWidget(m_brushSelector);
+    brushPresetLayout->addWidget(m_statusLabel);
+    leftLayout->addWidget(brushPresetFrame);
 
     QFormLayout* onionForm = new QFormLayout();
     onionForm->setContentsMargins(0, 0, 0, 0);
@@ -482,33 +490,161 @@ void RasterEditorWindow::initializeUi()
 
 void RasterEditorWindow::loadAvailableBrushes()
 {
-    if (!m_brushSelector) return;
+    if (!m_brushSelector) {
+        return;
+    }
 
+    m_brushPresets.clear();
     m_brushSelector->clear();
 
-    // Built-in libmypaint brushes
-    const QStringList builtInBrushes = {
-        "Standard", "Charcoal", "Bristles", "Soft", "Hard",
-        "Ink", "Watercolor", "Crayon", "Marker", "Calligraphy"
+    BrushPreset standard;
+    standard.name = tr("Standard Round");
+    standard.size = 12.0f;
+    standard.opacity = 1.0f;
+    standard.hardness = 0.85f;
+    standard.spacing = 0.22f;
+    standard.settings = {
+        { MYPAINT_BRUSH_SETTING_ANTI_ALIASING, 1.0f },
+        { MYPAINT_BRUSH_SETTING_DABS_PER_SECOND, 0.0f }
     };
+    m_brushPresets.push_back(standard);
 
-    for (const QString& brush : builtInBrushes) {
-        m_brushSelector->addItem(brush);
+    BrushPreset soft;
+    soft.name = tr("Soft Shader");
+    soft.size = 28.0f;
+    soft.opacity = 0.65f;
+    soft.hardness = 0.2f;
+    soft.spacing = 0.18f;
+    soft.settings = {
+        { MYPAINT_BRUSH_SETTING_OPAQUE_MULTIPLY, 0.35f },
+        { MYPAINT_BRUSH_SETTING_RADIUS_BY_RANDOM, 0.08f },
+        { MYPAINT_BRUSH_SETTING_SMUDGE, 0.18f },
+        { MYPAINT_BRUSH_SETTING_SMUDGE_LENGTH, 0.3f }
+    };
+    m_brushPresets.push_back(soft);
+
+    BrushPreset charcoal;
+    charcoal.name = tr("Charcoal");
+    charcoal.size = 36.0f;
+    charcoal.opacity = 0.8f;
+    charcoal.hardness = 0.35f;
+    charcoal.spacing = 1.2f;
+    charcoal.settings = {
+        { MYPAINT_BRUSH_SETTING_DABS_PER_SECOND, 8.0f },
+        { MYPAINT_BRUSH_SETTING_RADIUS_BY_RANDOM, 0.45f },
+        { MYPAINT_BRUSH_SETTING_OPAQUE_MULTIPLY, 0.6f },
+        { MYPAINT_BRUSH_SETTING_TRACKING_NOISE, 0.2f }
+    };
+    m_brushPresets.push_back(charcoal);
+
+    BrushPreset watercolor;
+    watercolor.name = tr("Watercolor Wash");
+    watercolor.size = 42.0f;
+    watercolor.opacity = 0.55f;
+    watercolor.hardness = 0.25f;
+    watercolor.spacing = 0.4f;
+    watercolor.settings = {
+        { MYPAINT_BRUSH_SETTING_SMUDGE, 0.6f },
+        { MYPAINT_BRUSH_SETTING_SMUDGE_LENGTH, 0.45f },
+        { MYPAINT_BRUSH_SETTING_SMUDGE_TRANSPARENCY, 0.2f },
+        { MYPAINT_BRUSH_SETTING_OPAQUE_MULTIPLY, 0.25f }
+    };
+    m_brushPresets.push_back(watercolor);
+
+    BrushPreset marker;
+    marker.name = tr("Marker");
+    marker.size = 18.0f;
+    marker.opacity = 0.9f;
+    marker.hardness = 0.7f;
+    marker.spacing = 0.12f;
+    marker.settings = {
+        { MYPAINT_BRUSH_SETTING_LOCK_ALPHA, 0.0f },
+        { MYPAINT_BRUSH_SETTING_OPAQUE_LINEARIZE, 0.6f },
+        { MYPAINT_BRUSH_SETTING_DABS_PER_ACTUAL_RADIUS, 2.8f }
+    };
+    m_brushPresets.push_back(marker);
+
+    for (const BrushPreset& preset : m_brushPresets) {
+        m_brushSelector->addItem(preset.name);
     }
+
+    if (!m_brushPresets.isEmpty()) {
+        m_brushSelector->setCurrentIndex(0);
+        applyBrushPreset(0);
+    }
+}
+
+void RasterEditorWindow::applyBrushPreset(int index)
+{
+    if (!m_brushTool || index < 0 || index >= m_brushPresets.size()) {
+        return;
+    }
+
+    const BrushPreset& preset = m_brushPresets.at(index);
+    m_activePresetIndex = index;
+
+    if (m_brushSelector && m_brushSelector->currentIndex() != index) {
+        QSignalBlocker blocker(m_brushSelector);
+        m_brushSelector->setCurrentIndex(index);
+    }
+
+    if (m_brushSizeSlider) {
+        QSignalBlocker blocker(m_brushSizeSlider);
+        m_brushSizeSlider->setValue(qRound(preset.size));
+    }
+    if (m_brushSizeValue) {
+        m_brushSizeValue->setText(QString::number(qRound(preset.size)));
+    }
+
+    m_brushTool->setSize(preset.size);
+    if (m_eraserTool) {
+        m_eraserTool->setSize(preset.size);
+    }
+
+    m_brushTool->setOpacity(preset.opacity);
+    if (m_eraserTool) {
+        m_eraserTool->setOpacity(preset.opacity);
+    }
+
+    m_brushTool->setHardness(preset.hardness);
+    if (m_eraserTool) {
+        m_eraserTool->setHardness(preset.hardness);
+    }
+
+    m_brushTool->setSpacing(preset.spacing);
+    if (m_eraserTool) {
+        m_eraserTool->setSpacing(preset.spacing);
+    }
+
+    m_brushTool->applyPreset(preset.settings);
+
+    if (m_opacitySlider) {
+        QSignalBlocker blocker(m_opacitySlider);
+        m_opacitySlider->setValue(qRound(preset.opacity * 100.0f));
+    }
+    if (m_hardnessSlider) {
+        QSignalBlocker blocker(m_hardnessSlider);
+        m_hardnessSlider->setValue(qRound(preset.hardness * 100.0f));
+    }
+    if (m_spacingSlider) {
+        QSignalBlocker blocker(m_spacingSlider);
+        m_spacingSlider->setValue(qRound(preset.spacing * 100.0f));
+    }
+
+    if (m_statusLabel) {
+        m_statusLabel->setText(tr("Brush: %1").arg(preset.name));
+    }
+
+    updateToolControls();
 }
 
 void RasterEditorWindow::onBrushSelected(int index)
 {
-    if (!m_brushTool || !m_brushSelector) return;
-
-    const QString brushName = m_brushSelector->itemText(index);
-    // TODO: Load actual libmypaint brush based on name
-    // For now, brushes will work with default parameters
-
-    m_statusLabel = m_frameLabel;
-    if (m_statusLabel) {
-        m_statusLabel->setText(tr("Brush: %1").arg(brushName));
+    if (!m_brushSelector) {
+        return;
     }
+
+    applyBrushPreset(index);
 }
 
 void RasterEditorWindow::onBrushOpacityChanged(int value)
@@ -858,7 +994,7 @@ void RasterEditorWindow::onExportToTimeline()
     const int projectFrame = m_canvas->getCurrentFrame();
     const int layerIndex = m_canvas->getCurrentLayer();
 
-    if (layerIndex < 0 || projectFrame < 1) {
+    if (layerIndex < 0 || projectFrame < 0) {
         QMessageBox::warning(this, tr("Raster Editor"), tr("Select a valid layer and frame in the timeline before exporting."));
         return;
     }
@@ -927,6 +1063,11 @@ void RasterEditorWindow::onExportToTimeline()
     }
     undoStack->push(new AddItemCommand(m_canvas, pixmapItem));
     undoStack->endMacro();
+
+    if (m_canvas && m_canvas->scene()) {
+        m_canvas->scene()->clearSelection();
+        pixmapItem->setSelected(true);
+    }
 }
 
 void RasterEditorWindow::setProjectContext(MainWindow* mainWindow, Canvas* canvas, Timeline* timeline, LayerManager* layerManager)
@@ -1470,5 +1611,23 @@ int RasterEditorWindow::indexForBlendMode(QPainter::CompositionMode mode) const
         }
     }
     return 0;
+}
+
+void RasterEditorWindow::showEvent(QShowEvent* event)
+{
+    QMainWindow::showEvent(event);
+    emit visibilityChanged(true);
+}
+
+void RasterEditorWindow::hideEvent(QHideEvent* event)
+{
+    QMainWindow::hideEvent(event);
+    emit visibilityChanged(false);
+}
+
+void RasterEditorWindow::closeEvent(QCloseEvent* event)
+{
+    event->ignore();
+    hide();
 }
 

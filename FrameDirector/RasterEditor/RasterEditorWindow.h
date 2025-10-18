@@ -1,14 +1,18 @@
 #pragma once
 
 #include <QColor>
-#include <QDockWidget>
+#include <QMainWindow>
 #include <QPointer>
 #include <QPainter>
+#include <QPair>
 #include <QStringList>
 #include <QJsonObject>
 #include <QByteArray>
+#include <QVector>
 
 #include "RasterDocument.h"
+
+#include <third_party/libmypaint/mypaint-brush-settings.h>
 
 class QCheckBox;
 class QButtonGroup;
@@ -36,7 +40,7 @@ class Timeline;
 class LayerManager;
 class QGraphicsItem;
 
-class RasterEditorWindow : public QDockWidget
+class RasterEditorWindow : public QMainWindow
 {
     Q_OBJECT
 
@@ -47,6 +51,9 @@ public:
     QJsonObject toJson() const;
     void loadFromJson(const QJsonObject& json);
     void resetDocument();
+
+signals:
+    void visibilityChanged(bool visible);
 
 public slots:
     void setCurrentFrame(int frame);
@@ -101,6 +108,12 @@ private:
     QList<QGraphicsItem*> rasterItemsForFrame(int layerIndex, int frame) const;
     QByteArray serializeDocumentState() const;
     void loadAvailableBrushes();
+    void applyBrushPreset(int index);
+
+protected:
+    void showEvent(QShowEvent* event) override;
+    void hideEvent(QHideEvent* event) override;
+    void closeEvent(QCloseEvent* event) override;
 
     QPointer<RasterDocument> m_document;
     RasterCanvasWidget* m_canvasWidget;
@@ -151,5 +164,18 @@ private:
     QSlider* m_spacingSlider;             // Brush spacing
     QLabel* m_spacingValue;               // Spacing display
     QLabel* m_statusLabel;                // Status indicator
+
+    struct BrushPreset
+    {
+        QString name;
+        float size;
+        float opacity;
+        float hardness;
+        float spacing;
+        QVector<QPair<MyPaintBrushSetting, float>> settings;
+    };
+
+    QVector<BrushPreset> m_brushPresets;
+    int m_activePresetIndex = -1;
 };
 
