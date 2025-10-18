@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # libmypaint - The MyPaint Brush Library
 # Copyright (C) 2007-2012 Martin Renold <martinxyz@gmx.ch>
-# Copyright (C) 2012-2020 by the MyPaint Development Team.
+# Copyright (C) 2012-2016 by the MyPaint Development Team.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -20,55 +20,13 @@
 
 from __future__ import absolute_import, division, print_function
 
-import json
-import json.decoder
-import json.scanner
 import os
 import sys
 from os.path import basename
+import json
 from collections import namedtuple
 
-
 PY3 = sys.version_info >= (3,)
-
-# == JSON parser wrapper == #
-
-# In order to get the line number from the original json file, this minimal
-# wrapper of the standard parser produces tuples for string values where
-# the first item is a (line, column) tuple. Complexity is quadratic due to
-# naive (but convenient) calculations of lines/columns, so don't use this
-# hack for anything heavy.
-
-
-def _linecol(s, pos):
-    ss = s[:pos]
-    line = ss.count('\n') + 1
-    column = len(ss[ss.rfind('\n') + 1:]) + 1
-    return (line, column)
-
-
-def _linecol_scanstring(s, end, *args, **kwds):
-    result, real_end = json.decoder.py_scanstring(s, end, *args, **kwds)
-    return (_linecol(s, end - 1), result), real_end
-
-
-def _normalize(n):  # Strip away the linecol component from keys
-    def _n(t):
-        return t[1] if isinstance(t, tuple) else t
-    if isinstance(n, dict):
-        return {_n(k): _normalize(v) for k, v in n.items()}
-    elif isinstance(n, list):
-        return [_normalize(v) for v in n]
-    else:
-        return n
-
-
-def loads(*args, **kwds):
-    decoder = json.decoder.JSONDecoder()
-    decoder.parse_string = _linecol_scanstring
-    decoder.scan_once = json.scanner.py_make_scanner(decoder)
-    return _normalize(decoder.decode(*args, **kwds))
-
 
 # A basic translator comment is generated for each string,
 # noting whether it is an input or a setting, and for tooltips
@@ -105,18 +63,11 @@ _INPUT_ORDER = [
 ]
 _STATES = []   # brushsettings.states
 
-_ORIG_FILE = "brushsettings.json"
-
 
 class _BrushSetting (namedtuple("_BrushSetting", _SETTING_ORDER)):
 
-    def __init__(self, *args, **kwds):
-        super(_BrushSetting, self).__init__()
-        self.real_internal_name = self.internal_name[1]
-        self.real_displayed_name = self.displayed_name[1]
-
     def validate(self):
-        msg = "Failed to validate %s: %r" % (self.real_internal_name, self)
+        msg = "Failed to validate %s: %r" % (self.internal_name, self)
         if self.minimum and self.maximum:
             assert (self.minimum <= self.default), msg
             assert (self.maximum >= self.default), msg
@@ -126,14 +77,8 @@ class _BrushSetting (namedtuple("_BrushSetting", _SETTING_ORDER)):
 
 class _BrushInput (namedtuple("_BrushInput", _INPUT_ORDER)):
 
-    def __init__(self, *args, **kwds):
-        self.anything = "nothing"
-        super(_BrushInput, self).__init__()
-        self.real_id = self.id[1]
-        self.real_displayed_name = self.displayed_name[1]
-
     def validate(self):
-        msg = "Failed to validate %s: %r" % (self.real_id, self)
+        msg = "Failed to validate %s: %r" % (self.id, self)
         if self.hard_maximum is not None:
             assert (self.hard_maximum >= self.soft_maximum), msg
             assert (self.hard_maximum >= self.normal), msg
@@ -158,7 +103,7 @@ def _init_globals_from_json(filename):
 
     flag = "r" if PY3 else "rb"
     with open(filename, flag) as fp:
-        defs = loads(fp.read())
+        defs = json.load(fp)
     for input_def in defs["inputs"]:
         input = _BrushInput(**with_comments(input_def))
         input.validate()
@@ -167,7 +112,7 @@ def _init_globals_from_json(filename):
         setting = _BrushSetting(**with_comments(setting_def))
         setting.validate()
         _SETTINGS.append(setting)
-    for _, state_name in defs["states"]:
+    for state_name in defs["states"]:
         _STATES.append(state_name)
 
 
@@ -222,10 +167,8 @@ def floatify(value, positive_inf=True):
     return str(value)
 
 
-def gettextify(annotated_value, comment=None):
-    (line, _), value = annotated_value
+def gettextify(value, comment=None):
     result = "N_(%s)" % stringify(value)
-    result = "/*: ../%s:%d */ %s" % (_ORIG_FILE, line, result)
     if comment:
         assert isinstance(comment, str) or isinstance(comment, unicode)
         result = "/* %s */ %s" % (comment, result)
@@ -239,7 +182,7 @@ def boolify(value):
 def tcomment(base_comment, addendum=None):
     comment = base_comment
     if addendum:
-        comment = "{c} - {a}".format(c=comment, a=addendum[1])
+        comment = "{c} - {a}".format(c=comment, a=addendum)
     return comment
 
 
@@ -252,9 +195,9 @@ def tooltip_comment(name, name_type, addendum=None):
 def input_info_struct(i):
     name_comment = tcomment("Brush input", i.tcomment_name)
     _tooltip_comment = tooltip_comment(
-        i.real_displayed_name, "input", i.tcomment_tooltip)
+        i.displayed_name, "input", i.tcomment_tooltip)
     return (
-        stringify(i.real_id),
+        stringify(i.id),
         floatify(i.hard_minimum, positive_inf=False),
         floatify(i.soft_minimum, positive_inf=False),
         floatify(i.normal),
@@ -268,9 +211,9 @@ def input_info_struct(i):
 def settings_info_struct(s):
     name_comment = tcomment("Brush setting", s.tcomment_name)
     _tooltip_comment = tooltip_comment(
-        s.real_displayed_name, "setting", s.tcomment_tooltip)
+        s.displayed_name, "setting", s.tcomment_tooltip)
     return (
-        stringify(s.real_internal_name),
+        stringify(s.internal_name),
         gettextify(s.displayed_name, name_comment),
         boolify(s.constant),
         floatify(s.minimum, positive_inf=False),
@@ -313,14 +256,14 @@ def generate_public_settings_code():
         "MyPaintBrushInput",
         "MYPAINT_BRUSH_INPUT_",
         "MYPAINT_BRUSH_INPUTS_COUNT",
-        enumerate([i.real_id.upper() for i in _INPUTS]),
+        enumerate([i.id.upper() for i in _INPUTS]),
     )
     content += '\n'
     content += generate_enum(
         "MyPaintBrushSetting",
         "MYPAINT_BRUSH_SETTING_",
         "MYPAINT_BRUSH_SETTINGS_COUNT",
-        enumerate([i.real_internal_name.upper() for i in _SETTINGS]),
+        enumerate([i.internal_name.upper() for i in _SETTINGS]),
     )
     content += '\n'
     content += generate_enum(
@@ -334,9 +277,8 @@ def generate_public_settings_code():
 
 
 if __name__ == '__main__':
+    _init_globals_from_json("brushsettings.json")
     script = sys.argv[0]
-    source = os.path.join(os.path.dirname(script), _ORIG_FILE)
-    _init_globals_from_json(source)
     try:
         public_header_file, internal_header_file = sys.argv[1:]
     except Exception:

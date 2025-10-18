@@ -21,16 +21,6 @@
 #include <string.h>
 #include <assert.h>
 
-#ifdef HAVE_GETTEXT
-  #include <libintl.h>
-  #define N_(String) (String)
-  #define  _(String) gettext (String)
-#else
-  #define dgettext(Domain,String) (String)
-  #define N_(String) (String)
-  #define  _(String) (String)
-#endif // HAVE_GETTEXT
-
 #include <float.h>
 
 #include "brushsettings-gen.h"

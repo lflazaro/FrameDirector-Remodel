@@ -14,7 +14,6 @@ typedef struct {
     float color_a;
     float opaque;
     float hardness;
-    float softness;
     float aspect_ratio;
     float angle;
     float normal;

@@ -18,10 +18,12 @@
 #define TILEMAP_H
 
 #if MYPAINT_CONFIG_USE_GLIB
-#include <glib.h>
+//#include <glib.h>
 #else // not MYPAINT_CONFIG_USE_GLIB
 #include "mypaint-glib-compat.h"
 #endif
+
+#include <stddef.h>
 
 G_BEGIN_DECLS
 

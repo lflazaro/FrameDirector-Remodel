@@ -22,11 +22,6 @@
 #include <math.h>
 #include <assert.h>
 
-#if MYPAINT_CONFIG_USE_GLIB
-#include <glib.h>
-#include "glib/mypaint-brush.h"
-#endif
-
 #include "mypaint-brush.h"
 
 #include "mypaint-brush-settings.h"
@@ -34,7 +29,7 @@
 #include "helpers.h"
 #include "rng-double.h"
 
-#include <json.h>
+#include <json_object.h>
 
 #ifdef _MSC_VER
 #if _MSC_VER < 1700     // Visual Studio 2012 and later has isfinite and roundf
@@ -158,7 +153,7 @@ brush_reset(MyPaintBrush *self)
       int min_index = self->min_bucket_used;
       if (min_index != -1) {
         int max_index = self->max_bucket_used;
-        size_t num_bytes = (max_index - min_index + 1) * sizeof(self->smudge_buckets[0]) * SMUDGE_BUCKET_SIZE;
+        size_t num_bytes = (max_index - min_index) * sizeof(self->smudge_buckets[0]) * SMUDGE_BUCKET_SIZE;
         memset(self->smudge_buckets + min_index, 0, num_bytes);
         self->min_bucket_used = -1;
         self->max_bucket_used = -1;
@@ -178,13 +173,6 @@ mypaint_brush_new(void)
   return mypaint_brush_new_with_buckets(0);
 }
 
-/**
-  * mypaint_brush_new_with_buckets:
-  *
-  * Create a new MyPaint brush engine instance with smudge bucket support.
-  * MyPaint 2.0 supports up to 255 buckets per brush.
-  * Initial reference count is 1. Release references using mypaint_brush_unref()
-  */
 MyPaintBrush *
 mypaint_brush_new_with_buckets(int num_smudge_buckets)
 {
@@ -443,93 +431,6 @@ mypaint_brush_set_state(MyPaintBrush *self, MyPaintBrushState i, float value)
     assert (i < MYPAINT_BRUSH_STATES_COUNT);
     self->states[i] = value;
 }
-/**
- * mypaint_brush_set_smudge_bucket_state: (skip)
- *
- * Set an internal smudge bucket state for the bucket of the given index.
- * Returns true if the state could be updated, false otherwise.
- * Setting the state can only fail if the bucket index lies outside the
- * capacity of the brush.
- *
- **/
-gboolean
-mypaint_brush_set_smudge_bucket_state(
-    MyPaintBrush* self, int bucket_index,
-    float r, float g, float b, float a,
-    float prev_r, float prev_g, float prev_b, float prev_a,
-    float prev_color_recentness)
-{
-  if (self->num_buckets > bucket_index) {
-    float* bucket = &self->smudge_buckets[bucket_index];
-    bucket[SMUDGE_R] = r;
-    bucket[SMUDGE_G] = g;
-    bucket[SMUDGE_B] = b;
-    bucket[SMUDGE_A] = a;
-    bucket[PREV_COL_R] = prev_r;
-    bucket[PREV_COL_G] = prev_g;
-    bucket[PREV_COL_B] = prev_b;
-    bucket[PREV_COL_A] = prev_a;
-    bucket[PREV_COL_RECENTNESS] = prev_color_recentness;
-    return TRUE;
-  }
-  return FALSE;
-}
-
-/**
- * mypaint_brush_get_smudge_bucket_state: (skip)
- *
- * Retrieve the internal state for the smudge bucket of the given index.
- * If the state could be retrieved, populating the out variables, true is returned.
- * Getting the state can only fail if the bucket index lies outside the
- * capacity of the brush.
- *
- **/
-gboolean
-mypaint_brush_get_smudge_bucket_state(
-    const MyPaintBrush* self, int bucket_index,
-    float* r, float* g, float* b, float* a,
-    float* prev_r, float* prev_g, float* prev_b, float* prev_a,
-    float* prev_color_recentness)
-{
-  if (self->num_buckets > bucket_index) {
-    float* bucket = &self->smudge_buckets[bucket_index];
-    *r = bucket[SMUDGE_R];
-    *g = bucket[SMUDGE_G];
-    *b = bucket[SMUDGE_B];
-    *a = bucket[SMUDGE_A];
-    *prev_r = bucket[PREV_COL_R];
-    *prev_g = bucket[PREV_COL_G];
-    *prev_b = bucket[PREV_COL_B];
-    *prev_a = bucket[PREV_COL_A];
-    *prev_color_recentness = bucket[PREV_COL_RECENTNESS];
-    return TRUE;
-  }
-  return FALSE;
-}
-
-/**
- * mypaint_brush_get_min_smudge_bucket_used: (skip)
- *
- * Get the lowest index of the indices of buckets that have been written to.
- * If no smudge bucket has been written to, -1 is returned.
- *
- */
-int mypaint_brush_get_min_smudge_bucket_used(const MyPaintBrush* self)
-{
-  return self->min_bucket_used;
-}
-
-/**
- * mypaint_brush_get_max_smudge_bucket_used: (skip)
- *
- * Get the largest index of the indices of buckets that have been written to.
- * If no smudge bucket has been written to, -1 is returned.
- *
- */
-int mypaint_brush_get_max_smudge_bucket_used(const MyPaintBrush* self)
-{
-  return self->max_bucket_used;
-}
 
   // returns the fraction still left after t seconds
   float exp_decay (float T_const, float t)
@@ -719,6 +620,10 @@ void print_inputs(MyPaintBrush *self, float* inputs)
     STATE(self, Y) += step_dy;
     STATE(self, PRESSURE) += step_dpressure;
 
+    STATE(self, DABS_PER_BASIC_RADIUS) = SETTING(self, DABS_PER_BASIC_RADIUS);
+    STATE(self, DABS_PER_ACTUAL_RADIUS) = SETTING(self, DABS_PER_ACTUAL_RADIUS);
+    STATE(self, DABS_PER_SECOND) = SETTING(self, DABS_PER_SECOND);
+
     STATE(self, DECLINATION) += step_declination;
     STATE(self, ASCENSION) += step_ascension;
     STATE(self, DECLINATIONX) += step_declinationx;
@@ -819,10 +724,6 @@ void print_inputs(MyPaintBrush *self, float* inputs)
       self->settings_value[i] = mypaint_mapping_calculate(self->settings[i], (inputs));
     }
 
-    STATE(self, DABS_PER_BASIC_RADIUS) = SETTING(self, DABS_PER_BASIC_RADIUS);
-    STATE(self, DABS_PER_ACTUAL_RADIUS) = SETTING(self, DABS_PER_ACTUAL_RADIUS);
-    STATE(self, DABS_PER_SECOND) = SETTING(self, DABS_PER_SECOND);
-
     {
       const float fac = 1.0 - exp_decay(SETTING(self, SLOW_TRACKING_PER_DAB), step_ddab);
       STATE(self, ACTUAL_X) += (STATE(self, X) - STATE(self, ACTUAL_X)) * fac;
@@ -920,7 +821,7 @@ void print_inputs(MyPaintBrush *self, float* inputs)
   gboolean
   update_smudge_color(
       const MyPaintBrush* self, MyPaintSurface* surface, float* const smudge_bucket, const float smudge_length, int px,
-      int py, const float radius, const float legacy_smudge, const float paint_factor)
+      int py, const float radius, const float legacy_smudge, const float paint_factor, gboolean legacy)
   {
 
       // Value between 0.01 and 1.0 that determines how often the canvas should be resampled
@@ -950,8 +851,12 @@ void print_inputs(MyPaintBrush *self, float* inputs)
 
           // Sample colors on the canvas, using a negative value for the paint factor
           // means that the old sampling method is used, instead of weighted spectral.
-          mypaint_surface_get_color(
-              surface, px, py, smudge_radius, &r, &g, &b, &a, legacy_smudge ? -1.0 : paint_factor);
+          if (legacy) {
+              mypaint_surface_get_color(surface, px, py, smudge_radius, &r, &g, &b, &a);
+          } else {
+              mypaint_surface2_get_color(
+                  (MyPaintSurface2*)surface, px, py, smudge_radius, &r, &g, &b, &a, legacy_smudge ? -1.0 : paint_factor);
+          }
 
           // don't draw unless the picked-up alpha is above a certain level
           // this is sort of like lock_alpha but for smudge
@@ -1039,7 +944,7 @@ void print_inputs(MyPaintBrush *self, float* inputs)
   //
   // This is only gets called right after update_states_and_setting_values().
   // Returns TRUE if the surface was modified.
-gboolean prepare_and_draw_dab (MyPaintBrush *self, MyPaintSurface * surface, gboolean linear)
+gboolean prepare_and_draw_dab (MyPaintBrush *self, MyPaintSurface * surface, gboolean legacy, gboolean linear)
   {
     const float opaque_fac = SETTING(self, OPAQUE_MULTIPLY);
     // ensure we don't get a positive result with two negative opaque values
@@ -1054,7 +959,12 @@ gboolean prepare_and_draw_dab (MyPaintBrush *self, MyPaintSurface * surface, gbo
       float dabs_per_pixel;
       // dabs_per_pixel is just estimated roughly, I didn't think hard
       // about the case when the radius changes during the stroke
-      dabs_per_pixel = (STATE(self, DABS_PER_ACTUAL_RADIUS) + STATE(self, DABS_PER_BASIC_RADIUS)) * 2.0;
+      if (legacy) {
+        dabs_per_pixel = BASEVAL(self, DABS_PER_ACTUAL_RADIUS) + BASEVAL(self, DABS_PER_BASIC_RADIUS);
+      } else {
+        dabs_per_pixel = STATE(self, DABS_PER_ACTUAL_RADIUS) + STATE(self, DABS_PER_BASIC_RADIUS);
+      }
+      dabs_per_pixel *= 2.0;
 
       // the correction is probably not wanted if the dabs don't overlap
       if (dabs_per_pixel < 1.0) dabs_per_pixel = 1.0;
@@ -1108,8 +1018,9 @@ gboolean prepare_and_draw_dab (MyPaintBrush *self, MyPaintSurface * surface, gbo
         }
     }
 
-    const float paint_factor = SETTING(self, PAINT_MODE);
-    const gboolean paint_setting_constant = mypaint_mapping_is_constant(self->settings[MYPAINT_BRUSH_SETTING_PAINT_MODE]);
+    const float paint_factor = legacy ? 0.0 : SETTING(self, PAINT_MODE);
+    const gboolean paint_setting_constant =
+        legacy ? TRUE : mypaint_mapping_is_constant(self->settings[MYPAINT_BRUSH_SETTING_PAINT_MODE]);
     const gboolean legacy_smudge = paint_factor <= 0.0 && paint_setting_constant;
 
     //convert to RGB here instead of later
@@ -1125,7 +1036,7 @@ gboolean prepare_and_draw_dab (MyPaintBrush *self, MyPaintSurface * surface, gbo
         (SETTING(self, SMUDGE) != 0.0 || !mypaint_mapping_is_constant(self->settings[MYPAINT_BRUSH_SETTING_SMUDGE]))) {
         float* const bucket = fetch_smudge_bucket(self);
         gboolean return_early = update_smudge_color(
-            self, surface, bucket, smudge_length, ROUND(x), ROUND(y), radius, legacy_smudge, paint_factor);
+          self, surface, bucket, smudge_length, ROUND(x), ROUND(y), radius, legacy_smudge, paint_factor, legacy);
         if (return_early) {
           return FALSE;
         }
@@ -1150,6 +1061,7 @@ gboolean prepare_and_draw_dab (MyPaintBrush *self, MyPaintSurface * surface, gbo
       the form compatible with the hsv/hsl conversion functions, and then
       transformed back after the adjustments.
     */
+    // Check whether the dynamics are used before the conditionals, to skip needless transformations.
     gboolean using_hsv_dynamics =
         SETTING(self, CHANGE_COLOR_H) || SETTING(self, CHANGE_COLOR_HSV_S) || SETTING(self, CHANGE_COLOR_V);
     gboolean using_hsl_dynamics = SETTING(self, CHANGE_COLOR_L) || SETTING(self, CHANGE_COLOR_HSL_S);
@@ -1190,7 +1102,6 @@ gboolean prepare_and_draw_dab (MyPaintBrush *self, MyPaintSurface * surface, gbo
     }
 
     float hardness = CLAMP(SETTING(self, HARDNESS), 0.0f, 1.0f);
-    float softness = CLAMP(SETTING(self, SOFTNESS), 0.0f, 1.0f);
 
     // anti-aliasing attempt (works surprisingly well for ink brushes)
     float current_fadeout_in_pixels = radius * (1.0 - hardness);
@@ -1241,16 +1152,49 @@ gboolean prepare_and_draw_dab (MyPaintBrush *self, MyPaintSurface * surface, gbo
     const float dab_angle = STATE(self, ACTUAL_ELLIPTICAL_DAB_ANGLE);
     const float lock_alpha = SETTING(self, LOCK_ALPHA);
     const float colorize = SETTING(self, COLORIZE);
+
+    if (legacy) {
+    return mypaint_surface_draw_dab (
+        surface, x, y, radius, color_h, color_s, color_v, opaque, hardness, eraser_target_alpha,
+        dab_ratio, dab_angle, lock_alpha, colorize);
+    }
+    else {
     const float posterize = SETTING(self, POSTERIZE);
     const float posterize_num = SETTING(self, POSTERIZE_NUM);
-
-    return mypaint_surface_draw_dab (
-        surface, x, y, radius, color_h, color_s, color_v, opaque, hardness, softness, eraser_target_alpha,
+    return mypaint_surface2_draw_dab (
+        (MyPaintSurface2*)surface, x, y, radius, color_h, color_s, color_v, opaque, hardness, eraser_target_alpha,
         dab_ratio, dab_angle, lock_alpha, colorize, posterize, posterize_num, paint_factor);
+    }
+  }
+
+  static inline float
+  legacy_dab_count(float dist, float base_radius, float dt, MyPaintBrush* self)
+  {
+      const float num_from_actual_radius = dist / STATE(self, ACTUAL_RADIUS) * BASEVAL(self, DABS_PER_ACTUAL_RADIUS);
+      const float num_from_basic_radius = dist / base_radius * BASEVAL(self, DABS_PER_BASIC_RADIUS);
+      const float num_from_seconds = dt * BASEVAL(self, DABS_PER_SECOND);
+      return num_from_actual_radius + num_from_basic_radius + num_from_seconds;
+  }
+
+  static inline float
+  state_based_dab_count(float dist, float base_radius, float dt, MyPaintBrush* self)
+  {
+
+      const float dpar_state = STATE(self, DABS_PER_ACTUAL_RADIUS);
+      const float num_by_actual_radius = dist / STATE(self, ACTUAL_RADIUS) *
+        (dpar_state && !isnan(dpar_state) ? dpar_state : BASEVAL(self, DABS_PER_ACTUAL_RADIUS));
+
+      const float dpbr_state = STATE(self, DABS_PER_BASIC_RADIUS);
+      const float num_by_basic_radius =
+        dist / base_radius * (dpbr_state && !isnan(dpbr_state) ? dpbr_state : BASEVAL(self, DABS_PER_BASIC_RADIUS));
+
+      const float dps_state = STATE(self, DABS_PER_SECOND);
+      const float num_by_time_delta = dt * (!isnan(dps_state) ? dps_state : BASEVAL(self, DABS_PER_SECOND));
+      return num_by_actual_radius + num_by_basic_radius + num_by_time_delta;
   }
 
   // How many dabs will be drawn between the current and the next (x, y, +dt) position?
-  float count_dabs_to (MyPaintBrush *self, float x, float y, float dt)
+  float count_dabs_to (MyPaintBrush *self, float x, float y, float dt, gboolean legacy)
   {
     const float base_radius_log = BASEVAL(self, RADIUS_LOGARITHMIC);
     const float base_radius = CLAMP(expf(base_radius_log), ACTUAL_RADIUS_MIN, ACTUAL_RADIUS_MAX);
@@ -1276,31 +1220,79 @@ gboolean prepare_and_draw_dab (MyPaintBrush *self, MyPaintSurface * surface, gbo
       dist = hypotf(dx, dy);
     }
 
-    const float res1 = dist / STATE(self, ACTUAL_RADIUS) * STATE(self, DABS_PER_ACTUAL_RADIUS);
-    const float res2 = dist / base_radius * STATE(self, DABS_PER_BASIC_RADIUS);
-    const float res3 = dt * STATE(self, DABS_PER_SECOND);
-    //on first load if isnan the engine messes up and won't paint
-    //until you switch modes
-    float res4 = res1 + res2 + res3;
-    if (isnan(res4) || res4 < 0.0) { res4 = 0.0; }
-    return res4;
+    if (legacy) {
+      return legacy_dab_count(dist, base_radius, dt, self);
+    } else {
+      return state_based_dab_count(dist, base_radius, dt, self);
+    }
   }
 
-  /**
-   * mypaint_brush_stroke_to:
-   * @dtime: Time since last motion event, in seconds.
-   * @viewzoom: Canvas zoom; 1.0 = 100% zoom. Zoom value v *must* be in range:
-   * 0.0 < v < FLOAT_MAX (reasonable max is probably always below 100).
-   *
-   * Should be called once for each motion event.
-   *
-   *
-   * Returns: non-0 if the stroke is finished or empty, else 0.
-   */
-  int mypaint_brush_stroke_to (MyPaintBrush *self, MyPaintSurface *surface,
-                                float x, float y, float pressure,
-                               float xtilt, float ytilt, double dtime, float viewzoom, float viewrotation, float barrel_rotation, gboolean linear)
-  {
+int
+mypaint_brush_stroke_to_internal(
+    MyPaintBrush* self, MyPaintSurface* surface, float x, float y, float pressure, float xtilt, float ytilt,
+    double dtime, float viewzoom, float viewrotation, float barrel_rotation, gboolean legacy, gboolean linear);
+
+
+/**
+ * mypaint_brush_stroke_to:
+ * @dtime: Time since last motion event, in seconds.
+ *
+ * Should be called once for each motion event.
+ *
+ * Returns: non-0 if the stroke is finished or empty, else 0.
+*/
+int
+mypaint_brush_stroke_to(
+    MyPaintBrush* self, MyPaintSurface* surface, float x, float y, float pressure, float xtilt, float ytilt,
+    double dtime)
+{
+  const float viewzoom = 1.0;
+  const float viewrotation = 0.0;
+  const float barrel_rotation = 0.0;
+  return mypaint_brush_stroke_to_internal(
+      self, surface, x, y, pressure, xtilt, ytilt, dtime, viewzoom, viewrotation, barrel_rotation, TRUE, FALSE);
+}
+
+/**
+ * mypaint_brush_stroke_to_2:
+ * @dtime: Time since last motion event, in seconds.
+ * @viewzoom: Canvas zoom; 1.0 = 100% zoom. Zoom value v *must* be in range:
+ * 0.0 < v < FLOAT_MAX (reasonable max is probably always below 100). Zoom value
+ * cannot be 0!
+ *
+ * Should be called once for each motion event.
+ *
+ * Returns: non-0 if the stroke is finished or empty, else 0.
+ */
+int
+mypaint_brush_stroke_to_2(
+    MyPaintBrush* self, MyPaintSurface2* surface, float x, float y, float pressure, float xtilt, float ytilt,
+    double dtime, float viewzoom, float viewrotation, float barrel_rotation)
+{
+    return mypaint_brush_stroke_to_internal(
+      self, mypaint_surface2_to_surface(surface), x, y, pressure, xtilt, ytilt, dtime, viewzoom, viewrotation, barrel_rotation, FALSE, FALSE);
+}
+
+/**
+ * mypaint_brush_stroke_to_2_linearsRGB:
+ *
+ * Same as mypaint_brush_stroke_to_2, but color _dynamics_ operate in linear sRGB,
+ * i.e. settings that change the hue/value/lightness/saturation of the brush color.
+ */
+int
+mypaint_brush_stroke_to_2_linearsRGB(
+    MyPaintBrush* self, MyPaintSurface2* surface, float x, float y, float pressure, float xtilt, float ytilt,
+    double dtime, float viewzoom, float viewrotation, float barrel_rotation)
+{
+    return mypaint_brush_stroke_to_internal(
+      self, mypaint_surface2_to_surface(surface), x, y, pressure, xtilt, ytilt, dtime, viewzoom, viewrotation, barrel_rotation, FALSE, TRUE);
+}
+
+int
+mypaint_brush_stroke_to_internal(
+    MyPaintBrush* self, MyPaintSurface* surface, float x, float y, float pressure, float xtilt, float ytilt,
+    double dtime, float viewzoom, float viewrotation, float barrel_rotation, gboolean legacy, gboolean linear)
+{
     const float max_dtime = 5;
 
     float tilt_ascension = 0.0;
@@ -1346,7 +1338,8 @@ gboolean prepare_and_draw_dab (MyPaintBrush *self, MyPaintSurface * surface, gbo
     if (dtime > 0.100 && pressure && STATE(self, PRESSURE) == 0) {
       // Workaround for tablets that don't report motion events without pressure.
       // This is to avoid linear interpolation of the pressure between two events.
-      mypaint_brush_stroke_to (self, surface, x, y, 0.0, 90.0, 0.0, dtime-0.0001, viewzoom, viewrotation, 0.0, linear);
+      mypaint_brush_stroke_to_internal(
+          self, surface, x, y, 0.0, 90.0, 0.0, dtime - 0.0001, viewzoom, viewrotation, barrel_rotation, legacy, linear);
       dtime = 0.0001;
     }
 
@@ -1426,7 +1419,7 @@ gboolean prepare_and_draw_dab (MyPaintBrush *self, MyPaintSurface * surface, gbo
     // draw many (or zero) dabs to the next position
     // see doc/images/stroke2dabs.png
     float dabs_moved = STATE(self, PARTIAL_DABS);
-    float dabs_todo = count_dabs_to (self, x, y, dtime);
+    float dabs_todo = count_dabs_to (self, x, y, dtime, legacy);
     while (dabs_moved + dabs_todo >= 1.0) { // there are dabs pending
       { // linear interpolation (nonlinear variant was too slow, see SVN log)
         float frac; // fraction of the remaining distance to move
@@ -1459,7 +1452,7 @@ gboolean prepare_and_draw_dab (MyPaintBrush *self, MyPaintSurface * surface, gbo
 
       // Flips between 1 and -1, used for "mirrored" offsets.
       STATE(self, FLIP) *= -1;
-      gboolean painted_now = prepare_and_draw_dab (self, surface, linear);
+      gboolean painted_now = prepare_and_draw_dab (self, surface, legacy, linear);
       if (painted_now) {
         painted = YES;
       } else if (painted == UNKNOWN) {
@@ -1470,7 +1463,7 @@ gboolean prepare_and_draw_dab (MyPaintBrush *self, MyPaintSurface * surface, gbo
       self->random_input = rng_double_next(self->rng);
 
       dtime_left -= step_dtime;
-      dabs_todo = count_dabs_to(self, x, y, dtime_left);
+      dabs_todo = count_dabs_to(self, x, y, dtime_left, legacy);
     }
 
     {

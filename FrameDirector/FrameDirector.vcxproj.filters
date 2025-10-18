@@ -323,45 +323,6 @@
     <ClCompile Include="third_party\clipper2\src\clipper.rectclip.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="third_party\libmypaint\gegl\mypaint-gegl-surface.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="third_party\libmypaint\glib\mypaint-brush.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="third_party\libmypaint\glib\mypaint-gegl-glib.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="third_party\libmypaint\tests\gegl\test-gegl-surface.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="third_party\libmypaint\tests\mypaint-benchmark.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="third_party\libmypaint\tests\mypaint-test-surface.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="third_party\libmypaint\tests\mypaint-utils-stroke-player.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="third_party\libmypaint\tests\test-brush-load.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="third_party\libmypaint\tests\test-brush-persistence.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="third_party\libmypaint\tests\test-details.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="third_party\libmypaint\tests\test-fixed-tiled-surface.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="third_party\libmypaint\tests\test-rng.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="third_party\libmypaint\tests\testutils.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="third_party\libmypaint\brushmodes.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -450,6 +411,1878 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="third_party\libmypaint\deps\glib-object-stubs.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\bin\argvs.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\bin\gegl-options.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\bin\gegl-path-smooth.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\bin\gegl-path-spiro.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\bin\gegl.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\bin\mrg-gegl.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\bin\ui-collection.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\bin\ui-core.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\bin\ui-viewer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\examples\2geglbuffer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\examples\frame-counter.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\examples\gegl-convert.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\examples\gegl-slicer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\examples\gegl-video.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\examples\geglbuffer-add-image.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\examples\geglbuffer-clock.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\examples\hello-world.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\examples\sdl-draw.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\examples\video-invert.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-algorithms.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-buffer-access.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-buffer-config.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-buffer-enums.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-buffer-iterator.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-buffer-linear.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-buffer-load.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-buffer-matrix2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-buffer-save.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-buffer-swap.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-buffer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-compression-nop.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-compression-rle.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-compression-zlib.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-compression.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-memory.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-rectangle.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-sampler-cubic.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-sampler-linear.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-sampler-lohalo.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-sampler-nearest.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-sampler-nohalo.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-sampler.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-scratch.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile-alloc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile-backend-buffer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile-backend-file-async.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile-backend-ram.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile-backend-swap.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile-backend.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile-handler-cache.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile-handler-chain.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile-handler-empty.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile-handler-log.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile-handler-zoom.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile-handler.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile-source.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile-storage.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\gegl-apply.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\gegl-config.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\gegl-cpuaccel.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\gegl-dot-visitor.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\gegl-dot.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\gegl-enums.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\gegl-gio.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\gegl-init.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\gegl-instrument.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\gegl-introspection-support.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\gegl-lookup.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\gegl-matrix.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\gegl-metadata.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\gegl-metadatahash.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\gegl-metadatastore.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\gegl-parallel.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\gegl-random.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\gegl-serialize.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\gegl-stats.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\gegl-utils.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\gegl-xml.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\graph\gegl-cache.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\graph\gegl-callback-visitor.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\graph\gegl-connection.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\graph\gegl-node-output-visitable.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\graph\gegl-node.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\graph\gegl-pad.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\graph\gegl-region-generic.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\graph\gegl-visitable.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\graph\gegl-visitor.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\module\gegldatafiles.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\module\geglmodule.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\module\geglmoduledb.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\opencl\gegl-buffer-cl-cache.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\opencl\gegl-buffer-cl-iterator.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\opencl\gegl-cl-color.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\opencl\gegl-cl-init.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\opencl\gegl-cl-random.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\opencl\gegl-cl.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\operation\gegl-extension-handler.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-area-filter.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-composer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-composer3.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-context.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-filter.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-handlers.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-meta-json.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-meta.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-point-composer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-point-composer3.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-point-filter.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-point-render.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-property-keys.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-sink.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-source.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-temporal.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\operation\gegl-operations.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\process\gegl-eval-manager.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\process\gegl-graph-traversal-debug.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\process\gegl-graph-traversal.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\process\gegl-processor.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\property-types\gegl-audio-fragment.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\property-types\gegl-color.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\property-types\gegl-curve.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\property-types\gegl-paramspecs.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\gegl\property-types\gegl-path.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\libs\ctx\gegl_ctx.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\libs\npd\deformation.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\libs\npd\graphics.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\libs\npd\lattice_cut.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\libs\npd\npd_common.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\libs\npd\npd_debug.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\libs\npd\npd_gegl.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\libs\npd\npd_math.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\libs\rgbe\rgbe.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-cxx\denoise-dct.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-cxx\distance-transform.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-cxx\focus-blur.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-cxx\lens-blur.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-cxx\piecewise-blend.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-cxx\variable-blur.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-cxx\warp.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\antialias.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\apply-lens.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\bayer-matrix.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\bump-map.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\cartoon.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\channel-mixer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\color-exchange.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\color-to-alpha.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\cubism.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\deinterlace.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\diffraction-patterns.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\displace.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\edge-laplace.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\edge.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\emboss.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\engrave.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\fractal-explorer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\fractal-trace.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\gaussian-blur-selective.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\illusion.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\lens-distortion.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\lens-flare.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\linear-sinusoid.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\maze.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\mosaic.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\motion-blur-circular.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\motion-blur-zoom.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\noise-slur.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\noise-solid.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\oilify.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\photocopy.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\plasma.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\polar-coordinates.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\red-eye-removal.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\ripple.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\shadows-highlights-correction.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\shadows-highlights.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\shift.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\sinus.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\softglow.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\spiral.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\supernova.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\texturize-canvas.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\tile-glass.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\tile-paper.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\value-propagate.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\video-degradation.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\waves.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\whirl-pinch.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common-gpl3+\wind.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\absolute.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\alien-map.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\alpha-clip.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\bevel.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\bilateral-filter.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\bloom.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\box-blur.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\brightness-contrast.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\buffer-sink.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\buffer-source.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\c2g.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\checkerboard.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\color-assimilation-grid.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\color-enhance.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\color-overlay.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\color-rotate.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\color-temperature.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\color-warp.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\color.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\component-extract.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\contrast-curve.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\convolution-matrix.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\copy-buffer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\difference-of-gaussians.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\display.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\dither.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\domain-transform.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\dropshadow.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\edge-neon.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\edge-sobel.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\exp-combine.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\exposure.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\fattal02.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\gaussian-blur.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\gblur-1d.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\gegl-buffer-load-op.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\gegl-buffer-save-op.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\gegl.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\grey.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\grid.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\high-pass.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\hue-chroma.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\icc-load.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\icc-save.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\image-compare.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\image-gradient.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\inner-glow.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\introspect.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\invert-gamma.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\invert-linear.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\layer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\levels.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\linear-gradient.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\little-planet.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\local-threshold.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\long-shadow.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\magick-load.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\mantiuk06.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\map-absolute.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\map-relative.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\matting-global.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\mblur.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\mean-curvature-blur.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\median-blur.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\mirrors.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\mix.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\mono-mixer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\motion-blur-linear.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\negative-darkroom.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\negative-darkroom\negative-darkroom-curve-enum.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\newsprint.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\noise-cell.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\noise-cie-lch.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\noise-hsv.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\noise-hurl.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\noise-perlin.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\noise-pick.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\noise-reduction.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\noise-rgb.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\noise-simplex.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\noise-spread.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\normal-map.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\opacity.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\open-buffer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\over.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\pack.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\panorama-projection.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\perlin\perlin.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\pixelize.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\posterize.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\radial-gradient.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\rectangle.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\recursive-transform.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\reinhard05.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\remap.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\rgb-clip.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\saturation.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\save.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\sepia.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\slic.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\snn-mean.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\spherize.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\stress.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\stretch-contrast-hsv.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\stretch-contrast.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\styles.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\svg-huerotate.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\svg-luminancetoalpha.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\svg-matrix.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\svg-saturate.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\threshold.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\tile-seamless.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\tile.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\unpremultiply.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\unsharp-mask.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\value-invert.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\vignette.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\waterpixels.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\watershed-transform.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\wavelet-blur-1d.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\wavelet-blur.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\weighted-blend.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\common\write-buffer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\core\cache.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\core\cast-format.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\core\cast-space.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\core\clone.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\core\convert-format.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\core\convert-space.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\core\crop.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\core\json.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\core\load.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\core\nop.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\exr-load.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\exr-save.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\ff-load.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\ff-save.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\gif-load.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\jp2-load.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\jpg-load.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\jpg-save.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\lcms-from-profile.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\matting-levin-cblas.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\matting-levin.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\npd.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\npy-save.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\path.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\pdf-load.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\pixbuf.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\png-load.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\png-save.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\ppm-load.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\ppm-save.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\raw-load.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\rgbe-load.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\rgbe-save.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\save-pixbuf.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\sdl-display.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\sdl2-display.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\svg-load.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\text.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\tiff-load.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\tiff-save.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\v4l.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\v4lutils\v4lutils.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\vector-fill.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\vector-stroke.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\webp-load.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\external\webp-save.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\generated\add.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\generated\clear.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\generated\color-burn.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\generated\color-dodge.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\generated\darken.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\generated\difference.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\generated\divide.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\generated\dst-atop.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\generated\dst-in.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\generated\dst-out.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\generated\dst-over.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\generated\dst.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\generated\exclusion.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\generated\gamma.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\generated\hard-light.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\generated\lighten.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\generated\multiply.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\generated\overlay.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\generated\plus.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\generated\screen.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\generated\soft-light.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\generated\src-atop.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\generated\src-in.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\generated\src-out.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\generated\src.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\generated\subtract.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\generated\xor.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\seamless-clone\seamless-clone-compose.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\seamless-clone\seamless-clone.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\transform\border-align.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\transform\module.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\transform\reflect.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\transform\reset-origin.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\transform\rotate-on-center.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\transform\rotate.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\transform\scale-ratio.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\transform\scale-size-keepaspect.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\transform\scale-size.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\transform\scale.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\transform\shear.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\transform\transform-core.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\transform\transform.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\transform\translate.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\aces-rrt.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\alpha-inpaint.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\band-tune.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\bilateral-filter-fast.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\boxblur-1d.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\boxblur.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\connected-components.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\demosaic-bimedian.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\demosaic-simple.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\ditto.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\external\ctx-script.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\external\gluas.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\external\lens-correct.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\external\line-profile.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\external\paint-select.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\external\spyrograph.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\external\v4l2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\external\voronoi-diagram.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\gcr.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\generated\average.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\generated\blend-reflect.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\generated\negation.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\generated\soft-burn.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\generated\soft-dodge.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\generated\subtractive.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\gradient-map.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\integral-image.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\rawbayer-load.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\segment-kmeans.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\selective-hue-saturation.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\operations\workshop\shuffle-search.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\perf\test-bcontrast-4x.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\perf\test-bcontrast-minichunk.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\perf\test-bcontrast.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\perf\test-blur.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\perf\test-compression.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\perf\test-gegl-buffer-access.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\perf\test-init.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\perf\test-rotate.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\perf\test-samplers.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\perf\test-saturation.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\perf\test-scale.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\perf\test-translate.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\perf\test-unsharpmask.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\seamless-clone\sc-context.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\seamless-clone\sc-outline.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\seamless-clone\sc-sample.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\subprojects\libnsgif\gif.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\subprojects\libnsgif\lzw.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\p2t\common\shapes.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\p2t\common\utils.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\p2t\sweep\advancing_front.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\p2t\sweep\cdt.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\p2t\sweep\sweep.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\p2t\sweep\sweep_context.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\bounded-line.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\cdt-flipfix.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\cdt.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\circle.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\cluster.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\delaunay-terminator.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\edge.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\line.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\mesh-action.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\mesh.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\point.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\pslg.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\refiner.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\rmath.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\triangle.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\utils.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\vector2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\vedge.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\visibility.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\vtriangle.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\render\mesh-render.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\render\svg-plot.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\buffer-test-wrapper.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\buffer-test.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\blank.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_copy.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_copy_abyss.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_copy_lower_left.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_copy_lower_right.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_copy_self.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_copy_upper_left.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_copy_upper_right.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_dup_copy1.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_dup_copy2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_dup_delete1.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_dup_delete2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_dup_write1.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_dup_write2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_dup_write3.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_dup_write4.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_iterator1.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_iterator1sub.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_iterator2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_iterator2sub.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_iterator3.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_iterator3sub.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_iterator4.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_iterator4sub.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_linear_copy.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_linear_iter.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_linear_iter2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_multcopy.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_set_pattern.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_shift_diagonal.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_shift_horizontal.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\buffer_shift_vertical.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\checks.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\disabled_abyss.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\dup_linear_from_data.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\get_abyss_black.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\get_abyss_clamp.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\get_abyss_empty_buffer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\get_abyss_loop.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\get_abyss_none.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\get_abyss_white.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\get_buffer_scaled.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\get_buffer_scaled2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\get_shifted.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\gray.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\grow_extent.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\linear_from_data.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\linear_from_data_rows.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\linear_modify.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\linear_new.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\linear_proxy_modify.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\linear_shift.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\mipmap_iterator.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\mipmap_iterator2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\mipmap_sampler.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\mipmap_set.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\mipmap_set2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\rect.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\sample.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\save_small_roi.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\sub_rect_fills_and_gets.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\sub_sub_fill.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\sub_sub_fill2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\buffer\tests\vertical_gradient.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-backend-file.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-buffer-cast.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-buffer-changes.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-buffer-extract.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-buffer-hot-tile.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-buffer-iterator-aliasing.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-buffer-sharing.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-buffer-tile-voiding.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-buffer-unaligned-access.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-change-processor-rect.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-color-op.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-compression.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-convert-format.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-empty-tile.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-format-sensing.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-gegl-color.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-gegl-rectangle.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-gegl-tile.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-image-compare.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-license-check.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-misc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-node-connections.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-node-exponential.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-node-passthrough.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-node-properties.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-object-forked.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-opencl-colors.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-path.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-proxynop-processing.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-scaled-blit.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-serialize.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\simple\test-svg-abyss.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\xml\common.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\xml\test-load.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\xml\test-roundtrip.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tests\xml\test-save.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tools\detect_opencl.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tools\exp_combine.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tools\gegl-imgcmp.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tools\gegl-tester.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tools\introspect.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tools\operations_html.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\gegl\tools\operation_reference.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\deps\glib-stubs.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\libmypaint\deps\babl\babl-stubs.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\apps\json_parse.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\fuzz\json_array_fuzzer.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\fuzz\json_object_fuzzer.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\fuzz\json_pointer_fuzzer.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\fuzz\tokener_parse_ex_fuzzer.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\tests\parse_flags.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\tests\test_cast.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\tests\test_charcase.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\tests\test_compare.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\tests\test_deep_copy.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\tests\test_double_serializer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\tests\test_float.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\tests\test_int_add.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\tests\test_int_get.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\tests\test_json_patch.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\tests\test_json_pointer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\tests\test_locale.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\tests\test_null.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\tests\test_object_iterator.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\tests\test_parse.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\tests\test_parse_int64.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\tests\test_printbuf.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\tests\test_set_serializer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\tests\test_set_value.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\tests\test_strerror.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\tests\test_util_file.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\tests\test_visit.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\tests\test1.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\tests\test2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\tests\test4.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\tests\testReplaceExisting.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\json_patch.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\json-c\libjson.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -660,27 +2493,6 @@
     <ClInclude Include="third_party\libmypaint\fastapprox\sse.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="third_party\libmypaint\gegl\mypaint-gegl-surface.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="third_party\libmypaint\glib\mypaint-brush.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="third_party\libmypaint\glib\mypaint-gegl-glib.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="third_party\libmypaint\tests\mypaint-benchmark.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="third_party\libmypaint\tests\mypaint-test-surface.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="third_party\libmypaint\tests\mypaint-utils-stroke-player.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="third_party\libmypaint\tests\testutils.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="third_party\libmypaint\brushmodes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -754,6 +2566,726 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="third_party\libmypaint\tilemap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\bin\argvs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\bin\gegl-options.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\bin\gegl-path-smooth.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\bin\gegl-path-spiro.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\bin\mrg-gegl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\bin\ui.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-algorithms.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-buffer-backend.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-buffer-config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-buffer-enums.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-buffer-formats.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-buffer-index.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-buffer-iterator-private.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-buffer-iterator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-buffer-matrix2.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-buffer-private.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-buffer-swap-private.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-buffer-swap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-buffer-types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-buffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-compression-nop.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-compression-rle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-compression-zlib.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-compression.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-memory-private.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-memory.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-rectangle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-sampler-cubic.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-sampler-linear.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-sampler-lohalo.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-sampler-nearest.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-sampler-nohalo.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-sampler.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-scratch-private.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-scratch.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile-alloc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile-backend-buffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile-backend-file.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile-backend-ram.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile-backend-swap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile-backend.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile-handler-cache.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile-handler-chain.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile-handler-empty.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile-handler-log.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile-handler-private.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile-handler-zoom.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile-handler.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile-source.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile-storage.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\buffer\gegl-tile.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-apply.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-cpuaccel-private.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-cpuaccel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-debug.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-dot-visitor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-dot.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-enums.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-gio-private.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-init-private.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-init.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-instrument.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-introspection-support.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-lookup.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-math.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-matrix.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-metadata.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-metadatahash.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-metadatastore.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-module.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-op.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-operations-util.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-parallel-private.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-parallel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-plugin.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-random-private.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-random.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-stats.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-types-internal.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-utils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl-xml.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\gegl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\graph\gegl-cache.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\graph\gegl-callback-visitor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\graph\gegl-connection.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\graph\gegl-node-output-visitable.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\graph\gegl-node-private.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\graph\gegl-node.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\graph\gegl-pad.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\graph\gegl-region-generic.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\graph\gegl-region.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\graph\gegl-visitable.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\graph\gegl-visitor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\module\gegldatafiles.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\module\geglmodule.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\module\geglmoduledb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\opencl\cl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\opencl\cl_d3d10.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\opencl\cl_d3d11.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\opencl\cl_dx9_media_sharing.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\opencl\cl_egl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\opencl\cl_ext.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\opencl\cl_gl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\opencl\cl_half.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\opencl\cl_icd.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\opencl\cl_layer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\opencl\cl_platform.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\opencl\cl_va_api_media_sharing_intel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\opencl\cl_version.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\opencl\gegl-buffer-cl-cache.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\opencl\gegl-buffer-cl-iterator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\opencl\gegl-cl-color.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\opencl\gegl-cl-init.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\opencl\gegl-cl-introspection-support.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\opencl\gegl-cl-random.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\opencl\gegl-cl-types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\opencl\gegl-cl-version.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\opencl\gegl-cl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\opencl\opencl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\opencl\opencl.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\operation\gegl-extension-handler.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-area-filter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-composer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-composer3.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-context-private.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-context.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-filter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-handlers-private.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-handlers.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-meta-json.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-meta.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-point-composer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-point-composer3.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-point-filter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-point-render.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-private.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-property-keys.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-sink.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-source.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation-temporal.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\operation\gegl-operation.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\operation\gegl-operations.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\process\gegl-eval-manager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\process\gegl-graph-debug.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\process\gegl-graph-traversal-private.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\process\gegl-graph-traversal.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\process\gegl-processor-private.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\process\gegl-processor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\property-types\gegl-audio-fragment.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\property-types\gegl-color.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\property-types\gegl-curve.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\property-types\gegl-paramspecs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\gegl\property-types\gegl-path.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\libs\ctx\ctx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\libs\npd\deformation.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\libs\npd\graphics.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\libs\npd\lattice_cut.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\libs\npd\npd.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\libs\npd\npd_common.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\libs\npd\npd_debug.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\libs\npd\npd_gegl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\libs\npd\npd_math.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\libs\rgbe\rgbe.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\operations\common\envelopes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\operations\common\invert-common.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\operations\common\map-common.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\operations\common\negative-darkroom\negative-darkroom-curve-enum.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\operations\common\perlin\perlin.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\operations\external\matting-levin-cblas.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\operations\external\v4lutils\v4lutils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\operations\seamless-clone\seamless-clone.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\operations\transform\module.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\operations\transform\scale.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\operations\transform\transform-core.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\perf\test-common.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\seamless-clone\sc-common.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\seamless-clone\sc-context-private.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\seamless-clone\sc-context.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\seamless-clone\sc-outline.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\seamless-clone\sc-sample.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\libnsgif\lzw.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\libnsgif\nsgif.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\p2t\common\cutils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\p2t\common\poly2tri-private.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\p2t\common\shapes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\p2t\common\utils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\p2t\poly2tri.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\p2t\sweep\advancing_front.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\p2t\sweep\cdt.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\p2t\sweep\sweep.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\p2t\sweep\sweep_context.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\bounded-line.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\cdt-flipfix.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\cdt.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\circle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\cluster.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\delaunay-terminator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\edge.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\line.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\mesh-action.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\mesh.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\point.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\pslg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\refine.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\refiner.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\rmath.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\triangle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\triangulation.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\utils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\vector2.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\vedge.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\visibility.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\refine\vtriangle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\render\mesh-render.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\libmypaint\gegl\subprojects\poly2tri-c\poly2tri-c\render\svg-plot.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\json-c\tests\parse_flags.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\json-c\arraylist.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\json-c\debug.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\json-c\json_c_version.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\json-c\json_inttypes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\json-c\json_object.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\json-c\json_object_iterator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\json-c\json_object_private.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\json-c\json_patch.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\json-c\json_pointer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\json-c\json_pointer_private.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\json-c\json_tokener.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\json-c\json_types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\json-c\json_util.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\json-c\json_visit.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\json-c\linkhash.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\json-c\math_compat.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\json-c\printbuf.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\json-c\random_seed.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\json-c\snprintf_compat.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\json-c\strdup_compat.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\json-c\strerror_override.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="third_party\json-c\vasprintf_compat.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -931,9 +3463,6 @@
     <None Include="resources\styles\dark-theme.qss">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="third_party\libmypaint\gegl\Makefile.in" />
-    <None Include="third_party\libmypaint\gegl\libmypaint-gegl.pc.in" />
-    <None Include="third_party\libmypaint\gegl\Makefile.am" />
     <None Include="third_party\libmypaint\aclocal.m4" />
     <None Include="third_party\libmypaint\ar-lib" />
     <None Include="third_party\libmypaint\brushsettings.json" />
@@ -1047,6 +3576,29 @@
     <None Include="third_party\libmypaint\doc\Makefile.in" />
     <None Include="third_party\libmypaint\doc\Doxyfile.in" />
     <None Include="third_party\libmypaint\doc\Makefile.am" />
+    <None Include="third_party\libmypaint\gegl\docs\obsolete\gegl-sharp\index.html" />
+    <None Include="third_party\libmypaint\gegl\docs\obsolete\gegl-vala\index.html" />
+    <None Include="third_party\libmypaint\gegl\docs\obsolete\pygegl\index.html" />
+    <None Include="third_party\libmypaint\gegl\docs\obsolete\rgegl\index.html" />
+    <None Include="third_party\libmypaint\gegl\gegl\buffer\gegl-algorithms-2x2-downscale.inc">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="third_party\libmypaint\gegl\gegl\buffer\gegl-algorithms-bilinear.inc">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="third_party\libmypaint\gegl\gegl\buffer\gegl-algorithms-boxfilter.inc">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="third_party\libmypaint\gegl\gegl\buffer\gegl-variants.inc">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="third_party\libmypaint\gegl\operations\common-cxx\dct-basis.inc">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="third_party\libmypaint\gegl\operations\common\blue-noise-data.inc">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="third_party\json-c\README.html" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="FrameDirector.rc">

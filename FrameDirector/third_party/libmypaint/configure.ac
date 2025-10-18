@@ -7,18 +7,30 @@ AC_PREREQ(2.62)
 # API version: see https://github.com/mypaint/libmypaint/wiki/Versioning
 # See http://semver.org/ for what this means.
 
-m4_define([libmypaint_api_major], [2])
-m4_define([libmypaint_api_minor], [0])
-m4_define([libmypaint_api_micro], [0])
-m4_define([libmypaint_api_prerelease], [beta])  # may be blank
+m4_define([libmypaint_api_major], [1])
+m4_define([libmypaint_api_minor], [6])
+m4_define([libmypaint_api_micro], [1])
+m4_define([libmypaint_api_prerelease], [])  # may be blank
 
 # ABI version. Changes independently of API version.
 # See: https://autotools.io/libtool/version.html
 # https://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
 # The rules are fiddly, and are summarized here.
 
-m4_define([libmypaint_abi_revision], [0])  # increment on every release
-m4_define([libmypaint_abi_current], [0])  # inc when add/remove/change interfaces
+# NOTE: Due to the use of the ``-release`` flag, prior to the 1.6.1 release,
+# the ABI version fields were not used in a meaningful way, since the SONAME
+# differed even for ABI-compatible versions of the library.
+
+# Increment if any public interfaces have been
+# added/removed/changed since the last release.
+m4_define([libmypaint_abi_current], [0])
+
+# Set to 0 if ``current`` is incremented, otherwise increment
+# if the __code__ has changed at all since the last release.
+m4_define([libmypaint_abi_revision], [0])
+
+# Set to 0 if any public interfaces have been removed/changed since the last release,
+# otherwise increment if any public interfaces have been __added__.
 m4_define([libmypaint_abi_age], [0])  # inc only if changes backward compat
 
 
@@ -185,22 +197,13 @@ AC_ARG_ENABLE(docs,
 )
 
 if test "x$enable_docs" = xyes; then
-  AC_MSG_NOTICE([Checking requirements for building docs: doxygen, sphinx + breathe extension])
   AC_CHECK_PROGS(DOXYGEN, doxygen)
-  AS_IF(test "x$DOXYGEN" != "x", [], [AC_MSG_ERROR([doxygen is required to build docs])])
-  AC_CHECK_PROGS(SPHINX_BUILD, sphinx-build2 sphinx-build-2 sphinx-build3 sphinx-build-3 sphinx-build)
-  AS_IF(test "x$SPHINX_BUILD" != "x", [], [AC_MSG_ERROR([sphinx is required to build docs])])
-  AC_MSG_CHECKING(for sphinx extension "breathe")
-  AS_IF([dnl
-  python -c "
-import breathe
-import breathe.exception
-breathe.exception.BreatheError" 2> /dev/null],
-  [AC_MSG_RESULT([yes])],
-  [AC_MSG_RESULT([no]); AC_MSG_ERROR(the sphinx breathe extension is required to build docs)])
+  AS_IF(test "x$DOXYGEN" != "x", [],
+    [AC_MSG_ERROR([doxygen is required to build the documentation]);
+     AS_EXIT([1])
+    ])
 fi
-AM_CONDITIONAL(ENABLE_DOCS,
-               test "x$DOXYGEN" != "x" && test "x$SPHINX_BUILD" != "x")
+AM_CONDITIONAL(ENABLE_DOCS, test "x$DOXYGEN" != "x")
 
 ## json-c ##
 PKG_CHECK_MODULES(JSON, json-c,
@@ -240,12 +243,12 @@ AC_ARG_ENABLE(i18n,
 
 if test "x$enable_i18n" != "xno"; then
   enable_i18n="yes"
-  GETTEXT_PACKAGE=libmypaint-libmypaint_api_platform_version
+  GETTEXT_PACKAGE=libmypaint
   AC_SUBST(GETTEXT_PACKAGE)
   AC_DEFINE_UNQUOTED(GETTEXT_PACKAGE, "$GETTEXT_PACKAGE",
                      [The prefix for our gettext translation domains.])
   AC_SUBST(GETTEXT_PACKAGE)
-IT_PROG_INTLTOOL
+  IT_PROG_INTLTOOL
   AM_GLIB_GNU_GETTEXT
 
   dnl Debian: stdlib
@@ -275,7 +278,7 @@ else
 fi
 AM_CONDITIONAL(WITH_GLIB, use_glib)
 
-## GEGL ##
+## GEGL - NOT REQUIRED TO BUILD, NOT USED BY ANY MAJOR PROJECT ##
 AC_ARG_ENABLE(gegl,
   AS_HELP_STRING([--enable-gegl],
     [enable GEGL based code in build (yes|no, default=no)])
@@ -291,7 +294,7 @@ if eval "test x$enable_gegl = xyes"; then
 ])
 AC_SUBST(GEGL_VERSION)
 else
-  DOXYGEN_EXCLUDED="../../gegl/"
+  DOXYGEN_EXCLUDED="../gegl/"
 fi
 AM_CONDITIONAL(ENABLE_GEGL, test "x$enable_gegl" = "xyes")
 AC_SUBST(DOXYGEN_EXCLUDED)
@@ -302,9 +305,9 @@ AC_SUBST(PKG_CONFIG_REQUIRES)
 AC_CONFIG_FILES([
   doc/Doxyfile
   doc/Makefile
-  gegl/libmypaint-gegl-]libmypaint_api_platform_version()[.pc:gegl/libmypaint-gegl.pc.in
+  gegl/libmypaint-gegl.pc:gegl/libmypaint-gegl.pc.in
   gegl/Makefile
-  libmypaint-]libmypaint_api_platform_version()[.pc:libmypaint.pc.in
+  libmypaint.pc:libmypaint.pc.in
   Makefile
   po/Makefile.in
   tests/Makefile
