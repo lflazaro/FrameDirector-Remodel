@@ -239,10 +239,10 @@ void RasterBrushTool::ensureSurface()
     m_surface->setEraser(m_eraserMode);
 }
 
-bool RasterBrushTool::applyMyPaintStroke(const QPointF& position, double deltaTimeSeconds)
+int RasterBrushTool::applyMyPaintStroke(const QPointF& position, double deltaTimeSeconds)
 {
     if (!m_surface || !m_brush) {
-        return false;
+        return -1;
     }
 
     double elapsedSeconds = deltaTimeSeconds;
@@ -250,14 +250,21 @@ bool RasterBrushTool::applyMyPaintStroke(const QPointF& position, double deltaTi
         elapsedSeconds = m_timer.isValid() ? m_timer.restart() / 1000.0 : 0.0;
     }
 
+    if (elapsedSeconds <= 0.0) {
+        elapsedSeconds = 1.0 / 1000.0;
+    }
+
     const float pressure = 1.0f;
     const int result = mypaint_brush_stroke_to(m_brush, m_surface.get(), position.x(), position.y(), pressure, 0.0f, 0.0f, elapsedSeconds);
     if (result < 0) {
-        return false;
+        return result;
     }
 
-    expandDirtyRect(position, m_size);
-    return true;
+    if (result > 0) {
+        expandDirtyRect(position, m_size);
+    }
+
+    return result;
 }
 
 void RasterBrushTool::applyFallbackStroke(const QPointF& position, bool initial)
@@ -331,11 +338,20 @@ void RasterBrushTool::beginStroke(RasterDocument* document, int layerIndex, int 
     m_activeStroke = true;
 
     bool painted = false;
-    if (m_surface && m_brush) {
-        painted = applyMyPaintStroke(position, 0.0);
+    bool requireFallback = (!m_surface || !m_brush);
+    if (!requireFallback) {
+        const int result = applyMyPaintStroke(position, 0.0);
+        if (result > 0) {
+            painted = true;
+        } else if (result == 0) {
+            applyFallbackStroke(position, true);
+            painted = true;
+        } else {
+            requireFallback = true;
+        }
     }
 
-    if (!painted) {
+    if (requireFallback) {
         m_useFallback = true;
         applyFallbackStroke(position, true);
         painted = true;
@@ -354,14 +370,21 @@ void RasterBrushTool::strokeTo(const QPointF& position, double deltaTimeSeconds)
 
     bool painted = false;
     if (!m_useFallback && m_surface && m_brush) {
-        painted = applyMyPaintStroke(position, deltaTimeSeconds);
-        if (!painted) {
+        const int result = applyMyPaintStroke(position, deltaTimeSeconds);
+        if (result > 0) {
+            painted = true;
+        } else if (result == 0) {
+            applyFallbackStroke(position, !m_lastPointValid);
+            painted = true;
+        } else {
             m_useFallback = true;
         }
+    } else if (!m_useFallback) {
+        m_useFallback = true;
     }
 
     if (m_useFallback) {
-        applyFallbackStroke(position, !m_lastPointValid);
+        applyFallbackStroke(position, !m_lastPointValid && !painted);
         painted = true;
     }
 
