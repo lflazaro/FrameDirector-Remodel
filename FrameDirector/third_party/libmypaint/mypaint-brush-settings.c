@@ -22,7 +22,7 @@
 #include <assert.h>
 
 #ifdef HAVE_GETTEXT
-  #include <third_party/libmypaint/libintl.h>
+  #include <libintl.h>
   #define N_(String) (String)
   #define  _(String) gettext (String)
 #else

@@ -107,7 +107,7 @@ struct json_object *json_object_from_fd_ex(int fd, int in_depth)
 		return NULL;
 	}
 
-	while ((ret = read(fd, buf, JSON_FILE_BUF_SIZE)) > 0)
+	while ((ret = _read(fd, buf, JSON_FILE_BUF_SIZE)) > 0)
 	{
 		printbuf_memappend(pb, buf, ret);
 	}
@@ -142,7 +142,7 @@ struct json_object *json_object_from_file(const char *filename)
 		return NULL;
 	}
 	obj = json_object_from_fd(fd);
-	close(fd);
+	_close(fd);
 	return obj;
 }
 
@@ -167,7 +167,7 @@ int json_object_to_file_ext(const char *filename, struct json_object *obj, int f
 	}
 	ret = _json_object_to_fd(fd, obj, flags, filename);
 	saved_errno = errno;
-	close(fd);
+	_close(fd);
 	errno = saved_errno;
 	return ret;
 }
@@ -200,7 +200,7 @@ static int _json_object_to_fd(int fd, struct json_object *obj, int flags, const 
 	wpos = 0;
 	while (wpos < wsize)
 	{
-		if ((ret = write(fd, json_str + wpos, wsize - wpos)) < 0)
+		if ((ret = _write(fd, json_str + wpos, wsize - wpos)) < 0)
 		{
 			_json_c_set_last_err("json_object_to_fd: error writing file %s: %s\n",
 			                     filename, strerror(errno));
