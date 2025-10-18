@@ -315,11 +315,32 @@ int RasterBrushTool::applyMyPaintStroke(const QPointF& position, double deltaTim
     const double dy = position.y() - startPoint.y();
     const double distance = std::hypot(dx, dy);
 
+    float actualRadius = mypaint_brush_get_state(m_brush, MYPAINT_BRUSH_STATE_ACTUAL_RADIUS);
+    if (!std::isfinite(actualRadius) || actualRadius <= 0.0f) {
+        const float baseRadiusLog = mypaint_brush_get_base_value(m_brush, MYPAINT_BRUSH_SETTING_RADIUS_LOGARITHMIC);
+        actualRadius = std::exp(baseRadiusLog);
+    }
+    const double radius = std::max<double>(actualRadius, 1.0);
+
+    float spacingFactor = 0.0f;
+    const float dabsState = mypaint_brush_get_state(m_brush, MYPAINT_BRUSH_STATE_DABS_PER_ACTUAL_RADIUS);
+    if (std::isfinite(dabsState) && dabsState > 0.0f) {
+        spacingFactor = 1.0f / dabsState;
+    }
+    if (spacingFactor <= 0.0f) {
+        const float dabsBase = mypaint_brush_get_base_value(m_brush, MYPAINT_BRUSH_SETTING_DABS_PER_ACTUAL_RADIUS);
+        if (std::isfinite(dabsBase) && dabsBase > 0.0f) {
+            spacingFactor = 1.0f / dabsBase;
+        }
+    }
+    if (spacingFactor <= 0.0f) {
+        spacingFactor = qMax(0.01f, m_spacing);
+    }
+    spacingFactor = qBound(0.01f, spacingFactor, 2.0f);
+
     int steps = 1;
     if (distance > 0.0) {
-        const double radius = static_cast<double>(qMax<qreal>(m_size, 1.0));
-        const double spacingFactor = static_cast<double>(qMax(0.01f, m_spacing));
-        const double stepDistance = std::max(radius * spacingFactor, 0.5);
+        const double stepDistance = std::max(radius * static_cast<double>(spacingFactor), 0.5);
         steps = std::max(1, static_cast<int>(std::ceil(distance / stepDistance)));
         steps = std::min(steps, 1024);
     }
@@ -337,7 +358,7 @@ int RasterBrushTool::applyMyPaintStroke(const QPointF& position, double deltaTim
             return lastResult;
         }
         if (lastResult > 0) {
-            expandDirtyRect(current, m_size);
+            expandDirtyRect(current, radius);
             painted = true;
         }
     }
