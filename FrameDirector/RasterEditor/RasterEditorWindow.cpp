@@ -829,18 +829,18 @@ void RasterEditorWindow::onLayerItemChanged(QListWidgetItem* item)
         return;
     }
 
-    const int row = m_layerList->row(item);
-    if (row < 0 || row >= m_document->layerCount()) {
+    const int layerIndex = item->data(Qt::UserRole).toInt(-1);
+    if (layerIndex < 0 || layerIndex >= m_document->layerCount()) {
         return;
     }
 
-    const RasterLayer& layer = m_document->layerAt(row);
+    const RasterLayer& layer = m_document->layerAt(layerIndex);
     const bool visible = item->checkState() == Qt::Checked;
     if (layer.isVisible() != visible) {
-        m_document->setLayerVisible(row, visible);
+        m_document->setLayerVisible(layerIndex, visible);
     }
     if (layer.name() != item->text()) {
-        m_document->renameLayer(row, item->text());
+        m_document->renameLayer(layerIndex, item->text());
     }
 }
 
@@ -861,9 +861,16 @@ void RasterEditorWindow::onRemoveLayer()
         return;
     }
 
-    const int row = m_layerList->currentRow();
-    if (row >= 0) {
-        m_document->removeLayer(row);
+    const int row = m_layerList ? m_layerList->currentRow() : -1;
+    if (row < 0) {
+        return;
+    }
+
+    if (QListWidgetItem* item = m_layerList->item(row)) {
+        const int layerIndex = item->data(Qt::UserRole).toInt(-1);
+        if (layerIndex >= 0) {
+            m_document->removeLayer(layerIndex);
+        }
     }
 }
 
@@ -913,9 +920,26 @@ void RasterEditorWindow::onActiveLayerChanged(int index)
         return;
     }
 
-    if (m_layerList && m_layerList->currentRow() != index) {
-        QSignalBlocker blocker(m_layerList);
-        m_layerList->setCurrentRow(index);
+    if (m_layerList) {
+        const int currentRow = m_layerList->currentRow();
+        bool needsUpdate = true;
+        if (currentRow >= 0) {
+            if (QListWidgetItem* currentItem = m_layerList->item(currentRow)) {
+                needsUpdate = (currentItem->data(Qt::UserRole).toInt(-1) != index);
+            }
+        }
+
+        if (needsUpdate) {
+            QSignalBlocker blocker(m_layerList);
+            for (int row = 0; row < m_layerList->count(); ++row) {
+                if (QListWidgetItem* item = m_layerList->item(row)) {
+                    if (item->data(Qt::UserRole).toInt(-1) == index) {
+                        m_layerList->setCurrentRow(row);
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     updateLayerInfo();
