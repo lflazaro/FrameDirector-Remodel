@@ -6,6 +6,7 @@
 #include <QPair>
 #include <QPointF>
 #include <QRect>
+#include <QString>
 #include <QVector>
 #include <memory>
 
@@ -73,7 +74,7 @@ public:
     void setEraserMode(bool eraser);
     bool eraserMode() const { return m_eraserMode; }
 
-    void applyPreset(const QVector<QPair<MyPaintBrushSetting, float>>& values);
+    void applyPreset(const QVector<QPair<MyPaintBrushSetting, float>>& values, const QString& brushResource = QString());
 
 protected:
     void updateBrushParameters();
@@ -84,6 +85,8 @@ private:
     void ensureSurface();
     int applyMyPaintStroke(const QPointF& position, double deltaTimeSeconds);
     void applyFallbackStroke(const QPointF& position, bool initial);
+    bool loadBrushDefinition(const QString& resourcePath);
+    double computeElapsedSeconds(double deltaTimeSeconds);
 
     std::unique_ptr<Surface> m_surface;
 

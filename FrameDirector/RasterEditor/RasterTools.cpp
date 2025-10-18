@@ -5,6 +5,9 @@
 #include <QElapsedTimer>
 #include <QImage>
 #include <QColor>
+#include <QDebug>
+#include <QFile>
+#include <QIODevice>
 #include <QPainter>
 #include <QPen>
 #include <QRadialGradient>
@@ -14,6 +17,7 @@
 #include <QtMath>
 #include <QtGlobal>
 #include <cmath>
+#include <algorithm>
 
 namespace
 {
@@ -239,32 +243,110 @@ void RasterBrushTool::ensureSurface()
     m_surface->setEraser(m_eraserMode);
 }
 
+double RasterBrushTool::computeElapsedSeconds(double deltaTimeSeconds)
+{
+    if (deltaTimeSeconds > 0.0) {
+        if (!m_timer.isValid()) {
+            m_timer.start();
+        } else {
+            m_timer.restart();
+        }
+        return deltaTimeSeconds;
+    }
+
+    if (!m_timer.isValid()) {
+        m_timer.start();
+        return 1.0 / 1000.0;
+    }
+
+    double elapsedSeconds = m_timer.restart() / 1000.0;
+    if (elapsedSeconds <= 0.0) {
+        elapsedSeconds = 1.0 / 1000.0;
+    }
+    return elapsedSeconds;
+}
+
+bool RasterBrushTool::loadBrushDefinition(const QString& resourcePath)
+{
+    if (!m_brush) {
+        return false;
+    }
+
+    if (resourcePath.isEmpty()) {
+        mypaint_brush_from_defaults(m_brush);
+        return true;
+    }
+
+    QFile file(resourcePath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qWarning() << "Failed to open brush resource" << resourcePath;
+        mypaint_brush_from_defaults(m_brush);
+        return false;
+    }
+
+    const QByteArray data = file.readAll();
+    if (data.isEmpty()) {
+        qWarning() << "Brush resource is empty" << resourcePath;
+        mypaint_brush_from_defaults(m_brush);
+        return false;
+    }
+
+    const gboolean loaded = mypaint_brush_from_string(m_brush, data.constData());
+    if (!loaded) {
+        qWarning() << "Failed to parse brush resource" << resourcePath;
+        mypaint_brush_from_defaults(m_brush);
+        return false;
+    }
+
+    return true;
+}
+
 int RasterBrushTool::applyMyPaintStroke(const QPointF& position, double deltaTimeSeconds)
 {
     if (!m_surface || !m_brush) {
         return -1;
     }
 
-    double elapsedSeconds = deltaTimeSeconds;
-    if (elapsedSeconds <= 0.0) {
-        elapsedSeconds = m_timer.isValid() ? m_timer.restart() / 1000.0 : 0.0;
-    }
-
-    if (elapsedSeconds <= 0.0) {
-        elapsedSeconds = 1.0 / 1000.0;
-    }
-
+    const double elapsedSeconds = computeElapsedSeconds(deltaTimeSeconds);
     const float pressure = 1.0f;
-    const int result = mypaint_brush_stroke_to(m_brush, m_surface.get(), position.x(), position.y(), pressure, 0.0f, 0.0f, elapsedSeconds);
-    if (result < 0) {
-        return result;
+
+    const QPointF startPoint = m_lastPointValid ? m_lastPosition : position;
+    const double dx = position.x() - startPoint.x();
+    const double dy = position.y() - startPoint.y();
+    const double distance = std::hypot(dx, dy);
+
+    int steps = 1;
+    if (distance > 0.0) {
+        const double radius = static_cast<double>(qMax<qreal>(m_size, 1.0));
+        const double spacingFactor = static_cast<double>(qMax(0.01f, m_spacing));
+        const double stepDistance = std::max(radius * spacingFactor, 0.5);
+        steps = std::max(1, static_cast<int>(std::ceil(distance / stepDistance)));
+        steps = std::min(steps, 1024);
     }
 
-    if (result > 0) {
-        expandDirtyRect(position, m_size);
+    const QPointF stepDelta(steps > 0 ? dx / steps : 0.0, steps > 0 ? dy / steps : 0.0);
+    const float timeSlice = static_cast<float>(std::max(elapsedSeconds / steps, 1e-6));
+
+    QPointF current = startPoint;
+    bool painted = false;
+    int lastResult = 0;
+    for (int i = 0; i < steps; ++i) {
+        current += stepDelta;
+        lastResult = mypaint_brush_stroke_to(m_brush, m_surface.get(), current.x(), current.y(), pressure, 0.0f, 0.0f, timeSlice);
+        if (lastResult < 0) {
+            return lastResult;
+        }
+        if (lastResult > 0) {
+            expandDirtyRect(current, m_size);
+            painted = true;
+        }
     }
 
-    return result;
+    if (painted) {
+        return 1;
+    }
+
+    return lastResult;
 }
 
 void RasterBrushTool::applyFallbackStroke(const QPointF& position, bool initial)
@@ -483,13 +565,13 @@ void RasterBrushTool::setEraserMode(bool eraser)
     }
 }
 
-void RasterBrushTool::applyPreset(const QVector<QPair<MyPaintBrushSetting, float>>& values)
+void RasterBrushTool::applyPreset(const QVector<QPair<MyPaintBrushSetting, float>>& values, const QString& brushResource)
 {
     if (!m_brush) {
         return;
     }
 
-    mypaint_brush_from_defaults(m_brush);
+    loadBrushDefinition(brushResource);
     updateBrushParameters();
 
     for (const auto& value : values) {
