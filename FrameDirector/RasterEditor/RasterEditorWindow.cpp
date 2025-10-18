@@ -942,6 +942,7 @@ void RasterEditorWindow::onActiveLayerChanged(int index)
         }
     }
 
+
     updateLayerInfo();
     updateLayerPropertiesUi();
     m_removeLayerButton->setEnabled(m_document->layerCount() > 1);
