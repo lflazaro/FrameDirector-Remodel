@@ -43,6 +43,12 @@
 #endif
 #include <io.h>
 #include <windows.h>
+#ifndef read
+#define read _read
+#endif
+#ifndef close
+#define close _close
+#endif
 #endif /* defined(_WIN32) */
 
 #if !defined(HAVE_OPEN) && defined(_WIN32)

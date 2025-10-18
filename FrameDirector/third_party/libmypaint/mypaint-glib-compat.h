@@ -27,6 +27,18 @@ typedef gint gboolean;
 /* From $LIBPATH/glib-2.0/include/glibconfig.h */
 typedef unsigned short guint16;
 
+#ifndef dgettext
+#define dgettext(domain, msgid) (msgid)
+#endif
+
+#ifndef _
+#define _(String) (String)
+#endif
+
+#ifndef N_
+#define N_(String) (String)
+#endif
+
 #endif // __G_LIB_H__
 
 #endif // MYPAINTGLIBCOMPAT_H

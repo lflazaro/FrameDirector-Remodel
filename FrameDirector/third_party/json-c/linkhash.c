@@ -33,7 +33,7 @@
 
 #include "linkhash.h"
 #include "random_seed.h"
-#include <cstdint>
+#include <stdint.h>
 
 /* hash functions */
 static unsigned long lh_char_hash(const void *k);

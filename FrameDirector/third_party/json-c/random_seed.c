@@ -260,6 +260,10 @@ static int get_dev_random_seed(int *seed)
 
 /* clang-format off */
 #include <windows.h>
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4996)
+#endif
 
 /* Caution: these blank lines must remain so clang-format doesn't reorder
    includes to put windows.h after wincrypt.h */
@@ -300,6 +304,10 @@ static int get_cryptgenrandom_seed(int *seed)
 	return 0;
 }
 
+#endif
+
+#if defined(_MSC_VER)
+#pragma warning(pop)
 #endif
 
 /* get_time_seed */
