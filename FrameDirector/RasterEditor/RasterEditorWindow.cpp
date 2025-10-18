@@ -332,7 +332,8 @@ void RasterEditorWindow::initializeUi()
 
     mainLayout->addWidget(splitter, 1);
 
-    connect(m_toolButtonGroup, static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), this, &RasterEditorWindow::onToolChanged);
+    connect(m_toolButtonGroup, &QButtonGroup::idClicked,
+        this, &RasterEditorWindow::onToolChanged);
     if (QAbstractButton* brushButton = m_toolButtonGroup->button(0)) {
         brushButton->setChecked(true);
     }
