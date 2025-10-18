@@ -21,7 +21,7 @@
 #define HAVE_DEV_RANDOM 1
 #endif
 
-#ifdef HAVE_ARC4RANDOM
+#if defined(HAVE_ARC4RANDOM) && HAVE_ARC4RANDOM
 #undef HAVE_GETRANDOM
 #undef HAVE_DEV_RANDOM
 #undef HAVE_CRYPTGENRANDOM
@@ -332,9 +332,9 @@ int json_c_get_random_seed(void)
 	if (has_rdrand())
 		return get_rdrand_seed();
 #endif
-#ifdef HAVE_ARC4RANDOM
-	/* arc4random never fails, so use it if it's available */
-	return arc4random();
+#if defined(HAVE_ARC4RANDOM) && HAVE_ARC4RANDOM
+        /* arc4random never fails, so use it if it's available */
+        return arc4random();
 #else
 #ifdef HAVE_GETRANDOM
 	{

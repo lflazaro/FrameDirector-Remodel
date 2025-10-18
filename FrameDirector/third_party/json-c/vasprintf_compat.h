@@ -14,7 +14,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#if !defined(HAVE_VASPRINTF)
+#if !defined(HAVE_VASPRINTF) || !HAVE_VASPRINTF
 /* CAW: compliant version of vasprintf */
 static int vasprintf(char **buf, const char *fmt, va_list ap)
 {
