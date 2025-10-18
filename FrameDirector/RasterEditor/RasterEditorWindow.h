@@ -8,6 +8,8 @@
 #include <QJsonObject>
 #include <QByteArray>
 
+#include "RasterDocument.h"
+
 class QCheckBox;
 class QComboBox;
 class QDoubleSpinBox;
@@ -21,7 +23,6 @@ class QToolButton;
 
 class RasterBrushTool;
 class RasterCanvasWidget;
-class RasterDocument;
 class RasterEraserTool;
 class RasterFillTool;
 class RasterTool;
