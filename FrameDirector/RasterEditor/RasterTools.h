@@ -69,6 +69,8 @@ private:
     struct Surface;
 
     void ensureSurface();
+    bool applyMyPaintStroke(const QPointF& position, double deltaTimeSeconds);
+    void applyFallbackStroke(const QPointF& position, bool initial);
 
     std::unique_ptr<Surface> m_surface;
 
@@ -76,10 +78,12 @@ private:
     qreal m_size;
     bool m_eraserMode;
     QPointF m_lastPosition;
+    bool m_lastPointValid;
     bool m_activeStroke;
     QElapsedTimer m_timer;
     QImage* m_targetImage;
     MyPaintBrush* m_brush;
+    bool m_useFallback;
 };
 
 class RasterEraserTool : public RasterBrushTool
