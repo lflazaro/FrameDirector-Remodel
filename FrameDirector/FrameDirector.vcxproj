@@ -770,6 +770,7 @@
     <ClCompile Include="third_party\json-c\random_seed.c" />
     <ClCompile Include="third_party\json-c\strerror_override.c" />
     <ClCompile Include="third_party\libmypaint\deps\glib-object-stubs.c" />
+    <ClCompile Include="third_party\libmypaint\deps\babl\babl-stubs.c" />
     <ClCompile Include="third_party\src\adjustment.c" />
     <ClCompile Include="third_party\src\bevel_emboss.c" />
     <ClCompile Include="third_party\src\bitmap.c" />
